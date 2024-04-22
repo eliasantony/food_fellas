@@ -7,6 +7,7 @@ class RecipeCard extends StatelessWidget {
   final String cookTime;
   final String thumbnailUrl;
   final String author;
+  final bool big;
   const RecipeCard({
     super.key,
     required this.title,
@@ -15,11 +16,12 @@ class RecipeCard extends StatelessWidget {
     required this.cookTime,
     required this.thumbnailUrl,
     required this.author,
+    required this.big,
   });
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: 250, // specify the width of the card here
+      width: big ? 400 : 200,
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(

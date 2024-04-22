@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../widgets/categoryCard.dart';
 
 class DiscoverScreen extends StatelessWidget {
   @override
@@ -20,14 +21,57 @@ class DiscoverScreen extends StatelessWidget {
           ),
           // Add category filters here
           Expanded(
-            child: ListView.builder(
-              itemCount: 10, // replace with actual number of recipes
-              itemBuilder: (context, index) {
-                return ListTile(
-                  title: Text('Recipe ${index+1}'),
-                  // Add other recipe details here
-                );
-              },
+            child: GridView.count(
+              primary: false,
+              padding: const EdgeInsets.all(20),
+              crossAxisSpacing: 10,
+              mainAxisSpacing: 10,
+              crossAxisCount: 2,
+              childAspectRatio: 1.5,
+              children: <Widget>[
+                CategoryCard(
+                  title: 'Desserts',
+                  iconData:
+                      Icons.cake, // Choose an icon that represents the category
+                  gradientColors: [Colors.pink, Colors.redAccent],
+                ),
+                CategoryCard(
+                  title: 'Main Course',
+                  iconData: Icons
+                      .fastfood, // Choose an icon that represents the category
+                  gradientColors: [Colors.orange, Colors.deepOrange],
+                ),
+                CategoryCard(
+                  title: 'Appetizers',
+                  iconData: Icons.local_dining,
+                  gradientColors: [Colors.green, Colors.lightGreenAccent],
+                ),
+                CategoryCard(
+                  title: 'Drinks',
+                  iconData: Icons.local_cafe,
+                  gradientColors: [Colors.blue, Colors.lightBlueAccent],
+                ),
+                CategoryCard(
+                  title: 'Breakfast',
+                  iconData: Icons.free_breakfast,
+                  gradientColors: [Colors.purpleAccent, Colors.deepPurple],
+                ),
+                CategoryCard(
+                  title: 'Lunch',
+                  iconData: Icons.fastfood,
+                  gradientColors: [Colors.orangeAccent, Colors.deepOrange],
+                ),
+                CategoryCard(
+                  title: 'Dinner',
+                  iconData: Icons.restaurant,
+                  gradientColors: [Colors.red, Colors.redAccent],
+                ),
+                CategoryCard(
+                  title: 'Snacks',
+                  iconData: Icons.local_pizza,
+                  gradientColors: [Colors.yellow, Colors.amber],
+                ),
+              ],
             ),
           ),
         ],

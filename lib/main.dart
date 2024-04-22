@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'src/views/home_screen.dart';
 import 'src/views/discover_screen.dart';
 import 'src/views/community_screen.dart';
 import 'src/views/aichat_screen.dart';
 import 'src/views/profile_screen.dart';
-
 void main() {
+  dotenv.load(fileName: ".env");
   runApp(const MainApp());
 }
 

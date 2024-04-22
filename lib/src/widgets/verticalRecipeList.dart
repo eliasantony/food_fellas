@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
 import 'recipeCard.dart';
 
-class HorizontalRecipeRow extends StatelessWidget {
+class VerticalRecipeList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SingleChildScrollView(
-      scrollDirection: Axis.horizontal,
-      child: Row(
+      scrollDirection: Axis.vertical,
+      child: Column(
         children: [
           RecipeCard(
-            big: false,
+            big: true,
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
@@ -18,7 +18,16 @@ class HorizontalRecipeRow extends StatelessWidget {
             cookTime: '30 mins',
           ),
           RecipeCard(
-            big: false,
+            big: true,
+            title: 'Spaghetti Bolognese',
+            description: 'A classic Italian dish',
+            rating: 4.5,
+            thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
+            author: 'Elias Antony',
+            cookTime: '30 mins',
+          ),
+          RecipeCard(
+            big: true,
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
