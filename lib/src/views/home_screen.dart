@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../widgets/horizontalRecipeRow.dart';
+import 'addRecipeForm/addRecipe_form.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -41,6 +42,17 @@ class HomeScreen extends StatelessWidget {
             child: HorizontalRecipeRow(),
           ),
         ],
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => AddRecipeForm()),
+          );
+        },
+        child: Icon(Icons.add),
+        backgroundColor: Colors.green,
+        tooltip: 'Add a Recipe',
       ),
     );
   }

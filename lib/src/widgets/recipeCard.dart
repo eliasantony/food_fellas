@@ -83,7 +83,11 @@ class RecipeCard extends StatelessWidget {
                             ),
                             Row(
                               children: <Widget>[
-                                Icon(Icons.timer),
+                                Icon(
+                                  Icons.timer,
+                                  size: 16,
+                                ),
+                                SizedBox(width: 4),
                                 Text(
                                   cookTime,
                                   style: TextStyle(
