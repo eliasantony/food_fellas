@@ -88,3 +88,54 @@ class _MainPageState extends State<MainPage> {
     );
   }
 }
+
+
+class BottomNavBarMallika1 extends StatelessWidget {
+  const BottomNavBarMallika1({Key? key}) : super(key: key);
+
+  final orangeColor = const Color(0xffFF8527);
+
+  @override
+  Widget build(BuildContext context) {
+    return BottomAppBar(
+        color: Colors.white,
+        child: SizedBox(
+          height: 56,
+          width: MediaQuery.of(context).size.width,
+          child: Padding(
+            padding: const EdgeInsets.only(left: 25.0, right: 25.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                IconBottomBar(
+                    text: "Home",
+                    icon: Icons.home_outlined,
+                    selected: true,
+                    onPressed: () {}),
+                IconBottomBar(
+                    text: "Search",
+                    icon: Icons.search_outlined,
+                    selected: false,
+                    onPressed: () {}),
+                IconBottomBar2(
+                    text: "Add",
+                    icon: Icons.add_outlined,
+                    selected: false,
+                    onPressed: () {}),
+                IconBottomBar(
+                    text: "Cart",
+                    icon: Icons.local_grocery_store_outlined,
+                    selected: false,
+                    onPressed: () {}),
+                IconBottomBar(
+                    text: "Calendar",
+                    icon: Icons.date_range_outlined,
+                    selected: false,
+                    onPressed: () {})
+              ],
+            ),
+          ),
+        ),
+    );
+  }
+}

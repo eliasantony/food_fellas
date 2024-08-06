@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
-class RecipeCard extends StatelessWidget {
+import '../views/recipeDetails_screen.dart';
+
+class RecipeCard extends StatefulWidget {
   final String title;
   final String description;
   final double rating;
@@ -8,6 +10,7 @@ class RecipeCard extends StatelessWidget {
   final String thumbnailUrl;
   final String author;
   final bool big;
+
   const RecipeCard({
     super.key,
     required this.title,
@@ -16,68 +19,85 @@ class RecipeCard extends StatelessWidget {
     required this.cookTime,
     required this.thumbnailUrl,
     required this.author,
-    required this.big,
+    this.big = false,
   });
+
+  @override
+  _RecipeCardState createState() => _RecipeCardState();
+}
+
+class _RecipeCardState extends State<RecipeCard> {
+  bool isLiked = false;
+
   @override
   Widget build(BuildContext context) {
+    ThemeData theme = Theme.of(context);
+
     return Container(
-      width: big ? 400 : 200,
+      width: widget.big ? 400 : 250,
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(8),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            AspectRatio(
-              aspectRatio: 16 / 9, // specify the aspect ratio here
-              child: Image.asset(
-                thumbnailUrl,
-                fit: BoxFit.cover,
-              ),
-            ),
-            Padding(
-              padding: EdgeInsets.all(8),
+        child: Stack(
+          alignment: Alignment.topRight,
+          children: [
+            InkWell(
+              splashColor: theme.colorScheme.primary.withOpacity(0.1),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecipeDetailScreen(),
+                  ),
+                );
+              },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    title,
-                    style: TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
+                  AspectRatio(
+                    aspectRatio: 16 / 9,
+                    child: Image.asset(
+                      widget.thumbnailUrl,
+                      fit: BoxFit.cover,
                     ),
                   ),
-                  Text(
-                    author,
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: Colors.grey[600],
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    description,
-                    style: TextStyle(
-                      fontSize: 12,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    children: <Widget>[
-                      Expanded(
-                        child: Row(
+                  Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          widget.title,
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontSize: 16),
+                        ),
+                        SizedBox(height: 4),
+                        Text(
+                          widget.author,
+                          style: theme.textTheme.titleSmall,
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          widget.description,
+                          style: theme.textTheme.bodyMedium,
+                        ),
+                        SizedBox(height: 8),
+                        Row(
                           mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: <Widget>[
                             Row(
                               children: <Widget>[
-                                Icon(Icons.star, color: Colors.yellow),
+                                Icon(
+                                  Icons.star,
+                                  color: Colors.yellow.shade800,
+                                  size: 24,
+                                ),
+                                SizedBox(width: 4),
                                 Text(
-                                  rating.toString(),
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                  ),
+                                  widget.rating.toString(),
+                                  style: theme.textTheme.titleMedium,
                                 ),
                               ],
                             ),
@@ -85,23 +105,46 @@ class RecipeCard extends StatelessWidget {
                               children: <Widget>[
                                 Icon(
                                   Icons.timer,
-                                  size: 16,
+                                  size: 18,
+                                  color: theme.colorScheme.onSurface,
                                 ),
                                 SizedBox(width: 4),
                                 Text(
-                                  cookTime,
-                                  style: TextStyle(
-                                    fontSize: 16,
-                                  ),
+                                  widget.cookTime,
+                                  style: theme.textTheme.titleMedium,
                                 ),
                               ],
                             ),
                           ],
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ],
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8.0),
+              child: AnimatedSwitcher(
+                duration: Duration(milliseconds: 300),
+                transitionBuilder: (Widget child, Animation<double> animation) {
+                  return ScaleTransition(scale: animation, child: child);
+                },
+                child: CircleAvatar(
+                  key: ValueKey<bool>(isLiked),
+                  backgroundColor:
+                      Colors.white.withAlpha(200), // Slight transparency
+                  child: IconButton(
+                    icon: isLiked
+                        ? Icon(Icons.favorite, color: Colors.red)
+                        : Icon(Icons.favorite_border, color: Colors.grey),
+                    onPressed: () {
+                      setState(() {
+                        isLiked = !isLiked;
+                      });
+                    },
+                  ),
+                ),
               ),
             ),
           ],
