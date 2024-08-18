@@ -35,12 +35,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 children: <Widget>[
                   Text(
                     'Title',
-                    style: Theme.of(context).textTheme.headline5,
+                    style: Theme.of(context).textTheme.headlineMedium,
                   ),
                   SizedBox(height: 8),
                   Text(
                     'Recipe Description Recipe Description Recipe Description Recipe Description',
-                    style: Theme.of(context).textTheme.bodyText2,
+                    style: Theme.of(context).textTheme.bodyMedium,
                   ),
                   SizedBox(height: 16),
                   Row(
@@ -58,7 +58,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       ),
                       Text(
                         '$servings',
-                        style: Theme.of(context).textTheme.headline6,
+                        style: Theme.of(context).textTheme.headlineSmall,
                       ),
                       IconButton(
                         icon: Icon(Icons.add),
@@ -73,16 +73,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   SizedBox(height: 16),
                   Text(
                     'Ingredients',
-                    style: Theme.of(context).textTheme.headline6,
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   Container(
                     height: 300, // Set a fixed height for the grid view
-                    child: IngredientsGrid(servings: servings), // Pass the current servings to the grid
+                    child: IngredientsGrid(
+                        servings:
+                            servings), // Pass the current servings to the grid
                   ),
                   SizedBox(height: 16),
                   Text(
                     'Steps',
-                    style: Theme.of(context).textTheme.headline6,
+                    style: Theme.of(context).textTheme.headlineSmall,
                   ),
                   SizedBox(height: 8),
                   ...List.generate(

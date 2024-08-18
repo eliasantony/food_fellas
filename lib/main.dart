@@ -1,14 +1,26 @@
+import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_gemini/flutter_gemini.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'firebase_options.dart';
 import 'src/views/home_screen.dart';
 import 'src/views/discover_screen.dart';
 import 'src/views/community_screen.dart';
 import 'src/views/aichat_screen.dart';
 import 'src/views/profile_screen.dart';
-void main() {
-  dotenv.load(fileName: ".env");
+void main() async{
+  await dotenv.load(fileName: ".env");
+  Gemini.init(
+    apiKey: dotenv.env['GEMINI_API_KEY']!
+  );
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   runApp(const MainApp());
 }
+
+
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});
@@ -85,57 +97,6 @@ class _MainPageState extends State<MainPage> {
         unselectedItemColor: Theme.of(context).colorScheme.onSurface,
         onTap: _onItemTapped,
       ),
-    );
-  }
-}
-
-
-class BottomNavBarMallika1 extends StatelessWidget {
-  const BottomNavBarMallika1({Key? key}) : super(key: key);
-
-  final orangeColor = const Color(0xffFF8527);
-
-  @override
-  Widget build(BuildContext context) {
-    return BottomAppBar(
-        color: Colors.white,
-        child: SizedBox(
-          height: 56,
-          width: MediaQuery.of(context).size.width,
-          child: Padding(
-            padding: const EdgeInsets.only(left: 25.0, right: 25.0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                IconBottomBar(
-                    text: "Home",
-                    icon: Icons.home_outlined,
-                    selected: true,
-                    onPressed: () {}),
-                IconBottomBar(
-                    text: "Search",
-                    icon: Icons.search_outlined,
-                    selected: false,
-                    onPressed: () {}),
-                IconBottomBar2(
-                    text: "Add",
-                    icon: Icons.add_outlined,
-                    selected: false,
-                    onPressed: () {}),
-                IconBottomBar(
-                    text: "Cart",
-                    icon: Icons.local_grocery_store_outlined,
-                    selected: false,
-                    onPressed: () {}),
-                IconBottomBar(
-                    text: "Calendar",
-                    icon: Icons.date_range_outlined,
-                    selected: false,
-                    onPressed: () {})
-              ],
-            ),
-          ),
-        ),
     );
   }
 }

@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "610894749085",
+    "project_id": "food-fellas-rts94q",
+    "storage_bucket": "food-fellas-rts94q.appspot.com"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:610894749085:android:dcc7c19247a1fe6dd1e374",
+        "android_client_info": {
+          "package_name": "com.eantony.foodfellas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOsasK87aH0-hOPb-1zuKLlc0nEQnxGC8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:610894749085:android:44719b27e49ece2ed1e374",
+        "android_client_info": {
+          "package_name": "com.example.food_fellas"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCOsasK87aH0-hOPb-1zuKLlc0nEQnxGC8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
