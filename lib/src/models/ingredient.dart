@@ -1,27 +1,32 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 class Ingredient {
-  String imageUrl;
-  double baseAmount;
-  String unit;
-  String ingredientName;
-  int servings;
+  final String ingredientName;
+  final String imageUrl;
+  final String category;
 
   Ingredient({
-    required this.imageUrl,
-    required this.baseAmount,
-    required this.unit,
     required this.ingredientName,
-    required this.servings,
+    required this.imageUrl,
+    required this.category,
   });
 
-  String toJson() {
-    return '''
-    {
-      "imageUrl": "$imageUrl",
-      "baseAmount": $baseAmount,
-      "unit": "$unit",
-      "ingredientName": "$ingredientName",
-      "servings": $servings
-    }
-    ''';
+  // This method will be used to create an Ingredient object from Firebase data
+  factory Ingredient.fromDocumentSnapshot(DocumentSnapshot doc) {
+    return Ingredient(
+      ingredientName: doc['IngredientName'],
+      imageUrl:
+          'lib/assets/images/${doc['IngredientPicture']}', // Handle image URL
+      category: doc['ingredientCatgory'],
+    );
+  }
+
+  // This method will be used to convert an Ingredient object to a JSON object
+  Map<String, dynamic> toJson() {
+    return {
+      'ingredientName': ingredientName,
+      'imageUrl': imageUrl,
+      'category': category,
+    };
   }
 }

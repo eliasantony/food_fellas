@@ -132,20 +132,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
       final chat = model?.startChat();
 
       final response = await chat?.sendMessage(prompt.first);
-      String formatMessage(String message) {
-        final boldPattern = RegExp(r'\*\*(.*?)\*\*');
-        return message.replaceAllMapped(boldPattern, (match) {
-          return '**${match.group(1)}**';
-        });
-      }
-
-      final formatedResponse = formatMessage(response?.text ?? '');
-      print(formatedResponse);
+      print(response);
 
       ChatMessage aiMessage = ChatMessage(
         user: geminiUser,
         createdAt: DateTime.now(),
-        text: formatedResponse,
+        text: response?.text ?? '',
         customProperties: {"isAIMessage": true},
         quickReplies: _getQuickReplies(),
       );

@@ -1,15 +1,16 @@
 import 'package:flutter/material.dart';
-
 import '../../models/recipe.dart';
 
 class RecipeBasicsPage extends StatefulWidget {
   final Recipe recipe;
   final Function(String, dynamic) onDataChanged;
+  final GlobalKey<FormState> formKey;
 
   RecipeBasicsPage({
     Key? key,
     required this.recipe,
     required this.onDataChanged,
+    required this.formKey,
   }) : super(key: key);
 
   @override
@@ -17,44 +18,97 @@ class RecipeBasicsPage extends StatefulWidget {
 }
 
 class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
-  final _localFormKey = GlobalKey<FormState>();
+  String _selectedUnit = 'minutes';
+  String? _cookingTimeValue;
+
+  @override
+  void initState() {
+    super.initState();
+    _cookingTimeValue = widget.recipe.cookingTime.isNotEmpty
+        ? widget.recipe.cookingTime.replaceAll(RegExp(r'\D'), '')
+        : null;
+
+    _selectedUnit = widget.recipe.cookingTime.contains('hours')
+        ? 'hours'
+        : 'minutes';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Form(
-      key: _localFormKey,
+      key: widget.formKey,
       child: ListView(
         padding: EdgeInsets.all(16.0),
         children: <Widget>[
           TextFormField(
             initialValue: widget.recipe.title,
             decoration: InputDecoration(labelText: 'Title'),
-            validator: (value) =>
-                value!.isEmpty ? 'Please enter a title' : null,
-            onSaved: (value) => widget.recipe.title = value!,
+            validator: (value) => value!.trim().isEmpty ? 'Please enter a title' : null,
+            onChanged: (value) => widget.onDataChanged('title', value.trim()),
+            onSaved: (value) => widget.recipe.title = value!.trim(),
           ),
           TextFormField(
             initialValue: widget.recipe.description,
             decoration: InputDecoration(labelText: 'Description'),
-            validator: (value) =>
-                value!.isEmpty ? 'Please enter a description' : null,
-            onSaved: (value) => widget.recipe.description = value!,
+            validator: (value) => value!.trim().isEmpty ? 'Please enter a description' : null,
+            onChanged: (value) => widget.onDataChanged('description', value.trim()),
+            onSaved: (value) => widget.recipe.description = value!.trim(),
           ),
-          TextFormField(
-            initialValue: widget.recipe.cookingTime.toString(),
-            decoration: InputDecoration(labelText: 'Cooking Time'),
-            validator: (value) =>
-                value!.isEmpty ? 'Please enter a cooking time' : null,
-            onSaved: (value) => widget.recipe.cookingTime = value!,
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  initialValue: _cookingTimeValue,
+                  decoration: InputDecoration(labelText: 'Cooking Time'),
+                  keyboardType: TextInputType.number,
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Please enter a cooking time';
+                    }
+                    if (int.tryParse(value) == null) {
+                      return 'Please enter a valid number';
+                    }
+                    return null;
+                  },
+                  onChanged: (value) {
+                    _cookingTimeValue = value;
+                    _updateCookingTime();
+                  },
+                  onSaved: (value) {
+                    _cookingTimeValue = value!;
+                    _updateCookingTime();
+                  },
+                ),
+              ),
+              SizedBox(width: 10),
+              DropdownButton<String>(
+                value: _selectedUnit,
+                items: <String>['minutes', 'hours']
+                    .map<DropdownMenuItem<String>>((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (String? newValue) {
+                  setState(() {
+                    _selectedUnit = newValue!;
+                    _updateCookingTime();
+                  });
+                },
+              ),
+            ],
           ),
         ],
       ),
     );
   }
 
-  void _saveForm() {
-    if (_localFormKey.currentState!.validate()) {
-      _localFormKey.currentState!.save();
+  void _updateCookingTime() {
+    if (_cookingTimeValue != null && _cookingTimeValue!.isNotEmpty) {
+      final cookingTimeString = '$_cookingTimeValue $_selectedUnit';
+      widget.onDataChanged('cookingTime', cookingTimeString);
+      widget.recipe.cookingTime = cookingTimeString;
     }
   }
 }

@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
-import 'package:flutter/widgets.dart';
 import '../../models/recipe.dart';
 import 'recipeBasics_screen.dart';
 import 'ingredientsSelection_screen.dart';
@@ -14,11 +13,22 @@ class AddRecipeForm extends StatefulWidget {
 }
 
 class _AddRecipeFormState extends State<AddRecipeForm> {
-  final _formKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _basicsFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _ingredientsFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _quantitiesFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _stepsFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _imageFormKey = GlobalKey<FormState>();
+  
+  late PageController _pageController;
   int _currentStep = 0;
-  PageController _pageController = PageController();
 
   Recipe recipe = Recipe();
+
+  @override
+  void initState() {
+    super.initState();
+    _pageController = PageController();
+  }
 
   @override
   void dispose() {
@@ -29,10 +39,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      resizeToAvoidBottomInset: false,
-      appBar: AppBar(
-        title: Text('Add a Recipe'),
-      ),
+      appBar: AppBar(title: Text('Add a Recipe')),
       body: Column(
         children: <Widget>[
           SingleChildScrollView(
@@ -43,45 +50,19 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                 lineStyle: LineStyle(
                   lineLength: 80,
                   lineThickness: 3,
-                  lineSpace: 4,
-                  lineType: LineType.normal,
-                  defaultLineColor: Colors.grey,
-                  finishedLineColor: Theme.of(context).colorScheme.secondary,
                 ),
-                activeStepTextColor: Theme.of(context).colorScheme.onPrimary,
-                finishedStepTextColor:
-                    Theme.of(context).colorScheme.onSecondary,
-                internalPadding: 4,
-                showLoadingAnimation: false,
-                stepRadius: 24,
-                showStepBorder: false,
                 steps: _buildEasySteps(),
-                // steps: List.generate(
-                //   _totalSteps(),
-                //   (index) => EasyStep(
-                //     title: 'Step ${index + 1}',
-                //     customStep: CircleAvatar(
-                //       radius: 8,
-                //       backgroundColor: Colors.white,
-                //       child: CircleAvatar(
-                //         radius: 7,
-                //         backgroundColor: _currentStep >= index
-                //             ? Theme.of(context).colorScheme.secondary
-                //             : Colors.white,
-                //       ),
-                //     ),
-                //     topTitle: index % 2 == 0,
-                //   ),
-                // ),
                 onStepReached: (index) {
-                  setState(() {
-                    _currentStep = index;
-                  });
-                  _pageController.animateToPage(
-                    index,
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.ease,
-                  );
+                  if (_getCurrentFormKey().currentState!.validate()) {
+                    setState(() {
+                      _currentStep = index;
+                    });
+                    _pageController.animateToPage(
+                      index,
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
                 },
               ),
             ),
@@ -92,22 +73,36 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
               physics: NeverScrollableScrollPhysics(),
               children: <Widget>[
                 RecipeBasicsPage(
-                    recipe: recipe, onDataChanged: _updateRecipeData),
+                  recipe: recipe,
+                  onDataChanged: _updateRecipeData,
+                  formKey: _basicsFormKey,
+                ),
                 IngredientsSelectionPage(
-                    recipe: recipe, onDataChanged: _updateRecipeData),
+                  recipe: recipe,
+                  onDataChanged: _updateRecipeData,
+                  formKey: _ingredientsFormKey,
+                ),
                 QuantitiesAndServingsPage(
-                    recipe: recipe, onDataChanged: _updateRecipeData),
+                  recipe: recipe,
+                  onDataChanged: _updateRecipeData,
+                  formKey: _quantitiesFormKey,
+                ),
                 CookingStepsPage(
-                    recipe: recipe, onDataChanged: _updateRecipeData),
+                  recipe: recipe,
+                  onDataChanged: _updateRecipeData,
+                  formKey: _stepsFormKey,
+                ),
                 ImageUploadPage(
-                    recipe: recipe, onDataChanged: _updateRecipeData),
+                  recipe: recipe,
+                  onDataChanged: _updateRecipeData,
+                  formKey: _imageFormKey,
+                ),
               ],
             ),
           ),
           SizedBox(height: 100, child: _buildFloatingActionButtons())
         ],
       ),
-      // floatingActionButton: _buildFloatingActionButtons(),
     );
   }
 
@@ -118,7 +113,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: <Widget>[
           FloatingActionButton(
-            heroTag: "nextPageBtn",
+            heroTag: "previousPageBtn",
             onPressed: _currentStep > 0 ? _previousPage : null,
             backgroundColor: _currentStep > 0
                 ? Theme.of(context).colorScheme.primary
@@ -126,15 +121,15 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
             child: Icon(Icons.arrow_back),
           ),
           FloatingActionButton(
-            heroTag: "previousPageBtn",
+            heroTag: "nextPageBtn",
             onPressed:
                 _currentStep < _totalSteps() - 1 ? _nextPage : _submitForm,
-            backgroundColor: _currentStep < _totalSteps() - 1
-                ? Theme.of(context).colorScheme.primary
-                : Theme.of(context).colorScheme.secondary,
-            child: Icon(_currentStep < _totalSteps() - 1
-                ? Icons.arrow_forward
-                : Icons.check),
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            child: Icon(
+              _currentStep < _totalSteps() - 1
+                  ? Icons.arrow_forward
+                  : Icons.check,
+            ),
           ),
         ],
       ),
@@ -142,22 +137,22 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   }
 
   void _nextPage() {
-    if (_currentStep < _totalSteps() - 1) {
-      setState(() {
-        _currentStep++;
-      });
-      _pageController.nextPage(
-        duration: Duration(milliseconds: 300),
-        curve: Curves.ease,
-      );
+    if (_getCurrentFormKey().currentState!.validate()) {
+      _getCurrentFormKey().currentState!.save(); // Save the form state
+
+      if (_currentStep < _totalSteps() - 1) {
+        setState(() => _currentStep++);
+        _pageController.nextPage(
+          duration: Duration(milliseconds: 300),
+          curve: Curves.ease,
+        );
+      }
     }
   }
 
   void _previousPage() {
     if (_currentStep > 0) {
-      setState(() {
-        _currentStep--;
-      });
+      setState(() => _currentStep--);
       _pageController.previousPage(
         duration: Duration(milliseconds: 300),
         curve: Curves.ease,
@@ -165,14 +160,19 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
     }
   }
 
-  void _submitForm() {
-    // if (_formKey.currentState!.validate()) {
-    // Submit the form
-    print('Recipe Data: $recipe');
-    print('Recipe Data: ${recipe.toJson()}');
-    print('${_formKey.currentState}');
-    // You would usually send this data to a server or Firebase
-    // }
+  void _submitForm() async {
+    if (_getCurrentFormKey().currentState!.validate()) {
+      try {
+        print('Recipe Data: ${recipe.toJson()}');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Recipe submitted successfully!')),
+        );
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error submitting recipe: $e')),
+        );
+      }
+    }
   }
 
   void _updateRecipeData(String key, dynamic value) {
@@ -199,73 +199,52 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         case 'imageUrl':
           recipe.imageUrl = value;
           break;
+        default:
+          throw ArgumentError('Unknown key: $key');
       }
     });
   }
 
-  int _totalSteps() => 5; // Total number of pages/steps in the form
-
-  List<Step> _buildSteps() {
-    return [
-      Step(
-        title: Text('Basics'),
-        content: SizedBox(),
-        isActive: _currentStep == 0,
-        state: _currentStep > 0 ? StepState.complete : StepState.indexed,
-      ),
-      Step(
-        title: Text('Ingredients'),
-        content: SizedBox(),
-        isActive: _currentStep == 1,
-        state: _currentStep > 1 ? StepState.complete : StepState.indexed,
-      ),
-      Step(
-        title: Text('Amounts'),
-        content: SizedBox(),
-        isActive: _currentStep == 2,
-        state: _currentStep > 2 ? StepState.complete : StepState.indexed,
-      ),
-      Step(
-        title: Text('Steps'),
-        content: SizedBox(),
-        isActive: _currentStep == 3,
-        state: _currentStep > 3 ? StepState.complete : StepState.indexed,
-      ),
-      Step(
-        title: Text('Image'),
-        content: SizedBox(),
-        isActive: _currentStep == 4,
-        state: _currentStep > 4 ? StepState.complete : StepState.indexed,
-      ),
-    ];
+  GlobalKey<FormState> _getCurrentFormKey() {
+    switch (_currentStep) {
+      case 0:
+        return _basicsFormKey;
+      case 1:
+        return _ingredientsFormKey;
+      case 2:
+        return _quantitiesFormKey;
+      case 3:
+        return _stepsFormKey;
+      case 4:
+        return _imageFormKey;
+      default:
+        throw ArgumentError('Invalid step: $_currentStep');
+    }
   }
+
+  int _totalSteps() => 5;
 
   List<EasyStep> _buildEasySteps() {
     return [
       const EasyStep(
         title: 'Basics',
         icon: Icon(Icons.info),
-        topTitle: false,
       ),
       const EasyStep(
         title: 'Ingredients',
         icon: Icon(Icons.shopping_cart),
-        topTitle: false,
       ),
       const EasyStep(
         title: 'Amounts',
         icon: Icon(Icons.line_weight),
-        topTitle: false,
       ),
       const EasyStep(
         title: 'Steps',
         icon: Icon(Icons.list),
-        topTitle: false,
       ),
       const EasyStep(
         title: 'Image',
         icon: Icon(Icons.image),
-        topTitle: false,
       ),
     ];
   }

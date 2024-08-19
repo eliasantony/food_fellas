@@ -4,11 +4,13 @@ import '../../models/recipe.dart';
 class CookingStepsPage extends StatefulWidget {
   final Recipe recipe;
   final Function(String, dynamic) onDataChanged;
+  final GlobalKey<FormState> formKey; // Add the GlobalKey from the parent
 
   CookingStepsPage({
     Key? key,
     required this.recipe,
     required this.onDataChanged,
+    required this.formKey, // Ensure formKey is passed in
   }) : super(key: key);
 
   @override
@@ -28,35 +30,69 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Expanded(
-          child: ListView.builder(
-            itemCount: _controllers.length,
-            itemBuilder: (context, index) {
-              return Padding(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
-                child: TextFormField(
-                  controller: _controllers[index],
-                  decoration: InputDecoration(
-                    labelText: 'Step ${index + 1}',
+    return Form(
+      key: widget.formKey, // Use the formKey passed from the parent
+      child: Column(
+        children: [
+          Expanded(
+            child: ListView.builder(
+              itemCount: _controllers.length,
+              itemBuilder: (context, index) {
+                return Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8.0, vertical: 4.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextFormField(
+                          controller: _controllers[index],
+                          decoration: InputDecoration(
+                            labelText: 'Step ${index + 1}',
+                          ),
+                          maxLines: null,
+                          validator: (value) {
+                            if (value == null || value.trim().isEmpty) {
+                              return 'Please enter a description for this step';
+                            }
+                            return null;
+                          },
+                          onChanged: (value) {
+                            widget.recipe.cookingSteps[index] = value;
+                            widget.onDataChanged(
+                                'cookingSteps', widget.recipe.cookingSteps);
+                          },
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(Icons.delete, color: Colors.red),
+                        onPressed: () {
+                          setState(() {
+                            _controllers.removeAt(index);
+                            widget.recipe.cookingSteps.removeAt(index);
+                            widget.onDataChanged(
+                                'cookingSteps', widget.recipe.cookingSteps);
+                          });
+                        },
+                      ),
+                    ],
                   ),
-                  maxLines: null,
-                ),
-              );
-            },
+                );
+              },
+            ),
           ),
-        ),
-        ElevatedButton(
-          onPressed: () {
-            setState(() {
-              _controllers.add(TextEditingController());
-            });
-          },
-          child: Text('Add Step'),
-        ),
-      ],
+          ElevatedButton(
+            onPressed: () {
+              setState(() {
+                _controllers.add(TextEditingController());
+                widget.recipe.cookingSteps.add(''); // Add a new empty step
+                widget.onDataChanged(
+                    'cookingSteps', widget.recipe.cookingSteps); // Update the data
+              });
+            },
+            child: Text('Add Step'),
+          ),
+        ],
+      ),
     );
   }
 
