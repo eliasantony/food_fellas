@@ -21,6 +21,14 @@ class Ingredient {
     );
   }
 
+  factory Ingredient.fromJson(Map<String, dynamic> json) {
+    return Ingredient(
+      ingredientName: json['ingredientName'],
+      imageUrl: json['imageUrl'],
+      category: json['category'],
+    );
+  }
+
   // This method will be used to convert an Ingredient object to a JSON object
   Map<String, dynamic> toJson() {
     return {

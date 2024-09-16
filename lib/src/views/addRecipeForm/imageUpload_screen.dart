@@ -9,13 +9,13 @@ import '../../models/recipe.dart';
 class ImageUploadPage extends StatefulWidget {
   final Recipe recipe;
   final Function(String, dynamic) onDataChanged;
-  final GlobalKey<FormState> formKey; // Add the GlobalKey from the parent
+  final GlobalKey<FormState> formKey;
 
   ImageUploadPage({
     Key? key,
     required this.recipe,
     required this.onDataChanged,
-    required this.formKey, // Ensure formKey is passed in
+    required this.formKey,
   }) : super(key: key);
 
   @override
@@ -26,7 +26,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   @override
   Widget build(BuildContext context) {
     return Form(
-      key: widget.formKey, // Use the formKey passed from the parent
+      key: widget.formKey,
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

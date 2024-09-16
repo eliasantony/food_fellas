@@ -8,6 +8,10 @@ import 'cookingSteps_screen.dart';
 import 'imageUpload_screen.dart';
 
 class AddRecipeForm extends StatefulWidget {
+  final Recipe? initialRecipe; // Optional parameter for prefilled data
+
+  AddRecipeForm({Key? key, this.initialRecipe}) : super(key: key);
+
   @override
   _AddRecipeFormState createState() => _AddRecipeFormState();
 }
@@ -18,16 +22,19 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   final GlobalKey<FormState> _quantitiesFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _stepsFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _imageFormKey = GlobalKey<FormState>();
-  
+
   late PageController _pageController;
   int _currentStep = 0;
 
-  Recipe recipe = Recipe();
+  late Recipe recipe;
 
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
+
+    // Initialize the recipe with either the provided initialRecipe or a new Recipe
+    recipe = widget.initialRecipe ?? Recipe();
   }
 
   @override
@@ -39,7 +46,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text('Add a Recipe')),
+      appBar: AppBar(title: Text(widget.initialRecipe == null ? 'Add a Recipe' : 'Edit Recipe')),
       body: Column(
         children: <Widget>[
           SingleChildScrollView(

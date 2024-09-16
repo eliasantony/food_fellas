@@ -7,12 +7,12 @@ class HomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('FoodFellas'),
+        title: const Text('FoodFellas'),
       ),
       body: ListView(
         children: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
+          const Padding(
+            padding: EdgeInsets.all(8.0),
             child: TextField(
               decoration: InputDecoration(
                 labelText: 'Search Bar',
@@ -20,25 +20,25 @@ class HomeScreen extends StatelessWidget {
               ),
             ),
           ),
-          ListTile(
+          const ListTile(
             title: Text('Recommended'),
           ),
           Container(
-            margin: EdgeInsets.only(left: 8),
+            margin: const EdgeInsets.only(left: 8),
             child: HorizontalRecipeRow(),
           ),
-          ListTile(
+          const ListTile(
             title: Text('New Recipes'),
           ),
           Container(
-            margin: EdgeInsets.only(left: 8),
+            margin: const EdgeInsets.only(left: 8),
             child: HorizontalRecipeRow(),
           ),
-          ListTile(
+          const ListTile(
             title: Text('Top Rated'),
           ),
           Container(
-            margin: EdgeInsets.only(left: 8),
+            margin: const EdgeInsets.only(left: 8),
             child: HorizontalRecipeRow(),
           ),
         ],
@@ -50,7 +50,7 @@ class HomeScreen extends StatelessWidget {
             MaterialPageRoute(builder: (context) => AddRecipeForm()),
           );
         },
-        child: Icon(Icons.add),
+        child: const Icon(Icons.add),
         backgroundColor: Colors.green,
         tooltip: 'Add a Recipe',
       ),

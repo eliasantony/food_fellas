@@ -35,19 +35,45 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
 
   Future<void> _fetchIngredients() async {
     try {
+      // Try to fetch from cache first
       final QuerySnapshot snapshot = await FirebaseFirestore.instance
           .collection('ingredients')
-          .where('approved', isEqualTo: true) // Fetch only approved ingredients
-          .get();
+          .where('approved', isEqualTo: true)
+          .get(const GetOptions(source: Source.cache));
 
-      final ingredients = snapshot.docs.map((doc) {
-        return Ingredient.fromDocumentSnapshot(doc);
-      }).toList();
+      if (snapshot.docs.isEmpty) {
+        // If cache is empty, attempt to fetch from server
+        final QuerySnapshot serverSnapshot = await FirebaseFirestore.instance
+            .collection('ingredients')
+            .where('approved', isEqualTo: true)
+            .get(const GetOptions(source: Source.server));
 
-      setState(() {
-        availableIngredients = ingredients;
-        filteredIngredients = ingredients; // Initially, show all ingredients
-      });
+        if (serverSnapshot.docs.isNotEmpty) {
+          final ingredients = serverSnapshot.docs.map((doc) {
+            return Ingredient.fromDocumentSnapshot(doc);
+          }).toList();
+
+          setState(() {
+            availableIngredients = ingredients;
+            filteredIngredients = ingredients;
+          });
+        } else {
+          // Handle case where no data exists
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('No ingredients found on server')),
+          );
+        }
+      } else {
+        // If cache has data, use it
+        final ingredients = snapshot.docs.map((doc) {
+          return Ingredient.fromDocumentSnapshot(doc);
+        }).toList();
+
+        setState(() {
+          availableIngredients = ingredients;
+          filteredIngredients = ingredients;
+        });
+      }
     } catch (e) {
       print('Error fetching ingredients: $e');
       ScaffoldMessenger.of(context).showSnackBar(
@@ -118,7 +144,8 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
               itemBuilder: (context, index) {
                 final entry = categorizedIngredients.entries.elementAt(index);
                 return ExpansionTile(
-                  title: Text(entry.key), // Category name
+                  title: Text(entry.key),
+                  initiallyExpanded: true,
                   children: entry.value.map((ingredient) {
                     return CheckboxListTile(
                       title: Text(ingredient.ingredientName),

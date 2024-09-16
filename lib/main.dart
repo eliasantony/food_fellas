@@ -1,26 +1,35 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:food_fellas/providers/chatProvider.dart';
+import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'src/views/home_screen.dart';
 import 'src/views/discover_screen.dart';
 import 'src/views/community_screen.dart';
 import 'src/views/aichat_screen.dart';
 import 'src/views/profile_screen.dart';
-void main() async{
+
+void main() async {
   await dotenv.load(fileName: ".env");
-  Gemini.init(
-    apiKey: dotenv.env['GEMINI_API_KEY']!
-  );
+  
+  Gemini.init(apiKey: dotenv.env['GEMINI_API_KEY']!);
+  
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  runApp(const MainApp());
+
+  FirebaseFirestore.instance.settings = const Settings(
+    persistenceEnabled: true,
+  );
+  
+  runApp(ChangeNotifierProvider(
+      create: (_) => ChatProvider(), child: const MainApp())
+  );
 }
-
-
 
 class MainApp extends StatelessWidget {
   const MainApp({super.key});

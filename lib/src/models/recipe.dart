@@ -13,12 +13,28 @@ class Recipe {
     this.title = '',
     this.description = '',
     this.cookingTime = '',
-    List<RecipeIngredient>? ingredients, // Mutable list of ingredients
+    List<RecipeIngredient>? ingredients,
     this.initialServings = 2,
-    List<String>? cookingSteps, // Nullable list in constructor
+    List<String>? cookingSteps,
     this.imageUrl = 'lib/assets/images/spaghettiBolognese.webp',
   })  : ingredients = ingredients ?? [],
-        cookingSteps = cookingSteps ?? []; // Initialize with a modifiable list
+        cookingSteps = cookingSteps ?? [];
+
+  // Convert JSON to Recipe object
+  factory Recipe.fromJson(Map<String, dynamic> json) {
+    return Recipe(
+      title: json['title'] ?? '',
+      description: json['description'] ?? '',
+      cookingTime: json['cookingTime'] ?? '',
+      ingredients: (json['ingredients'] as List<dynamic>?)
+              ?.map((item) => RecipeIngredient.fromJson(item))
+              .toList() ??
+          [],
+      initialServings: json['initialServings'] ?? 2,
+      cookingSteps: List<String>.from(json['cookingSteps'] ?? []),
+      imageUrl: json['imageUrl'] ?? 'lib/assets/images/spaghettiBolognese.webp',
+    );
+  }
 
   Map<String, dynamic> toJson() {
     return {
@@ -32,4 +48,3 @@ class Recipe {
     };
   }
 }
-
