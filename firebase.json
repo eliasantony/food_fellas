@@ -1,1 +1,22 @@
-{"flutter":{"platforms":{"android":{"default":{"projectId":"food-fellas-rts94q","appId":"1:610894749085:android:44719b27e49ece2ed1e374","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"food-fellas-rts94q","configurations":{"android":"1:610894749085:android:44719b27e49ece2ed1e374","ios":"1:610894749085:ios:9fd663fcd9e5c6f9d1e374"}}}}}}
+{
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "food-fellas-rts94q",
+          "appId": "1:610894749085:android:dcc7c19247a1fe6dd1e374",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "food-fellas-rts94q",
+          "configurations": {
+            "android": "1:610894749085:android:dcc7c19247a1fe6dd1e374",
+            "ios": "1:610894749085:ios:e5605d7f6493d9e0d1e374"
+          }
+        }
+      }
+    }
+  }
+}

@@ -58,12 +58,12 @@ class DefaultFirebaseOptions {
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyAIXkHhGIJoJFCQ2QmO37936Z27ZjKEkBk',
-    appId: '1:610894749085:ios:9fd663fcd9e5c6f9d1e374',
+    apiKey: 'AIzaSyCOsasK87aH0-hOPb-1zuKLlc0nEQnxGC8',
+    appId: '1:610894749085:ios:e5605d7f6493d9e0d1e374',
     messagingSenderId: '610894749085',
     projectId: 'food-fellas-rts94q',
     storageBucket: 'food-fellas-rts94q.appspot.com',
-    iosBundleId: 'com.example.foodFellas',
+    iosBundleId: 'com.eantony.foodfellas',
   );
 
 }

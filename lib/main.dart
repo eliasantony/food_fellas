@@ -12,8 +12,19 @@ import 'src/views/discover_screen.dart';
 import 'src/views/community_screen.dart';
 import 'src/views/aichat_screen.dart';
 import 'src/views/profile_screen.dart';
+import 'src/views/auth/welcome_screen.dart';
+import 'src/views/auth/signup_screen.dart';
+import 'src/views/auth/user_info_screen.dart';
+import 'src/views/auth/notification_preferences_screen.dart';
+import 'src/views/auth/dietary_preferences_screen.dart';
+import 'src/views/auth/cooking_skill_level_screen.dart';
+import 'src/views/auth/favorite_cuisines_screen.dart';
+import 'src/views/auth/final_welcome_screen.dart';
+import 'src/widgets/initializer_widget.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
   await dotenv.load(fileName: ".env");
   
   Gemini.init(apiKey: dotenv.env['GEMINI_API_KEY']!);
@@ -39,11 +50,14 @@ class MainApp extends StatelessWidget {
     return MaterialApp(
       title: 'FoodFellas',
       theme: ThemeData(
-        useMaterial3: true, // Enable Material 3
-        // Generate a color scheme with a seed color
+        useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: const MainPage(),
+      home: InitializerWidget(),
+      routes: {
+        '/signup': (context) => SignUpScreen(),
+        '/mainPage': (context) => const MainPage(),
+      },
     );
   }
 }
@@ -62,7 +76,7 @@ class _MainPageState extends State<MainPage> {
     HomeScreen(),
     DiscoverScreen(),
     CommunityScreen(),
-    AIChatScreen(),
+    const AIChatScreen(),
     ProfileScreen(),
   ];
 

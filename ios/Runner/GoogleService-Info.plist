@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>610894749085-78sdjkbbtub6pjvr4erhs2mkpa41i8tc.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.610894749085-78sdjkbbtub6pjvr4erhs2mkpa41i8tc</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>610894749085-s1fu77djdua8dnrmedev31tgigohn6ad.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyAIXkHhGIJoJFCQ2QmO37936Z27ZjKEkBk</string>
+	<key>GCM_SENDER_ID</key>
+	<string>610894749085</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>com.eantony.foodfellas</string>
+	<key>PROJECT_ID</key>
+	<string>food-fellas-rts94q</string>
+	<key>STORAGE_BUCKET</key>
+	<string>food-fellas-rts94q.appspot.com</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:610894749085:ios:e5605d7f6493d9e0d1e374</string>
+</dict>
+</plist>
