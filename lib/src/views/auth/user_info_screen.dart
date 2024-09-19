@@ -61,18 +61,16 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
-            // Profile Picture
             GestureDetector(
               onTap: _pickImage,
               child: CircleAvatar(
                 radius: 60,
-                backgroundImage:
-                    _profileImage != null ? FileImage(_profileImage!) : null,
+                backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
                 child: _profileImage == null
                     ? Icon(
                         Icons.camera_alt,
                         size: 50,
-                        color: Colors.grey[700],
+                        color: Theme.of(context).colorScheme.onSurfaceVariant,
                       )
                     : null,
               ),
@@ -81,16 +79,22 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
             // Display Name
             TextField(
               controller: _displayNameController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Display Name',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
             ),
             const SizedBox(height: 10),
             // Short Description
             TextField(
               controller: _shortDescriptionController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 labelText: 'Short Description',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
               maxLines: 3,
             ),
@@ -98,6 +102,12 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
             ElevatedButton(
               onPressed: _navigateToNext,
               child: const Text('Next'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),

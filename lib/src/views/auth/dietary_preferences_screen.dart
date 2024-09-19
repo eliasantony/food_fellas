@@ -47,22 +47,25 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Dietary Preferences'),
+        title: const Text('Dietary Preferences'),
       ),
       body: Padding(
-        padding: EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             Text(
               'Any dietary preferences we should know about?',
-              style: TextStyle(fontSize: 18),
+              style: Theme.of(context).textTheme.headlineSmall,
             ),
-            SizedBox(height: 20),
+            const SizedBox(height: 20),
             Expanded(
               child: ListView(
                 children: preferences.map((pref) {
                   return ListTile(
-                    leading: Text(pref['icon']!, style: TextStyle(fontSize: 24)),
+                    leading: Text(
+                      pref['icon']!,
+                      style: const TextStyle(fontSize: 24),
+                    ),
                     title: Text(pref['label']!),
                     trailing: Checkbox(
                       value: selectedPreferences.contains(pref['label']),
@@ -77,7 +80,13 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
             ),
             ElevatedButton(
               onPressed: _navigateToNext,
-              child: Text('Next'),
+              child: const Text('Next'),
+              style: ElevatedButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
           ],
         ),

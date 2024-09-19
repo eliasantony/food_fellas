@@ -96,7 +96,6 @@ class _SignUpScreenState extends State<SignUpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Add your playful elements here
       appBar: AppBar(
         title: const Text('Create an Account'),
       ),
@@ -105,40 +104,38 @@ class _SignUpScreenState extends State<SignUpScreen> {
         child: SingleChildScrollView(
           child: Column(
             children: [
-              // Social Sign-In Buttons
-              ElevatedButton.icon(
-                icon: const Icon(Icons.login),
-                label: const Text('Sign in with Google'),
-                onPressed: _signInWithGoogle,
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.login),
-                label: const Text('Sign in with Apple'),
-                onPressed: _signInWithApple,
-              ),
-              const SizedBox(height: 20),
               const Text('Or sign up with email'),
               const SizedBox(height: 10),
-              // Name TextField
+              // Name TextField with Material 3 styling
               TextField(
                 controller: _nameController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'What\'s your name?',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+              const SizedBox(height: 10),
               // Email TextField
               TextField(
                 controller: _emailController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Your email address',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
+              const SizedBox(height: 10),
               // Password TextField
               TextField(
                 controller: _passwordController,
-                decoration: const InputDecoration(
+                decoration: InputDecoration(
                   labelText: 'Create a password',
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
                 obscureText: true,
               ),
@@ -146,6 +143,42 @@ class _SignUpScreenState extends State<SignUpScreen> {
               ElevatedButton(
                 onPressed: _signUpWithEmail,
                 child: const Text('Create Account'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 20),
+              const Divider(),
+              const SizedBox(height: 20),
+              const Text('Or sign up with'),
+              // Social Sign-In Buttons with Material 3 styles
+              ElevatedButton.icon(
+                icon: const Icon(Icons.login),
+                label: const Text('Sign in with Google'),
+                onPressed: _signInWithGoogle,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
+              ElevatedButton.icon(
+                icon: const Icon(Icons.login),
+                label: const Text('Sign in with Apple'),
+                onPressed: _signInWithApple,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
               ),
               const SizedBox(height: 10),
               TextButton(

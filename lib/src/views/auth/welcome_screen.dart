@@ -10,30 +10,46 @@ class WelcomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // Add your playful illustrations and animations here
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            // TODO: Add animated illustration here
-            const Text(
-              'Welcome to FoodFellas!',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            const SizedBox(height: 20),
-            const Text(
-              'Ready to embark on a delicious journey?',
-              style: TextStyle(fontSize: 18),
-            ),
-            const SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () => navigateToSignUp(context),
-              child: const Text('Get Started'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+        child: Padding(
+          padding: const EdgeInsets.all(24.0),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: <Widget>[
+              // Animated illustration or Lottie Animation
+              SizedBox(
+                height: 200,
+                //child: Lottie.asset('assets/food_animation.json'), // Example animation
               ),
-            ),
-          ],
+              const SizedBox(height: 40),
+              Text(
+                'Welcome to FoodFellas!',
+                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                      fontWeight: FontWeight.bold,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Text(
+                'Ready to embark on a delicious journey?',
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 40),
+              ElevatedButton(
+                onPressed: () => navigateToSignUp(context),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                ),
+                child: const Text('Get Started'),
+              ),
+            ],
+          ),
         ),
       ),
     );
