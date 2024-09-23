@@ -6,7 +6,8 @@ import '../../models/user_data.dart';
 class NotificationPreferencesScreen extends StatefulWidget {
   final UserData userData;
 
-  const NotificationPreferencesScreen({Key? key, required this.userData}) : super(key: key);
+  const NotificationPreferencesScreen({Key? key, required this.userData})
+      : super(key: key);
 
   @override
   _NotificationPreferencesScreenState createState() =>
@@ -55,9 +56,15 @@ class _NotificationPreferencesScreenState
               },
             ),
             Spacer(),
-            ElevatedButton(
-              onPressed: _navigateToNext,
-              child: Text('Next'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _navigateToNext,
+                child: Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
+              ),
             ),
           ],
         ),

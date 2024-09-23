@@ -6,7 +6,8 @@ import '../../models/user_data.dart';
 class CookingSkillLevelScreen extends StatefulWidget {
   final UserData userData;
 
-  const CookingSkillLevelScreen({Key? key, required this.userData}) : super(key: key);
+  const CookingSkillLevelScreen({Key? key, required this.userData})
+      : super(key: key);
 
   @override
   _CookingSkillLevelScreenState createState() =>
@@ -17,7 +18,11 @@ class _CookingSkillLevelScreenState extends State<CookingSkillLevelScreen> {
   String? selectedSkillLevel;
 
   final List<Map<String, String>> skillLevels = [
-    {'label': 'Beginner', 'description': 'I\'m just starting out', 'icon': '🥄'},
+    {
+      'label': 'Beginner',
+      'description': 'I\'m just starting out',
+      'icon': '🥄'
+    },
     {
       'label': 'Intermediate',
       'description': 'I\'ve got some experience',
@@ -33,7 +38,8 @@ class _CookingSkillLevelScreenState extends State<CookingSkillLevelScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => NotificationPreferencesScreen(userData: widget.userData),
+        builder: (context) =>
+            NotificationPreferencesScreen(userData: widget.userData),
       ),
     );
   }
@@ -48,7 +54,7 @@ class _CookingSkillLevelScreenState extends State<CookingSkillLevelScreen> {
         padding: EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text(
+            const Text(
               'How would you rate your cooking skills?',
               style: TextStyle(fontSize: 18),
             ),
@@ -75,9 +81,15 @@ class _CookingSkillLevelScreenState extends State<CookingSkillLevelScreen> {
               );
             }).toList(),
             Spacer(),
-            ElevatedButton(
-              onPressed: selectedSkillLevel != null ? _navigateToNext : null,
-              child: Text('Next'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: selectedSkillLevel != null ? _navigateToNext : null,
+                child: Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
+              ),
             ),
           ],
         ),

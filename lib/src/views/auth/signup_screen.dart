@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_signin_button/button_view.dart';
+import 'package:flutter_signin_button/flutter_signin_button.dart';
+import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
@@ -11,41 +14,66 @@ class SignUpScreen extends StatefulWidget {
 }
 
 class _SignUpScreenState extends State<SignUpScreen> {
-  // Controllers for TextFields
-  final _nameController = TextEditingController();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
 
-  // Firebase Auth instance
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
-  // Method to sign up with Email and Password
+  String? _emailError;
+  String? _passwordError;
+
   Future<void> _signUpWithEmail() async {
+    setState(() {
+      _emailError = null;
+      _passwordError = null;
+    });
+
     try {
+      if (_emailController.text.trim().isEmpty) {
+        setState(() {
+          _emailError = 'Email cannot be empty';
+        });
+        return;
+      }
+
+      if (_passwordController.text.isEmpty) {
+        setState(() {
+          _passwordError = 'Password cannot be empty';
+        });
+        return;
+      }
+
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      // Update display name
-      await userCredential.user?.updateDisplayName(_nameController.text.trim());
-
-      // Navigate to User Info Screen
-      Navigator.pushNamed(context, '/userInfo');
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => const UserInfoScreen()),
+      );
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'email-already-in-use') {
+        setState(() {
+          _emailError = 'An account with this email already exists.';
+        });
+      } else if (e.code == 'weak-password') {
+        setState(() {
+          _passwordError = 'The password is too weak.';
+        });
+      } else {
+        print('Error: $e');
+      }
     } catch (e) {
-      // Handle errors
-      print(e);
+      print('Error: $e');
     }
   }
 
-  // Method to sign in with Google
   Future<void> _signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser =
-          await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
       if (googleUser == null) {
-        // User canceled the sign-in
         return;
       }
       final GoogleSignInAuthentication googleAuth =
@@ -58,14 +86,13 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       await _auth.signInWithCredential(credential);
 
-      // Navigate to User Info Screen
-      Navigator.pushNamed(context, '/userInfo');
+      // Navigate to InitializerWidget to decide where to go next
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     } catch (e) {
       print(e);
     }
   }
 
-  // Method to sign in with Apple
   Future<void> _signInWithApple() async {
     try {
       final credential = await SignInWithApple.getAppleIDCredential(
@@ -82,42 +109,32 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       await _auth.signInWithCredential(oauthCredential);
 
-      // Navigate to User Info Screen
-      Navigator.pushNamed(context, '/userInfo');
+      // Navigate to InitializerWidget to decide where to go next
+      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
     } catch (e) {
       print(e);
     }
   }
 
-  void _skipSignUp() {
-    Navigator.pushNamed(context, '/userInfo');
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Create an Account'),
-      ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
+      body: Center(
         child: SingleChildScrollView(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Text('Or sign up with email'),
-              const SizedBox(height: 10),
-              // Name TextField with Material 3 styling
-              TextField(
-                controller: _nameController,
-                decoration: InputDecoration(
-                  labelText: 'What\'s your name?',
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+              Text(
+                'Create Your Account',
+                style: Theme.of(context).textTheme.headlineMedium,
               ),
-              const SizedBox(height: 10),
-              // Email TextField
+              const SizedBox(height: 30),
+              if (_emailError != null)
+                Text(
+                  _emailError!,
+                  style: const TextStyle(color: Colors.red),
+                ),
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
@@ -128,7 +145,11 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              // Password TextField
+              if (_passwordError != null)
+                Text(
+                  _passwordError!,
+                  style: const TextStyle(color: Colors.red),
+                ),
               TextField(
                 controller: _passwordController,
                 decoration: InputDecoration(
@@ -140,50 +161,54 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 obscureText: true,
               ),
               const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: _signUpWithEmail,
-                child: const Text('Create Account'),
-                style: ElevatedButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _signUpWithEmail,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 30, vertical: 15),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                   ),
+                  child: const Text('Create Account'),
                 ),
               ),
               const SizedBox(height: 20),
-              const Divider(),
-              const SizedBox(height: 20),
-              const Text('Or sign up with'),
-              // Social Sign-In Buttons with Material 3 styles
-              ElevatedButton.icon(
-                icon: const Icon(Icons.login),
-                label: const Text('Sign in with Google'),
-                onPressed: _signInWithGoogle,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
-              ElevatedButton.icon(
-                icon: const Icon(Icons.login),
-                label: const Text('Sign in with Apple'),
-                onPressed: _signInWithApple,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primaryContainer,
-                  padding: const EdgeInsets.symmetric(vertical: 15),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 10),
+              // Add a link to the LoginScreen
               TextButton(
-                onPressed: _skipSignUp,
-                child: const Text('Maybe Later'),
+                onPressed: () {
+                  Navigator.pushNamed(context, '/login');
+                },
+                child: const Text('Already have an account? Log in'),
+              ),
+              const SizedBox(height: 20),
+              const Row(
+                children: [
+                  Expanded(child: Divider()),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 20.0),
+                    child: Text('Or sign up with'),
+                  ),
+                  Expanded(child: Divider()),
+                ],
+              ),
+              const SizedBox(height: 40),
+              SignInButton(
+                Buttons.Google,
+                onPressed: _signInWithGoogle,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+              const SizedBox(height: 10),
+              SignInButton(
+                Buttons.Apple,
+                onPressed: _signInWithApple,
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
             ],
           ),

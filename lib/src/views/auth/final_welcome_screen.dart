@@ -1,3 +1,6 @@
+import 'dart:io';
+import 'package:lottie/lottie.dart';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
@@ -7,7 +10,8 @@ import 'package:food_fellas/src/models/user_data.dart';
 class FinalWelcomeScreen extends StatelessWidget {
   final UserData userData;
 
-  const FinalWelcomeScreen({Key? key, required this.userData}) : super(key: key);
+  const FinalWelcomeScreen({Key? key, required this.userData})
+      : super(key: key);
 
   void _navigateToHome(BuildContext context) async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -18,9 +22,15 @@ class FinalWelcomeScreen extends StatelessWidget {
         String uid = user.uid;
         Reference storageRef =
             FirebaseStorage.instance.ref().child('profile_images/$uid.jpg');
-        UploadTask uploadTask = storageRef.putFile(userData.profileImage!);
+        UploadTask uploadTask = storageRef.putData(userData.profileImage!);
 
-        TaskSnapshot taskSnapshot = await uploadTask.whenComplete(() => null);
+        TaskSnapshot taskSnapshot;
+        try {
+          taskSnapshot = await uploadTask;
+        } catch (e) {
+          print('Upload failed: $e');
+          return;
+        }
         String downloadUrl = await taskSnapshot.ref.getDownloadURL();
         userData.photoUrl = downloadUrl;
       }
@@ -50,34 +60,56 @@ class FinalWelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final userName = userData.displayName ?? 'Foodie';
-
     return Scaffold(
-      // Add your celebration animations here
-      body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            // TODO: Add confetti animation here
-            Text(
-              'All set, $userName!',
-              style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-            ),
-            SizedBox(height: 20),
-            Text(
-              'Let\'s start cooking up something amazing!',
-              style: TextStyle(fontSize: 18),
-            ),
-            SizedBox(height: 40),
-            ElevatedButton(
-              onPressed: () => _navigateToHome(context),
-              child: Text('Explore Recipes'),
-              style: ElevatedButton.styleFrom(
-                padding: EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+      body: Stack(
+        children: [
+          // Lottie animation in the background
+          Positioned.fill(
+            child: ClipRect(
+              child: Lottie.asset(
+                'lib/assets/lottie/confetti.json',
+                repeat: false,
+                fit: BoxFit.cover,
               ),
             ),
-          ],
-        ),
+          ),
+          // Your existing layout goes here
+          Positioned.fill(
+            child: Column(
+              mainAxisAlignment:
+                  MainAxisAlignment.center, // Center the children vertically
+              children: [
+                Text(
+                  'All set, ${userData.displayName}!',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 20),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 40),
+                  child: Text(
+                    'Let\'s start cooking up \n something amazing!',
+                    style: TextStyle(fontSize: 18),
+                  ),
+                ),
+                SizedBox(height: 40),
+                Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 20),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () => _navigateToHome(context),
+                      child: Text('Explore Recipes'),
+                      style: ElevatedButton.styleFrom(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

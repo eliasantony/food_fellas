@@ -1,9 +1,11 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
-
 import '../../models/user_data.dart';
 import 'dietary_preferences_screen.dart';
+import 'package:screenshot/screenshot.dart';
+import 'avatar_builder_screen.dart';
 
 class UserInfoScreen extends StatefulWidget {
   const UserInfoScreen({Key? key}) : super(key: key);
@@ -15,7 +17,7 @@ class UserInfoScreen extends StatefulWidget {
 class _UserInfoScreenState extends State<UserInfoScreen> {
   final _displayNameController = TextEditingController();
   final _shortDescriptionController = TextEditingController();
-  File? _profileImage;
+  Uint8List? _profileImage;
 
   final ImagePicker _picker = ImagePicker();
 
@@ -23,11 +25,12 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     final XFile? pickedFile =
         await _picker.pickImage(source: ImageSource.gallery);
 
-    setState(() {
-      if (pickedFile != null) {
-        _profileImage = File(pickedFile.path);
-      }
-    });
+    if (pickedFile != null) {
+      Uint8List imageBytes = await pickedFile.readAsBytes();
+      setState(() {
+        _profileImage = imageBytes;
+      });
+    }
   }
 
   void _navigateToNext() {
@@ -44,11 +47,56 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     );
   }
 
+  void _navigateToAvatarBuilder() async {
+    final Uint8List? avatarImage = await Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => AvatarBuilderScreen(),
+      ),
+    );
+
+    if (avatarImage != null) {
+      setState(() {
+        _profileImage = avatarImage;
+      });
+    }
+  }
+
   @override
   void dispose() {
     _displayNameController.dispose();
     _shortDescriptionController.dispose();
     super.dispose();
+  }
+
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.photo_library),
+                title: Text('Upload a Picture'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _pickImage();
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.person),
+                title: Text('Create an Avatar'),
+                onTap: () {
+                  Navigator.of(context).pop();
+                  _navigateToAvatarBuilder();
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 
   @override
@@ -62,14 +110,15 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
         child: Column(
           children: [
             GestureDetector(
-              onTap: _pickImage,
+              onTap: _showImageSourceDialog,
               child: CircleAvatar(
                 radius: 60,
-                backgroundImage: _profileImage != null ? FileImage(_profileImage!) : null,
+                backgroundImage:
+                    _profileImage != null ? MemoryImage(_profileImage!) : null,
                 child: _profileImage == null
                     ? Icon(
-                        Icons.camera_alt,
-                        size: 50,
+                        Icons.person,
+                        size: 60,
                         color: Theme.of(context).colorScheme.onSurfaceVariant,
                       )
                     : null,
@@ -99,13 +148,17 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
               maxLines: 3,
             ),
             const Spacer(),
-            ElevatedButton(
-              onPressed: _navigateToNext,
-              child: const Text('Next'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _navigateToNext,
+                child: const Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),

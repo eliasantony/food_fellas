@@ -7,6 +7,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
+import 'src/views/auth/login_screen.dart';
 import 'src/views/home_screen.dart';
 import 'src/views/discover_screen.dart';
 import 'src/views/community_screen.dart';
@@ -24,11 +25,11 @@ import 'src/widgets/initializer_widget.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   await dotenv.load(fileName: ".env");
-  
+
   Gemini.init(apiKey: dotenv.env['GEMINI_API_KEY']!);
-  
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
@@ -36,10 +37,9 @@ void main() async {
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
   );
-  
+
   runApp(ChangeNotifierProvider(
-      create: (_) => ChatProvider(), child: const MainApp())
-  );
+      create: (_) => ChatProvider(), child: const MainApp()));
 }
 
 class MainApp extends StatelessWidget {
@@ -53,9 +53,10 @@ class MainApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
-      home: InitializerWidget(),
+      home: const InitializerWidget(),
       routes: {
-        '/signup': (context) => SignUpScreen(),
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignUpScreen(),
         '/mainPage': (context) => const MainPage(),
       },
     );

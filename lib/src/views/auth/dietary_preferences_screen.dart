@@ -4,8 +4,9 @@ import 'package:food_fellas/src/views/auth/favorite_cuisines_screen.dart';
 
 class DietaryPreferencesScreen extends StatefulWidget {
   final UserData userData;
-  
-  const DietaryPreferencesScreen({Key? key, required this.userData}) : super(key: key);
+
+  const DietaryPreferencesScreen({Key? key, required this.userData})
+      : super(key: key);
 
   @override
   _DietaryPreferencesScreenState createState() =>
@@ -18,9 +19,17 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   final List<Map<String, String>> preferences = [
     {'label': 'Vegetarian', 'icon': '🥕'},
     {'label': 'Vegan', 'icon': '🌱'},
-    {'label': 'Gluten-Free', 'icon': '🍞'},
+    {'label': 'Pescatarian', 'icon': '🐟'},
+    {'label': 'Low-Carb', 'icon': '🥦'},
+    {'label': 'High-Protein', 'icon': '🍗'},
+    {'label': 'Low-Fat', 'icon': '🍏'},
     {'label': 'Dairy-Free', 'icon': '🥛'},
     {'label': 'Nut-Free', 'icon': '🥜'},
+    {'label': 'Keto', 'icon': '🥩'},
+    {'label': 'Paleo', 'icon': '🍖'},
+    {'label': 'Gluten-Free', 'icon': '🍞'},
+    {'label': 'Halal', 'icon': '🕌'},
+    {'label': 'Kosher', 'icon': '✡️'},
     {'label': 'No Preferences', 'icon': '🍽️'},
   ];
 
@@ -78,13 +87,16 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
                 }).toList(),
               ),
             ),
-            ElevatedButton(
-              onPressed: _navigateToNext,
-              child: const Text('Next'),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _navigateToNext,
+                child: const Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 15),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12),
+                  ),
                 ),
               ),
             ),

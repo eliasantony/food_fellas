@@ -1,9 +1,10 @@
 import 'dart:io';
+import 'dart:typed_data';
 
 class UserData {
   String? displayName;
   String? shortDescription;
-  File? profileImage;
+  Uint8List? profileImage;
   String? photoUrl;
   List<String>? dietaryPreferences;
   List<String>? favoriteCuisines;

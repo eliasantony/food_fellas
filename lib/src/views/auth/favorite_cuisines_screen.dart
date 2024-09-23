@@ -6,7 +6,8 @@ import 'cooking_skill_level_screen.dart';
 class FavoriteCuisinesScreen extends StatefulWidget {
   final UserData userData;
 
-  const FavoriteCuisinesScreen({Key? key, required this.userData}) : super(key: key);
+  const FavoriteCuisinesScreen({Key? key, required this.userData})
+      : super(key: key);
 
   @override
   _FavoriteCuisinesScreenState createState() => _FavoriteCuisinesScreenState();
@@ -23,6 +24,21 @@ class _FavoriteCuisinesScreenState extends State<FavoriteCuisinesScreen> {
     {'label': 'Japanese', 'icon': '🍣'},
     {'label': 'Mediterranean', 'icon': '🥙'},
     {'label': 'American', 'icon': '🍔'},
+    {'label': 'Thai', 'icon': '🍜'},
+    {'label': 'French', 'icon': '🥐'},
+    {'label': 'Greek', 'icon': '🥗'},
+    {'label': 'Korean', 'icon': '🍱'},
+    {'label': 'Vietnamese', 'icon': '🍜'},
+    {'label': 'Spanish', 'icon': '🥘'},
+    {'label': 'Middle Eastern', 'icon': '🥙'},
+    {'label': 'Caribbean', 'icon': '🍹'},
+    {'label': 'African', 'icon': '🍛'},
+    {'label': 'German', 'icon': '🥨'},
+    {'label': 'Brazilian', 'icon': '🍖'},
+    {'label': 'Peruvian', 'icon': '🍤'},
+    {'label': 'Russian', 'icon': '🍲'},
+    {'label': 'Turkish', 'icon': '🍢'},
+    {'label': 'Other', 'icon': '🌍'},
   ];
 
   void _toggleCuisine(String cuisine) {
@@ -42,7 +58,8 @@ class _FavoriteCuisinesScreenState extends State<FavoriteCuisinesScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(
-        builder: (context) => CookingSkillLevelScreen(userData: widget.userData),
+        builder: (context) =>
+            CookingSkillLevelScreen(userData: widget.userData),
       ),
     );
   }
@@ -80,9 +97,15 @@ class _FavoriteCuisinesScreenState extends State<FavoriteCuisinesScreen> {
                 }).toList(),
               ),
             ),
-            ElevatedButton(
-              onPressed: _navigateToNext,
-              child: Text('Next'),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _navigateToNext,
+                child: Text('Next'),
+                style: ElevatedButton.styleFrom(
+                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                ),
+              ),
             ),
           ],
         ),

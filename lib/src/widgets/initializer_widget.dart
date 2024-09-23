@@ -94,46 +94,44 @@ class _InitializerWidgetState extends State<InitializerWidget> {
             // User is not signed in
             print('User is not signed in');
             return const WelcomeScreen();
-          } else {
-            // User is signed in, check onboarding status
-            return FutureBuilder<bool>(
-              future: checkOnboardingComplete(user.uid),
-              builder: (context, onboardingSnapshot) {
-                if (onboardingSnapshot.hasError) {
-                  print('Onboarding status error: ${onboardingSnapshot.error}');
-                  return const Scaffold(
-                    body: Center(child: Text('Something went wrong')),
-                  );
-                }
+} else {
+        // User is signed in, check onboarding status
+        return FutureBuilder<bool>(
+          future: checkOnboardingComplete(user.uid),
+          builder: (context, onboardingSnapshot) {
+            if (onboardingSnapshot.hasError) {
+              // Handle error
+              return Scaffold(
+                body: Center(child: Text('Something went wrong')),
+              );
+            }
 
-                if (onboardingSnapshot.connectionState == ConnectionState.done) {
-                  bool onboardingComplete = onboardingSnapshot.data ?? false;
+            if (onboardingSnapshot.connectionState == ConnectionState.done) {
+              bool onboardingComplete = onboardingSnapshot.data ?? false;
 
-                  if (onboardingComplete) {
-                    // Onboarding is complete
-                    print('Onboarding complete, navigating to MainPage');
-                    return const MainPage();
-                  } else {
-                    // Onboarding not complete
-                    print('Onboarding not complete, navigating to UserInfoScreen');
-                    return const UserInfoScreen();
-                  }
-                } else {
-                  // Show loading indicator while checking onboarding status
-                  return const Scaffold(
-                    body: Center(child: CircularProgressIndicator()),
-                  );
-                }
-              },
-            );
-          }
-        } else {
-          // Show loading indicator while checking authentication state
-          return const Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        }
-      },
-    );
+              if (onboardingComplete) {
+                // Onboarding is complete
+                return MainPage();
+              } else {
+                // Onboarding not complete
+                return WelcomeScreen();
+              }
+            } else {
+              // Show loading indicator while checking onboarding status
+              return Scaffold(
+                body: Center(child: CircularProgressIndicator()),
+              );
+            }
+          },
+        );
+      }
+    } else {
+      // Show loading indicator while checking authentication state
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+  },
+);
   }
 }
