@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
-import '../models/ingredient.dart';
 
 class IngredientCard extends StatelessWidget {
-  final String imageUrl;
+  final String? imageUrl;
   final double baseAmount;
   final String unit;
   final String ingredientName;
   final int servings;
+  final int initialServings;
 
   const IngredientCard({
     Key? key,
@@ -15,12 +15,12 @@ class IngredientCard extends StatelessWidget {
     required this.unit,
     required this.ingredientName,
     required this.servings,
+    required this.initialServings,
   }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    final double totalAmount =
-        baseAmount * servings; // Calculate total amount based on servings
+    final double totalAmount = baseAmount * servings / initialServings;
 
     return Container(
       width: 100,
@@ -32,17 +32,12 @@ class IngredientCard extends StatelessWidget {
       child: Column(
         children: [
           ClipOval(
-            child: Image.asset(
-              imageUrl,
-              width: 80,
-              height: 80,
-              fit: BoxFit.cover,
-            ),
+            child: _buildIngredientImage(),
           ),
           Padding(
             padding: const EdgeInsets.symmetric(vertical: 4),
             child: Text(
-              '${totalAmount.toStringAsFixed(0)} $unit', // Display the total amount
+              '${totalAmount.toStringAsFixed(1)} $unit',
               style: TextStyle(
                 fontWeight: FontWeight.bold,
               ),
@@ -56,6 +51,43 @@ class IngredientCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildIngredientImage() {
+    if (imageUrl != null && imageUrl!.isNotEmpty) {
+      if (imageUrl!.startsWith('http')) {
+        return Image.network(
+          imageUrl!,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _placeholderImage();
+          },
+        );
+      } else {
+        return Image.asset(
+          imageUrl!,
+          width: 80,
+          height: 80,
+          fit: BoxFit.cover,
+          errorBuilder: (context, error, stackTrace) {
+            return _placeholderImage();
+          },
+        );
+      }
+    } else {
+      return _placeholderImage();
+    }
+  }
+
+  Widget _placeholderImage() {
+    return Image.network(
+      'https://placehold.co/80', // Replace with your placeholder image path
+      width: 80,
+      height: 80,
+      fit: BoxFit.cover,
     );
   }
 }

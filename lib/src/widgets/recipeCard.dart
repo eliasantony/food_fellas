@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-
 import '../views/recipeDetails_screen.dart';
 
-class RecipeCard extends StatefulWidget {
+class RecipeCard extends StatelessWidget {
+  final String recipeId;
   final String title;
   final String description;
   final double rating;
@@ -12,7 +12,8 @@ class RecipeCard extends StatefulWidget {
   final bool big;
 
   const RecipeCard({
-    super.key,
+    Key? key,
+    required this.recipeId,
     required this.title,
     required this.description,
     required this.rating,
@@ -20,21 +21,15 @@ class RecipeCard extends StatefulWidget {
     required this.thumbnailUrl,
     required this.author,
     this.big = false,
-  });
-
-  @override
-  _RecipeCardState createState() => _RecipeCardState();
-}
-
-class _RecipeCardState extends State<RecipeCard> {
-  bool isLiked = false;
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
+    bool isLiked = false; // Manage this state as needed
 
     return Container(
-      width: widget.big ? 400 : 250,
+      width: big ? 400 : 250,
       child: Card(
         clipBehavior: Clip.antiAlias,
         shape: RoundedRectangleBorder(
@@ -49,7 +44,7 @@ class _RecipeCardState extends State<RecipeCard> {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => RecipeDetailScreen(),
+                    builder: (context) => RecipeDetailScreen(recipeId: recipeId),
                   ),
                 );
               },
@@ -58,10 +53,7 @@ class _RecipeCardState extends State<RecipeCard> {
                 children: <Widget>[
                   AspectRatio(
                     aspectRatio: 16 / 9,
-                    child: Image.asset(
-                      widget.thumbnailUrl,
-                      fit: BoxFit.cover,
-                    ),
+                    child: _buildRecipeImage(),
                   ),
                   Padding(
                     padding: const EdgeInsets.all(8.0),
@@ -69,18 +61,17 @@ class _RecipeCardState extends State<RecipeCard> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: <Widget>[
                         Text(
-                          widget.title,
-                          style: theme.textTheme.titleLarge
-                              ?.copyWith(fontSize: 16),
+                          title,
+                          style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
                         ),
                         SizedBox(height: 4),
                         Text(
-                          widget.author,
+                          author,
                           style: theme.textTheme.titleSmall,
                         ),
                         SizedBox(height: 8),
                         Text(
-                          widget.description,
+                          description,
                           style: theme.textTheme.bodyMedium,
                         ),
                         SizedBox(height: 8),
@@ -96,7 +87,7 @@ class _RecipeCardState extends State<RecipeCard> {
                                 ),
                                 SizedBox(width: 4),
                                 Text(
-                                  widget.rating.toString(),
+                                  rating.toStringAsFixed(1),
                                   style: theme.textTheme.titleMedium,
                                 ),
                               ],
@@ -110,7 +101,7 @@ class _RecipeCardState extends State<RecipeCard> {
                                 ),
                                 SizedBox(width: 4),
                                 Text(
-                                  widget.cookTime,
+                                  cookTime,
                                   style: theme.textTheme.titleMedium,
                                 ),
                               ],
@@ -123,6 +114,7 @@ class _RecipeCardState extends State<RecipeCard> {
                 ],
               ),
             ),
+            // Like button (optional)
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: AnimatedSwitcher(
@@ -139,9 +131,7 @@ class _RecipeCardState extends State<RecipeCard> {
                         ? Icon(Icons.favorite, color: Colors.red)
                         : Icon(Icons.favorite_border, color: Colors.grey),
                     onPressed: () {
-                      setState(() {
-                        isLiked = !isLiked;
-                      });
+                      // Handle like functionality
                     },
                   ),
                 ),
@@ -151,5 +141,19 @@ class _RecipeCardState extends State<RecipeCard> {
         ),
       ),
     );
+  }
+
+  Widget _buildRecipeImage() {
+    if (thumbnailUrl.startsWith('http')) {
+      return Image.network(
+        thumbnailUrl,
+        fit: BoxFit.cover,
+      );
+    } else {
+      return Image.asset(
+        thumbnailUrl,
+        fit: BoxFit.cover,
+      );
+    }
   }
 }

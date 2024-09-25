@@ -11,6 +11,7 @@ class HorizontalRecipeRow extends StatelessWidget {
         children: [
           RecipeCard(
             big: false,
+            recipeId: 'testId',
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
@@ -20,6 +21,7 @@ class HorizontalRecipeRow extends StatelessWidget {
           ),
           RecipeCard(
             big: false,
+            recipeId: 'testId',
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
@@ -29,6 +31,7 @@ class HorizontalRecipeRow extends StatelessWidget {
           ),
           RecipeCard(
             big: false,
+            recipeId: 'testId',
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,

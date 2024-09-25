@@ -10,6 +10,7 @@ class VerticalRecipeList extends StatelessWidget {
         children: [
           RecipeCard(
             big: true,
+            recipeId: 'testId',
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
@@ -19,6 +20,7 @@ class VerticalRecipeList extends StatelessWidget {
           ),
           RecipeCard(
             big: true,
+            recipeId: 'testId',
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
@@ -28,6 +30,7 @@ class VerticalRecipeList extends StatelessWidget {
           ),
           RecipeCard(
             big: true,
+            recipeId: 'testId',
             title: 'Spaghetti Bolognese',
             description: 'A classic Italian dish',
             rating: 4.5,
