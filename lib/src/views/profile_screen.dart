@@ -1,6 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:food_fellas/src/utils/dialog_utils.dart';
+import 'package:food_fellas/src/views/collectionDetail_screen.dart';
+import 'package:food_fellas/src/widgets/hoprizontalRecipeRow.dart';
+import 'package:path/path.dart';
 import '../widgets/recipeCard.dart';
 
 class ProfileScreen extends StatelessWidget {
@@ -56,6 +61,12 @@ class ProfileScreen extends StatelessWidget {
         backgroundColor: theme.appBarTheme.backgroundColor,
         actions: [
           IconButton(
+            icon: Icon(Icons.edit, color: theme.iconTheme.color),
+            onPressed: () {
+              // Navigate to edit profile screen
+            },
+          ),
+          IconButton(
             icon: Icon(Icons.settings, color: theme.iconTheme.color),
             onPressed: () {
               // Navigate to settings screen or perform other actions
@@ -68,10 +79,16 @@ class ProfileScreen extends StatelessWidget {
           children: <Widget>[
             // Profile Header
             _buildProfileHeader(theme, userData),
+            // Average Rating Section
+            _buildAverageRatingSection(theme, userData['uid']),
             // Statistics Section
-            _buildStatisticsSection(theme, userData),
+            _buildStatisticsSection(context, theme, userData),
+            // Collections Section
+            _buildCollectionsSection(context, theme, userData),
             // Recipes Section
             _buildRecipesSection(context, theme, userData),
+            // Badges Section
+            _buildBadgesSection(context, theme),
           ],
         ),
       ),
@@ -86,96 +103,342 @@ class ProfileScreen extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Row(
+      child: Column(
         children: <Widget>[
           CircleAvatar(
             backgroundImage: NetworkImage(photoUrl),
-            radius: 40,
+            radius: 80,
+            backgroundColor: Colors.transparent,
           ),
-          SizedBox(width: 16),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(
-                  displayName,
-                  style: theme.textTheme.titleLarge,
-                ),
-                SizedBox(height: 4),
-                Text(
-                  shortDescription,
-                  style: theme.textTheme.bodySmall,
-                ),
-              ],
-            ),
+          Text(
+            displayName,
+            style: theme.textTheme.headlineSmall,
           ),
-          IconButton(
-            icon: Icon(Icons.edit, color: theme.iconTheme.color),
-            onPressed: () {
-              // Navigate to edit profile screen
-            },
+          SizedBox(height: 8),
+          Text(
+            shortDescription,
+            style: theme.textTheme.titleMedium,
+            textAlign: TextAlign.center,
           ),
         ],
       ),
     );
   }
 
-  Widget _buildStatisticsSection(
-      ThemeData theme, Map<String, dynamic> userData) {
-    // We'll fetch the recipes and calculate statistics later
+  Widget _buildAverageRatingSection(ThemeData theme, String userId) {
     return FutureBuilder<QuerySnapshot>(
       future: FirebaseFirestore.instance
           .collection('recipes')
-          .where('authorId', isEqualTo: userData['uid'])
+          .where('authorId', isEqualTo: userId)
           .get(),
       builder: (context, snapshot) {
-        int recipesCount = 0;
-        int totalLikes = 0;
-        if (snapshot.hasData && snapshot.data != null) {
-          recipesCount = snapshot.data!.docs.length;
-          // Sum up the likes from each recipe
-          totalLikes = snapshot.data!.docs.fold(0, (sum, doc) {
-            final data = doc.data() as Map<String, dynamic>;
-            return sum + (data['likes'] as int? ?? 0);
-          });
+        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return SizedBox(); // No recipes, so no average rating
         }
 
-        return Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: <Widget>[
-              _ProfileStatistic(title: 'Recipes', value: '$recipesCount'),
-              _ProfileStatistic(title: 'Likes', value: '$totalLikes'),
-              // You can add more statistics here
-            ],
-          ),
+        double totalRating = 0.0;
+        int totalReviews = 0;
+
+        for (var doc in snapshot.data!.docs) {
+          // Assume each recipe has an averageRating field
+          double recipeRating;
+          int recipeReviews;
+          try {
+            recipeRating = doc['averageRating']?.toDouble() ?? 0.0;
+          } catch (e) {
+            recipeRating = 0.0;
+          }
+
+          try {
+            recipeReviews = doc['ratingsCount'] ?? 0;
+          } catch (e) {
+            recipeReviews = 0;
+          }
+          totalRating += recipeRating * recipeReviews;
+          totalReviews += recipeReviews;
+        }
+
+        double averageRating =
+            totalReviews > 0 ? totalRating / totalReviews : 0.0;
+
+        return Column(
+          children: [
+            Text(
+              'Average Recipe Ratings:',
+              style: theme.textTheme.bodyMedium,
+            ),
+            SizedBox(height: 4),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  averageRating.toStringAsFixed(1),
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                ),
+                SizedBox(width: 8),
+                Icon(Icons.star, color: Colors.amber),
+              ],
+            ),
+            SizedBox(height: 20),
+          ],
         );
       },
     );
   }
 
-    Widget _ProfileStatistic({required String title, required String value}) {
-      return Column(
-        mainAxisSize: MainAxisSize.min,
-        children: <Widget>[
-          Text(
-            value,
-            style: const TextStyle(
-              fontWeight: FontWeight.bold,
-              fontSize: 18,
+  Widget _buildStatisticsSection(
+      BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
+    String userId = userData['uid'] ?? FirebaseAuth.instance.currentUser!.uid;
+
+    return FutureBuilder<QuerySnapshot>(
+      future: FirebaseFirestore.instance
+          .collection('recipes')
+          .where('authorId', isEqualTo: userId)
+          .get(),
+      builder: (context, snapshot) {
+        int recipesCount = 0;
+        if (snapshot.hasData && snapshot.data != null) {
+          recipesCount = snapshot.data!.docs.length;
+        }
+
+        // Assume you have a 'followers' collection under each user
+        return FutureBuilder<QuerySnapshot>(
+          future: FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .collection('followers')
+              .get(),
+          builder: (context, followerSnapshot) {
+            int followersCount = 0;
+            if (followerSnapshot.hasData && followerSnapshot.data != null) {
+              followersCount = followerSnapshot.data!.docs.length;
+            }
+
+            return Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16.0),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: <Widget>[
+                  _ProfileStatistic(title: 'Recipes', value: '$recipesCount'),
+                  _ProfileStatistic(
+                      title: 'Followers', value: '$followersCount'),
+                  // Add more statistics as needed
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildBadgesSection(BuildContext context, ThemeData theme) {
+    // Placeholder badges
+    List<String> badges = ['Chef', 'Contributor', 'Foodie'];
+
+    return Column(
+      children: [
+        SizedBox(height: 20),
+        Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            'My Badges:',
+            style: theme.textTheme.titleLarge,
+          ),
+        ),
+        SizedBox(height: 10),
+        Container(
+          height: 80,
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: badges.length,
+            itemBuilder: (context, index) {
+              return Card(
+                margin: EdgeInsets.symmetric(horizontal: 8),
+                child: Center(
+                  child: Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: Text(badges[index]),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+        SizedBox(height: 20),
+      ],
+    );
+  }
+
+  Widget _buildCollectionsSection(
+      BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
+    String userId = userData['uid'] ?? FirebaseAuth.instance.currentUser!.uid;
+
+    return Column(
+      children: [
+        SizedBox(height: 20),
+        Container(
+          alignment: Alignment.centerLeft,
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            'My Collections',
+            style: theme.textTheme.titleLarge,
+          ),
+        ),
+        SizedBox(height: 10),
+        Container(
+          height: 170,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(userId)
+                .collection('collections')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text('Error fetching collections'));
+              }
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return Center(child: CircularProgressIndicator());
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                // No collections yet
+                return ListView(
+                  scrollDirection: Axis.horizontal,
+                  children: [
+                    _buildCreateCollectionCard(context, theme),
+                  ],
+                );
+              }
+              final collections = snapshot.data!.docs;
+
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount:
+                    collections.length + 1, // Extra item for "Create New"
+                itemBuilder: (context, index) {
+                  if (index == collections.length) {
+                    // "Create New" card
+                    return _buildCreateCollectionCard(context, theme);
+                  } else {
+                    final collectionData =
+                        collections[index].data() as Map<String, dynamic>;
+                    return _buildCollectionCard(
+                        context, theme, collections[index].id, collectionData);
+                  }
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+// Collection Card
+  Widget _buildCollectionCard(BuildContext context, ThemeData theme,
+      String collectionId, Map<String, dynamic> collectionData) {
+    String name = collectionData['name'] ?? 'Unnamed';
+    String icon = collectionData['icon'] ?? '🍽';
+    List<dynamic> recipes = collectionData['recipes'] ?? [];
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to Collection Detail Screen
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => CollectionDetailScreen(
+              collectionId: collectionId,
+              collectionEmoji: icon,
+              collectionName: name,
+              collectionVisibility: collectionData['isPublic'],
             ),
           ),
-          Text(
-            title,
-            style: const TextStyle(
-              fontSize: 16,
-              color: Colors.grey,
-            ),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Container(
+          width: 120,
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Display the emoji icon
+              Text(
+                icon,
+                style: TextStyle(fontSize: 40),
+              ),
+              SizedBox(height: 8),
+              Text(
+                name,
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+              SizedBox(height: 4),
+              Text(
+                '${recipes.length} recipes',
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
           ),
-        ],
-      );
-    }
+        ),
+      ),
+    );
+  }
+
+// Create New Collection Card
+  Widget _buildCreateCollectionCard(BuildContext context, ThemeData theme) {
+    return GestureDetector(
+      onTap: () {
+        // Show dialog to create new collection
+        showCreateCollectionDialog(context);
+      },
+      child: Card(
+        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Container(
+          width: 120,
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 40),
+              SizedBox(height: 8),
+              Text(
+                'Create New',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _ProfileStatistic({required String title, required String value}) {
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: <Widget>[
+        Text(
+          value,
+          style: const TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
+        Text(
+          title,
+          style: const TextStyle(
+            fontSize: 16,
+            color: Colors.grey,
+          ),
+        ),
+      ],
+    );
+  }
 
   Widget _buildRecipesSection(
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
@@ -187,18 +450,17 @@ class ProfileScreen extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
             'My Recipes',
-            style:
-                theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+            style: theme.textTheme.titleLarge,
           ),
         ),
         SizedBox(height: 10),
         // Fetch and display user's recipes
-        _buildUserRecipesList(context, theme, userData),
+        _buildUserRecipesRow(context, theme, userData),
       ],
     );
   }
 
-  Widget _buildUserRecipesList(
+  Widget _buildUserRecipesRow(
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
     String userId = userData['uid'] ?? FirebaseAuth.instance.currentUser!.uid;
 
@@ -220,24 +482,14 @@ class ProfileScreen extends StatelessWidget {
           return Center(child: Text('You have not added any recipes yet.'));
         }
 
-        return ListView.builder(
-          shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
-          itemCount: recipes.length,
-          itemBuilder: (context, index) {
-            final recipeData = recipes[index].data() as Map<String, dynamic>;
-            return RecipeCard(
-              recipeId: recipes[index].id,
-              title: recipeData['title'] ?? 'Unnamed Recipe',
-              description: recipeData['description'] ?? '',
-              rating: recipeData['rating']?.toDouble() ?? 0.0,
-              cookTime: recipeData['cookingTime'] ?? '',
-              thumbnailUrl: recipeData['imageUrl'] ?? '',
-              author: userData['display_name'] ?? '',
-              big: true,
-            );
-          },
-        );
+        // Prepare the list of recipe data
+        List<Map<String, dynamic>> recipeDataList = recipes.map((doc) {
+          final data = doc.data() as Map<String, dynamic>;
+          data['recipeId'] = doc.id; // Add recipeId to the data
+          return data;
+        }).toList();
+
+        return HorizontalRecipeRow(recipes: recipeDataList);
       },
     );
   }

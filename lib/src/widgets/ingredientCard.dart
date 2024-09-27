@@ -48,6 +48,9 @@ class IngredientCard extends StatelessWidget {
             style: TextStyle(
               color: Colors.black,
             ),
+            textAlign: TextAlign.center,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
           ),
         ],
       ),
@@ -84,10 +87,19 @@ class IngredientCard extends StatelessWidget {
 
   Widget _placeholderImage() {
     return Image.network(
-      'https://placehold.co/80', // Replace with your placeholder image path
+      'https://placehold.co/80',
       width: 80,
       height: 80,
       fit: BoxFit.cover,
+      errorBuilder:
+          (BuildContext context, Object exception, StackTrace? stackTrace) {
+        return Container(
+          width: 80,
+          height: 80,
+          color: Colors.grey,
+          child: Icon(Icons.error, color: Colors.red),
+        );
+      },
     );
   }
 }

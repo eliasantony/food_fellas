@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../views/recipeDetails_screen.dart';
 import 'recipeCard.dart';
 
-class HorizontalRecipeRow extends StatelessWidget {
+class MockupHorizontalRecipeRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return const SingleChildScrollView(

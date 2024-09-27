@@ -20,7 +20,9 @@ class IngredientsGrid extends StatelessWidget {
 
     return GridView.builder(
       gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-          crossAxisCount: 4, childAspectRatio: 0.6),
+        crossAxisCount: 2, // Adjust to 2 columns for better spacing
+        childAspectRatio: 0.8,
+      ),
       shrinkWrap: true,
       physics: NeverScrollableScrollPhysics(),
       itemCount: ingredients.length,

@@ -41,6 +41,8 @@ dependencies:
   open_peeps:
     path: C:/src/open-peeps-main/packages/open_peeps
   image_gallery_saver: ^2.0.3
+  flutter_rating_bar: ^4.0.1
+  emoji_picker_flutter: ^3.0.0
 
 dev_dependencies:
   flutter_test:

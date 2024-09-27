@@ -37,6 +37,7 @@ class FinalWelcomeScreen extends StatelessWidget {
 
       // Save all data to Firestore
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+        'uid': user.uid,
         'created_time': FieldValue.serverTimestamp(),
         'display_name': userData.displayName,
         'email': user.email,
@@ -48,6 +49,7 @@ class FinalWelcomeScreen extends StatelessWidget {
         'cookingSkillLevel': userData.cookingSkillLevel,
         'notificationsEnabled': userData.notificationsEnabled,
         'onboardingComplete': true,
+        'role': 'user',
       }, SetOptions(merge: true));
     }
 

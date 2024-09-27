@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
+import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:provider/provider.dart';
 import 'firebase_options.dart';
 import 'src/views/auth/login_screen.dart';
@@ -76,7 +77,8 @@ class _MainPageState extends State<MainPage> {
   final List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     DiscoverScreen(),
-    CommunityScreen(),
+    //CommunityScreen(),
+    ShoppingListScreen(),
     const AIChatScreen(),
     ProfileScreen(),
   ];
@@ -104,8 +106,8 @@ class _MainPageState extends State<MainPage> {
             label: 'Discover',
           ),
           BottomNavigationBarItem(
-            icon: Icon(Icons.group),
-            label: 'Community',
+            icon: Icon(Icons.shopping_cart),
+            label: 'Shopping List',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.chat),

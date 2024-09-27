@@ -225,7 +225,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
 
       // Save the recipe to Firestore
       try {
-        await docRef.set(recipe.toJson()); // Use set() instead of add()
+        await docRef.set(recipe.toJson());
         print('DocRef ID: ${docRef.id}');
         print('Recipe ID: ${recipe.id}');
 

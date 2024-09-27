@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../widgets/horizontalRecipeRow.dart';
+import '../widgets/mockupHorizontalRecipeRow.dart';
 import 'addRecipeForm/addRecipe_form.dart';
 
 class HomeScreen extends StatelessWidget {
@@ -25,21 +25,21 @@ class HomeScreen extends StatelessWidget {
           ),
           Container(
             margin: const EdgeInsets.only(left: 8),
-            child: HorizontalRecipeRow(),
+            child: MockupHorizontalRecipeRow(),
           ),
           const ListTile(
             title: Text('New Recipes'),
           ),
           Container(
             margin: const EdgeInsets.only(left: 8),
-            child: HorizontalRecipeRow(),
+            child: MockupHorizontalRecipeRow(),
           ),
           const ListTile(
             title: Text('Top Rated'),
           ),
           Container(
             margin: const EdgeInsets.only(left: 8),
-            child: HorizontalRecipeRow(),
+            child: MockupHorizontalRecipeRow(),
           ),
         ],
       ),
