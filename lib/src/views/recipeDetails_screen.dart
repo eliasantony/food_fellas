@@ -433,6 +433,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     List<dynamic> tags = recipeData['tags'] ?? [];
     Map<String, dynamic>? nutrition = recipeData['nutrition'];
 
+    print(tags);
+
     int ingredientsCount = ingredientsData.length;
     int stepsCount = cookingSteps.length;
 
@@ -464,6 +466,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
               ],
             ),
+          ),
+          // Tags Section
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: _buildTagsSection(tags),
           ),
           // Ingredients Section
           Padding(
@@ -661,6 +668,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           );
         }
       },
+    );
+  }
+
+  // Tags Section
+  Widget _buildTagsSection(List<dynamic> tags) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: Row(
+        children: tags.map((tag) {
+          return Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Chip(
+              label: Text('${tag['icon']} ${tag['name']}'),
+            ),
+          );
+        }).toList(),
+      ),
     );
   }
 

@@ -2,6 +2,8 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
+import 'package:food_fellas/src/models/tag.dart';
+import 'package:food_fellas/src/views/addRecipeForm/tagsSelection_screen.dart';
 import '../../models/recipe.dart';
 import 'recipeBasics_screen.dart';
 import 'ingredientsSelection_screen.dart';
@@ -26,6 +28,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   final GlobalKey<FormState> _ingredientsFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _quantitiesFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _stepsFormKey = GlobalKey<FormState>();
+  final GlobalKey<FormState> _tagsFormKey = GlobalKey<FormState>();
   final GlobalKey<FormState> _imageFormKey = GlobalKey<FormState>();
 
   late PageController _pageController;
@@ -106,6 +109,11 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                   onDataChanged: _updateRecipeData,
                   formKey: _stepsFormKey,
                 ),
+                TagsSelectionPage(
+                  recipe: recipe,
+                  onDataChanged: _updateRecipeData,
+                  formKey: _tagsFormKey,
+                ),
                 ImageUploadPage(
                   recipe: recipe,
                   onDataChanged: _updateRecipeData,
@@ -156,6 +164,9 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   void _nextPage() {
     if (_getCurrentFormKey().currentState!.validate()) {
       _getCurrentFormKey().currentState!.save(); // Save the form state
+
+      // Close the keyboard if open
+      FocusScope.of(context).unfocus();
 
       if (_currentStep < _totalSteps() - 1) {
         setState(() => _currentStep++);
@@ -226,8 +237,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       // Save the recipe to Firestore
       try {
         await docRef.set(recipe.toJson());
-        print('DocRef ID: ${docRef.id}');
-        print('Recipe ID: ${recipe.id}');
+        print(recipe.toJson());
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Recipe submitted successfully!')),
@@ -270,8 +280,14 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         case 'description':
           recipe.description = value;
           break;
-        case 'cookingTime':
-          recipe.cookingTime = value;
+        case 'prepTime':
+          recipe.prepTime = value;
+          break;
+        case 'cookTime':
+          recipe.cookTime = value;
+          break;
+        case 'totalTime':
+          recipe.totalTime = value;
           break;
         case 'ingredients':
           recipe.ingredients = value;
@@ -281,6 +297,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           break;
         case 'cookingSteps':
           recipe.cookingSteps = value;
+          break;
+        case 'tags':
+          print("List<Tag>:" + List<Tag>.from(value).toString());
+          recipe.tags = List<Tag>.from(value);
           break;
         case 'imageFile':
           recipe.imageFile = value;
@@ -302,13 +322,15 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       case 3:
         return _stepsFormKey;
       case 4:
+        return _tagsFormKey;
+      case 5:
         return _imageFormKey;
       default:
         throw ArgumentError('Invalid step: $_currentStep');
     }
   }
 
-  int _totalSteps() => 5;
+  int _totalSteps() => 6;
 
   List<EasyStep> _buildEasySteps() {
     return [
@@ -327,6 +349,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       const EasyStep(
         title: 'Steps',
         icon: Icon(Icons.list),
+      ),
+      const EasyStep(
+        title: 'Tags',
+        icon: Icon(Icons.label),
       ),
       const EasyStep(
         title: 'Image',

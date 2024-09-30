@@ -29,7 +29,7 @@ class IngredientsGrid extends StatelessWidget {
       itemBuilder: (context, index) {
         final ingredient = ingredients[index];
         return IngredientCard(
-          imageUrl: ingredient.ingredient.imageUrl ?? '',
+          //imageUrl: ingredient.ingredient.imageUrl ?? '',
           baseAmount: ingredient.baseAmount,
           unit: ingredient.unit,
           ingredientName: ingredient.ingredient.ingredientName,

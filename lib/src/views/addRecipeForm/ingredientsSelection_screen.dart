@@ -1,3 +1,4 @@
+import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/recipeIngredient.dart';
@@ -113,54 +114,106 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
     });
   }
 
+  Map<String, IconData> categoryIcons = {
+    'Fat & Oil': Icons.emoji_food_beverage,
+    'Herb': Icons.eco,
+    'Seafood': Icons.anchor,
+    'Spice & Seasoning': Icons.local_pizza,
+    'Dairy': Icons.icecream,
+    'Protein': Icons.emoji_food_beverage,
+    'Condiment': Icons.local_fire_department,
+    'Vegetable': Icons.eco,
+    'Fruit': Icons.eco,
+    'Grain': Icons.local_pizza,
+    'Nuts & Seeds': Icons.emoji_food_beverage,
+    'Legume': Icons.emoji_food_beverage,
+  };
+
   @override
   Widget build(BuildContext context) {
+    if (searchQuery.isNotEmpty) {
+      // Show filtered ingredients without categories
+      return Form(
+        key: widget.formKey,
+        child: Column(
+          children: [
+            _buildSearchBar(),
+            Expanded(
+              child: ListView.builder(
+                itemCount: filteredIngredients.length,
+                itemBuilder: (context, index) {
+                  final ingredient = filteredIngredients[index];
+                  return CheckboxListTile(
+                    title: Text(ingredient.ingredientName),
+                    value: _isSelected(ingredient),
+                    onChanged: (bool? value) {
+                      _toggleIngredientSelection(value, ingredient);
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Show categorized ingredients
+      return Form(
+        key: widget.formKey,
+        child: Column(
+          children: [
+            _buildSearchBar(),
+            Expanded(
+              child: _buildCategorizedIngredients(),
+            ),
+          ],
+        ),
+      );
+    }
+  }
+
+  Widget _buildSearchBar() {
+    return Padding(
+      padding: EdgeInsets.all(16.0),
+      child: TextField(
+        decoration: InputDecoration(
+          labelText: 'Search Ingredients',
+          prefixIcon: Icon(Icons.search),
+        ),
+        onChanged: _filterIngredients,
+      ),
+    );
+  }
+
+  Widget _buildCategorizedIngredients() {
     Map<String, List<Ingredient>> categorizedIngredients = {};
 
-    for (var ingredient in filteredIngredients) {
+    for (var ingredient in availableIngredients) {
       if (!categorizedIngredients.containsKey(ingredient.category)) {
         categorizedIngredients[ingredient.category] = [];
       }
       categorizedIngredients[ingredient.category]!.add(ingredient);
     }
 
-    return Form(
-      key: widget.formKey,
-      child: Column(
-        children: [
-          Padding(
-            padding: EdgeInsets.all(16.0),
-            child: TextField(
-              decoration: InputDecoration(
-                labelText: 'Search Ingredients',
-                prefixIcon: Icon(Icons.search),
-              ),
-              onChanged: _filterIngredients,
-            ),
-          ),
-          Expanded(
-            child: ListView.builder(
-              itemCount: categorizedIngredients.entries.length,
-              itemBuilder: (context, index) {
-                final entry = categorizedIngredients.entries.elementAt(index);
-                return ExpansionTile(
-                  title: Text(entry.key),
-                  initiallyExpanded: true,
-                  children: entry.value.map((ingredient) {
-                    return CheckboxListTile(
-                      title: Text(ingredient.ingredientName),
-                      value: _isSelected(ingredient),
-                      onChanged: (bool? value) {
-                        _toggleIngredientSelection(value, ingredient);
-                      },
-                    );
-                  }).toList(),
-                );
+    return ListView.builder(
+      itemCount: categorizedIngredients.entries.length,
+      itemBuilder: (context, index) {
+        final entry = categorizedIngredients.entries.elementAt(index);
+        return ExpansionTile(
+          leading: Icon(categoryIcons[entry.key] ?? Icons.category),
+          title: Text(entry.key),
+          initiallyExpanded: false,
+          children: entry.value.map((ingredient) {
+            return CheckboxListTile(
+              title: Text(ingredient.ingredientName),
+              value: _isSelected(ingredient),
+              onChanged: (bool? value) {
+                _toggleIngredientSelection(value, ingredient);
               },
-            ),
-          ),
-        ],
-      ),
+            );
+          }).toList(),
+        );
+      },
     );
   }
 }

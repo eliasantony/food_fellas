@@ -18,6 +18,29 @@ class CookingStepsPage extends StatefulWidget {
 }
 
 class _CookingStepsPageState extends State<CookingStepsPage> {
+  List<TextEditingController> _controllers = [];
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controllers based on existing cooking steps
+    _initializeControllers();
+  }
+
+  @override
+  void dispose() {
+    // Dispose all controllers
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  void _initializeControllers() {
+    _controllers = widget.recipe.cookingSteps
+        .map((step) => TextEditingController(text: step))
+        .toList();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -29,27 +52,9 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
           Expanded(
             child: ReorderableListView.builder(
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
-              itemCount: widget.recipe.cookingSteps.length,
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (newIndex > oldIndex) {
-                    newIndex -= 1;
-                  }
-
-                  // Reorder the cooking steps in the model
-                  final step = widget.recipe.cookingSteps.removeAt(oldIndex);
-                  widget.recipe.cookingSteps.insert(newIndex, step);
-
-                  // Update the data
-                  widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
-                });
-              },
+              itemCount: _controllers.length,
+              onReorder: _onReorder,
               itemBuilder: (context, index) {
-                // Create a new controller for each step's text dynamically
-                final stepController = TextEditingController(
-                  text: widget.recipe.cookingSteps[index],
-                );
-
                 return Padding(
                   key: ValueKey('step_$index'),
                   padding: const EdgeInsets.symmetric(vertical: 8.0),
@@ -66,7 +71,7 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
                       // Multiline TextFormField for step input
                       Expanded(
                         child: TextFormField(
-                          controller: stepController,
+                          controller: _controllers[index],
                           decoration: InputDecoration(
                             labelText: 'Step ${index + 1}',
                             border: OutlineInputBorder(
@@ -86,9 +91,10 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
                             return null;
                           },
                           onChanged: (value) {
-                            // Directly update the recipe model on text change
+                            // Update the recipe model when text changes
                             widget.recipe.cookingSteps[index] = value;
-                            widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
+                            widget.onDataChanged(
+                                'cookingSteps', widget.recipe.cookingSteps);
                           },
                         ),
                       ),
@@ -96,8 +102,12 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
                         icon: Icon(Icons.delete, color: Colors.red),
                         onPressed: () {
                           setState(() {
+                            // Remove the controller and the step
+                            _controllers[index].dispose();
+                            _controllers.removeAt(index);
                             widget.recipe.cookingSteps.removeAt(index);
-                            widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
+                            widget.onDataChanged(
+                                'cookingSteps', widget.recipe.cookingSteps);
                           });
                         },
                       ),
@@ -109,20 +119,39 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
           ),
           // "Add Step" button stays pinned at the bottom
           Padding(
-            padding: const EdgeInsets.all(16.0),
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ElevatedButton(
-              onPressed: () {
-                setState(() {
-                  // Add a new empty step
-                  widget.recipe.cookingSteps.add('');
-                  widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
-                });
-              },
+              onPressed: _addStep,
               child: Text('Add Step'),
             ),
           ),
         ],
       ),
     );
+  }
+
+  void _addStep() {
+    setState(() {
+      // Add a new controller and a new empty step
+      _controllers.add(TextEditingController());
+      widget.recipe.cookingSteps.add('');
+      widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
+    });
+  }
+
+  void _onReorder(int oldIndex, int newIndex) {
+    setState(() {
+      if (newIndex > oldIndex) newIndex -= 1;
+
+      // Move the controller
+      final controller = _controllers.removeAt(oldIndex);
+      _controllers.insert(newIndex, controller);
+
+      // Reorder the cooking steps in the model
+      final step = widget.recipe.cookingSteps.removeAt(oldIndex);
+      widget.recipe.cookingSteps.insert(newIndex, step);
+
+      widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
+    });
   }
 }

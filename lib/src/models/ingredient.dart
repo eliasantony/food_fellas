@@ -2,12 +2,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Ingredient {
   final String ingredientName;
-  final String imageUrl;
+  // final String imageUrl;
   final String category;
 
   Ingredient({
     required this.ingredientName,
-    required this.imageUrl,
+    // required this.imageUrl,
     required this.category,
   });
 
@@ -15,8 +15,7 @@ class Ingredient {
   factory Ingredient.fromDocumentSnapshot(DocumentSnapshot doc) {
     return Ingredient(
       ingredientName: doc['IngredientName'],
-      imageUrl:
-          'lib/assets/images/${doc['IngredientPicture']}', // Handle image URL
+      //imageUrl: 'lib/assets/images/${doc['IngredientPicture']}', // Handle image URL
       category: doc['ingredientCatgory'],
     );
   }
@@ -24,7 +23,7 @@ class Ingredient {
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
       ingredientName: json['ingredientName'],
-      imageUrl: json['imageUrl'],
+      // imageUrl: json['imageUrl'],
       category: json['category'],
     );
   }
@@ -33,7 +32,7 @@ class Ingredient {
   Map<String, dynamic> toJson() {
     return {
       'ingredientName': ingredientName,
-      'imageUrl': imageUrl,
+      // 'imageUrl': imageUrl,
       'category': category,
     };
   }

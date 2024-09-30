@@ -18,18 +18,22 @@ class RecipeBasicsPage extends StatefulWidget {
 }
 
 class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
-  String _selectedUnit = 'minutes';
-  String? _cookingTimeValue;
+  String _prepTimeUnit = 'minutes';
+  String _cookTimeUnit = 'minutes';
+  String? _prepTimeValue;
+  String? _cookTimeValue;
 
   @override
   void initState() {
     super.initState();
-    _cookingTimeValue = widget.recipe.cookingTime.isNotEmpty
-        ? widget.recipe.cookingTime.replaceAll(RegExp(r'\D'), '')
-        : null;
-
-    _selectedUnit =
-        widget.recipe.cookingTime.contains('hours') ? 'hours' : 'minutes';
+    _prepTimeValue = widget.recipe.prepTime != null
+        ? (widget.recipe.prepTime! ~/ (_prepTimeUnit == 'hours' ? 60 : 1))
+            .toString()
+        : '';
+    _cookTimeValue = widget.recipe.cookTime != null
+        ? (widget.recipe.cookTime! ~/ (_cookTimeUnit == 'hours' ? 60 : 1))
+            .toString()
+        : '';
   }
 
   @override
@@ -69,80 +73,148 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
             onSaved: (value) => widget.recipe.description = value!.trim(),
           ),
           const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(
-                child: SizedBox(
-                  height: 58, // Provide a fixed height for the text field
-                  child: TextFormField(
-                    initialValue: _cookingTimeValue,
-                    decoration: const InputDecoration(
-                      labelText: 'Cooking Time',
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    ),
-                    keyboardType: TextInputType.number,
-                    validator: (value) {
-                      if (value == null || value.isEmpty) {
-                        return 'Please enter a cooking time';
-                      }
-                      if (int.tryParse(value) == null) {
-                        return 'Please enter a valid number';
-                      }
-                      return null;
-                    },
-                    onChanged: (value) {
-                      _cookingTimeValue = value;
-                      _updateCookingTime();
-                    },
-                    onSaved: (value) {
-                      _cookingTimeValue = value!;
-                      _updateCookingTime();
-                    },
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
-              // Wrap DropdownButtonFormField in SizedBox or Expanded to ensure size constraints
-              Expanded(
-                child: SizedBox(
-                  height: 58, // Provide a fixed height for the dropdown
-                  child: DropdownButtonFormField<String>(
-                    decoration: const InputDecoration(
-                      labelText: 'Unit',
-                      border: OutlineInputBorder(),
-                      contentPadding:
-                          EdgeInsets.symmetric(vertical: 12, horizontal: 16),
-                    ),
-                    value: _selectedUnit,
-                    items: <String>['minutes', 'hours'].map((String value) {
-                      return DropdownMenuItem<String>(
-                        value: value,
-                        child: Text(value),
-                      );
-                    }).toList(),
-                    onChanged: (String? newValue) {
-                      setState(() {
-                        _selectedUnit = newValue!;
-                        _updateCookingTime();
-                      });
-                    },
-                  ),
-                ),
-              ),
-            ],
+          const SizedBox(height: 16),
+          Text('Preparation Time',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          _buildTimeInput(
+            label: 'Preparation Time',
+            timeValue: _prepTimeValue,
+            timeUnit: _prepTimeUnit,
+            onValueChanged: (value) {
+              _prepTimeValue = value;
+              _updateTotalTime();
+            },
+            onUnitChanged: (value) {
+              _prepTimeUnit = value!;
+              _updateTotalTime();
+            },
           ),
+          const SizedBox(height: 16),
+          Text('Cooking Time', style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          _buildTimeInput(
+            label: 'Cooking Time',
+            timeValue: _cookTimeValue,
+            timeUnit: _cookTimeUnit,
+            onValueChanged: (value) {
+              _cookTimeValue = value;
+              _updateTotalTime();
+            },
+            onUnitChanged: (value) {
+              _cookTimeUnit = value!;
+              _updateTotalTime();
+            },
+          ),
+          const SizedBox(height: 16),
+          Text('Total Time: ${_getTotalTimeString()}'),
         ],
       ),
     );
   }
 
-  void _updateCookingTime() {
-    if (_cookingTimeValue != null && _cookingTimeValue!.isNotEmpty) {
-      final cookingTimeString = '$_cookingTimeValue $_selectedUnit';
-      widget.onDataChanged('cookingTime', cookingTimeString);
-      widget.recipe.cookingTime = cookingTimeString;
+  Widget _buildTimeInput({
+    required String label,
+    required String? timeValue,
+    required String timeUnit,
+    required ValueChanged<String> onValueChanged,
+    required ValueChanged<String?> onUnitChanged,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: SizedBox(
+            height: 58,
+            child: TextFormField(
+              initialValue: timeValue,
+              decoration: InputDecoration(
+                labelText: label,
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              ),
+              keyboardType: TextInputType.number,
+              validator: (value) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter $label';
+                }
+                if (int.tryParse(value) == null) {
+                  return 'Please enter a valid number';
+                }
+                return null;
+              },
+              onChanged: onValueChanged,
+              onSaved: (value) {
+                onValueChanged(value!);
+              },
+            ),
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: SizedBox(
+            height: 58,
+            child: DropdownButtonFormField<String>(
+              decoration: const InputDecoration(
+                labelText: 'Unit',
+                border: OutlineInputBorder(),
+                contentPadding:
+                    EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              ),
+              value: timeUnit,
+              items: <String>['minutes', 'hours'].map((String value) {
+                return DropdownMenuItem<String>(
+                  value: value,
+                  child: Text(value),
+                );
+              }).toList(),
+              onChanged: onUnitChanged,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _updateTotalTime() {
+    int prepTime = 0;
+    int cookTime = 0;
+
+    if (_prepTimeValue != null && _prepTimeValue!.isNotEmpty) {
+      int? value = int.tryParse(_prepTimeValue!);
+      if (value != null) {
+        prepTime = _prepTimeUnit == 'hours' ? value * 60 : value;
+        widget.recipe.prepTime = prepTime;
+        widget.onDataChanged('prepTime', prepTime);
+      }
+    }
+
+    if (_cookTimeValue != null && _cookTimeValue!.isNotEmpty) {
+      int? value = int.tryParse(_cookTimeValue!);
+      if (value != null) {
+        cookTime = _cookTimeUnit == 'hours' ? value * 60 : value;
+        widget.recipe.cookTime = cookTime;
+        widget.onDataChanged('cookTime', cookTime);
+      }
+    }
+
+    int totalTime = prepTime + cookTime;
+    widget.recipe.totalTime = totalTime;
+    widget.onDataChanged('totalTime', totalTime);
+  }
+
+  String _getTotalTimeString() {
+    int totalTime = widget.recipe.totalTime ?? 0;
+    if (totalTime >= 60) {
+      int hours = totalTime ~/ 60;
+      int minutes = totalTime % 60;
+      if (minutes == 0) {
+        return '$hours hours';
+      } else {
+        return '$hours hours $minutes minutes';
+      }
+    } else {
+      return '$totalTime minutes';
     }
   }
 }

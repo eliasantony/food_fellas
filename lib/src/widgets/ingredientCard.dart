@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 
 class IngredientCard extends StatelessWidget {
-  final String? imageUrl;
+  // final String? imageUrl;
   final double baseAmount;
   final String unit;
   final String ingredientName;
@@ -10,7 +10,7 @@ class IngredientCard extends StatelessWidget {
 
   const IngredientCard({
     Key? key,
-    required this.imageUrl,
+    // required this.imageUrl,
     required this.baseAmount,
     required this.unit,
     required this.ingredientName,
@@ -58,31 +58,7 @@ class IngredientCard extends StatelessWidget {
   }
 
   Widget _buildIngredientImage() {
-    if (imageUrl != null && imageUrl!.isNotEmpty) {
-      if (imageUrl!.startsWith('http')) {
-        return Image.network(
-          imageUrl!,
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _placeholderImage();
-          },
-        );
-      } else {
-        return Image.asset(
-          imageUrl!,
-          width: 80,
-          height: 80,
-          fit: BoxFit.cover,
-          errorBuilder: (context, error, stackTrace) {
-            return _placeholderImage();
-          },
-        );
-      }
-    } else {
       return _placeholderImage();
-    }
   }
 
   Widget _placeholderImage() {
