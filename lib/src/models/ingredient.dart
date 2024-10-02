@@ -2,29 +2,29 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Ingredient {
   final String ingredientName;
-  // final String imageUrl;
   final String category;
+  final bool approved;
 
   Ingredient({
     required this.ingredientName,
-    // required this.imageUrl,
     required this.category,
+    this.approved = false, // Default to false for new ingredients
   });
 
   // This method will be used to create an Ingredient object from Firebase data
   factory Ingredient.fromDocumentSnapshot(DocumentSnapshot doc) {
     return Ingredient(
       ingredientName: doc['IngredientName'],
-      //imageUrl: 'lib/assets/images/${doc['IngredientPicture']}', // Handle image URL
       category: doc['ingredientCatgory'],
+      approved: doc['approved'] ?? false,
     );
   }
 
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
       ingredientName: json['ingredientName'],
-      // imageUrl: json['imageUrl'],
       category: json['category'],
+      approved: json['approved'] ?? false,
     );
   }
 
@@ -32,8 +32,8 @@ class Ingredient {
   Map<String, dynamic> toJson() {
     return {
       'ingredientName': ingredientName,
-      // 'imageUrl': imageUrl,
       'category': category,
+      'approved': approved,
     };
   }
 }

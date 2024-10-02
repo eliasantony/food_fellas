@@ -19,6 +19,20 @@ class QuantitiesAndServingsPage extends StatefulWidget {
 }
 
 class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
+  List<String> units = [
+    'g',
+    'kg',
+    'ml',
+    'pieces',
+    'tbsp',
+    'tsp',
+    'pinch',
+    'cup',
+    'oz',
+    'lb',
+    'Other',
+  ];
+
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -30,6 +44,14 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
               itemCount: widget.recipe.ingredients.length,
               itemBuilder: (context, index) {
                 var recipeIngredient = widget.recipe.ingredients[index];
+
+                // Determine if the unit is in the predefined units list
+                bool isUnitInList = units.contains(recipeIngredient.unit);
+
+                // Handle the case where unit is 'Other' or not in the units list
+                bool showCustomUnitField =
+                    !isUnitInList || recipeIngredient.unit == 'Other';
+
                 return Card(
                   margin:
                       const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
@@ -49,26 +71,36 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                             Expanded(
                               flex: 2,
                               child: TextFormField(
-                                initialValue:
-                                    recipeIngredient.baseAmount.toString(),
+                                initialValue: recipeIngredient.baseAmount !=
+                                        null
+                                    ? recipeIngredient.baseAmount.toString()
+                                    : recipeIngredient.amountDescription ?? '',
                                 decoration: const InputDecoration(
                                   labelText: 'Amount',
                                   contentPadding: EdgeInsets.symmetric(
                                       vertical: 5.0, horizontal: 10),
                                   border: OutlineInputBorder(),
                                 ),
-                                keyboardType: TextInputType.number,
+                                keyboardType:
+                                    TextInputType.text, // Allow text input
                                 onChanged: (newValue) {
                                   setState(() {
                                     if (newValue.isNotEmpty) {
-                                      double parsedValue =
-                                          double.parse(newValue);
-                                      recipeIngredient.baseAmount =
-                                          parsedValue == parsedValue.floor()
-                                              ? parsedValue.floorToDouble()
-                                              : parsedValue;
+                                      final parsedValue =
+                                          double.tryParse(newValue);
+                                      if (parsedValue != null) {
+                                        recipeIngredient.baseAmount =
+                                            parsedValue;
+                                        recipeIngredient.amountDescription =
+                                            null;
+                                      } else {
+                                        recipeIngredient.baseAmount = null;
+                                        recipeIngredient.amountDescription =
+                                            newValue;
+                                      }
                                     } else {
-                                      recipeIngredient.baseAmount = 0;
+                                      recipeIngredient.baseAmount = null;
+                                      recipeIngredient.amountDescription = null;
                                     }
                                     widget.onDataChanged('ingredients',
                                         widget.recipe.ingredients);
@@ -79,39 +111,51 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                             const SizedBox(width: 12),
                             Expanded(
                               flex: 1,
-                              child: DropdownButtonFormField<String>(
-                                decoration: const InputDecoration(
-                                  labelText: 'Unit',
-                                  contentPadding: EdgeInsets.symmetric(
-                                      vertical: 5.0, horizontal: 10),
-                                  border: OutlineInputBorder(),
-                                ),
-                                value: recipeIngredient.unit,
-                                onChanged: (newValue) {
-                                  setState(() {
-                                    recipeIngredient.unit = newValue!;
-                                    widget.onDataChanged('ingredients',
-                                        widget.recipe.ingredients);
-                                  });
-                                },
-                                items: [
-                                  'g',
-                                  'kg',
-                                  'ml',
-                                  'piece',
-                                  'tbsp',
-                                  'tsp',
-                                  'pinch',
-                                  'cup',
-                                  'oz',
-                                  'lb'
-                                ].map<DropdownMenuItem<String>>((String value) {
-                                  return DropdownMenuItem<String>(
-                                    value: value,
-                                    child: Text(value),
-                                  );
-                                }).toList(),
-                              ),
+                              child: showCustomUnitField
+                                  ? TextFormField(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Unit',
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 5.0, horizontal: 10),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      initialValue: recipeIngredient.unit,
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          recipeIngredient.unit = newValue;
+                                          widget.onDataChanged('ingredients',
+                                              widget.recipe.ingredients);
+                                        });
+                                      },
+                                    )
+                                  : DropdownButtonFormField<String>(
+                                      decoration: const InputDecoration(
+                                        labelText: 'Unit',
+                                        contentPadding: EdgeInsets.symmetric(
+                                            vertical: 5.0, horizontal: 10),
+                                        border: OutlineInputBorder(),
+                                      ),
+                                      value: recipeIngredient.unit,
+                                      onChanged: (newValue) {
+                                        setState(() {
+                                          if (newValue == 'Other') {
+                                            recipeIngredient.unit = '';
+                                          } else {
+                                            recipeIngredient.unit = newValue!;
+                                          }
+                                          widget.onDataChanged('ingredients',
+                                              widget.recipe.ingredients);
+                                        });
+                                      },
+                                      items: units
+                                          .map<DropdownMenuItem<String>>(
+                                              (String value) {
+                                        return DropdownMenuItem<String>(
+                                          value: value,
+                                          child: Text(value),
+                                        );
+                                      }).toList(),
+                                    ),
                             ),
                           ],
                         ),
@@ -158,13 +202,12 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
     }
   }
 
-  /// Manually validates the form when proceeding to the next page or saving.
   bool _validateForm() {
     bool isValid = true;
 
     // Validate servings
     if (widget.recipe.initialServings == null ||
-        widget.recipe.initialServings! <= 0) {
+        widget.recipe.initialServings <= 0) {
       isValid = false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -174,12 +217,18 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
 
     // Validate each ingredient amount
     for (var recipeIngredient in widget.recipe.ingredients) {
-      if (recipeIngredient.baseAmount == null ||
-          recipeIngredient.baseAmount! <= 0) {
+      bool amountIsValid = (recipeIngredient.baseAmount != null &&
+              recipeIngredient.baseAmount! > 0) ||
+          (recipeIngredient.amountDescription != null &&
+              recipeIngredient.amountDescription!.isNotEmpty);
+
+      if (!amountIsValid ||
+          (recipeIngredient.unit == null || recipeIngredient.unit!.isEmpty)) {
         isValid = false;
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-              content: Text('Please enter valid amounts for all ingredients')),
+              content: Text(
+                  'Please enter valid amounts and units for all ingredients')),
         );
         break;
       }

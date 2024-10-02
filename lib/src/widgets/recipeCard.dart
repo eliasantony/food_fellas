@@ -44,7 +44,8 @@ class RecipeCard extends StatelessWidget {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => RecipeDetailScreen(recipeId: recipeId),
+                    builder: (context) =>
+                        RecipeDetailScreen(recipeId: recipeId),
                   ),
                 );
               },
@@ -62,7 +63,8 @@ class RecipeCard extends StatelessWidget {
                       children: <Widget>[
                         Text(
                           title,
-                          style: theme.textTheme.titleLarge?.copyWith(fontSize: 16),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontSize: 16),
                         ),
                         SizedBox(height: 4),
                         Text(
@@ -144,7 +146,12 @@ class RecipeCard extends StatelessWidget {
   }
 
   Widget _buildRecipeImage() {
-    if (thumbnailUrl.startsWith('http')) {
+    if (thumbnailUrl == null || thumbnailUrl.isEmpty) {
+      return Image.network(
+        'https://via.placeholder.com/400x225',
+        fit: BoxFit.cover,
+      );
+    } else if (thumbnailUrl.startsWith('http')) {
       return Image.network(
         thumbnailUrl,
         fit: BoxFit.cover,

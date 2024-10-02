@@ -489,6 +489,7 @@ class ProfileScreen extends StatelessWidget {
           return data;
         }).toList();
 
+        print(recipeDataList);
         return HorizontalRecipeRow(recipes: recipeDataList);
       },
     );

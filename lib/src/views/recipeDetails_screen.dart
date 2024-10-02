@@ -1,8 +1,13 @@
+import 'dart:developer';
+import 'dart:io';
+
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
+import 'package:path_provider/path_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
@@ -421,6 +426,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
+  void _printOutJSONObject(Map<String, dynamic> recipeData) async {
+    Recipe recipe = Recipe.fromJson(recipeData!);
+    String jsonString = recipe.toJsonString();
+    log(jsonString);
+    //final directory = await getApplicationDocumentsDirectory();
+    //final logFile = File('${directory.path}/logFile.txt');
+    //await logFile.writeAsString(jsonString, mode: FileMode.append);
+  }
+
   // Build the detailed recipe view
   Widget _buildRecipeDetail(Map<String, dynamic> recipeData) {
     String imageUrl = recipeData['imageUrl'] ?? '';
@@ -431,9 +445,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     List<dynamic> ingredientsData = recipeData['ingredients'] ?? [];
     List<dynamic> cookingSteps = recipeData['cookingSteps'] ?? [];
     List<dynamic> tags = recipeData['tags'] ?? [];
+    bool createdByAI = recipeData['createdByAI'] ?? false;
     Map<String, dynamic>? nutrition = recipeData['nutrition'];
 
-    print(tags);
+    _printOutJSONObject(recipeData);
 
     int ingredientsCount = ingredientsData.length;
     int stepsCount = cookingSteps.length;
@@ -470,7 +485,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           // Tags Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildTagsSection(tags),
+            child: _buildTagsSection(tags, createdByAI),
           ),
           // Ingredients Section
           Padding(
@@ -671,19 +686,45 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  // Tags Section
-  Widget _buildTagsSection(List<dynamic> tags) {
+  Widget _buildTagsSection(List<dynamic> tags, bool createdByAI) {
+    List<Widget> chips = [];
+
+    if (createdByAI == true) {
+      chips.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Chip(
+            label: Text('⭐ AI Generated'),
+          ),
+        ),
+      );
+      chips.add(
+        Container(
+          height: 24,
+          child: VerticalDivider(
+            color: Colors.grey,
+            thickness: 1,
+          ),
+        ),
+      );
+    }
+
+    chips.addAll(
+      tags.map((tag) {
+        print(tag);
+        return Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Chip(
+            label: Text('${tag['icon']} ${tag['name']}'),
+          ),
+        );
+      }).toList(),
+    );
+
     return SingleChildScrollView(
       scrollDirection: Axis.horizontal,
       child: Row(
-        children: tags.map((tag) {
-          return Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 4.0),
-            child: Chip(
-              label: Text('${tag['icon']} ${tag['name']}'),
-            ),
-          );
-        }).toList(),
+        children: chips,
       ),
     );
   }

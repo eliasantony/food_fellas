@@ -1,7 +1,10 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/providers/tagProvider.dart';
+import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 import '../../models/tag.dart';
+import 'package:food_fellas/providers/tagProvider.dart';
 
 class TagsSelectionPage extends StatefulWidget {
   final Recipe recipe;
@@ -26,29 +29,54 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
   @override
   void initState() {
     super.initState();
-    selectedTags = widget.recipe.tags?.toSet() ?? {};
-    _fetchTags();
+    _initializeTags();
   }
 
-  Future<void> _fetchTags() async {
-    QuerySnapshot snapshot =
-        await FirebaseFirestore.instance.collection('tags').get();
+  void _initializeTags() async {
+    final tagProvider = Provider.of<TagProvider>(context, listen: false);
+    await tagProvider.fetchTags();
+
+    List<Tag> allTags = tagProvider.tags;
+
+    // Perform matching using aiTagNames
+    Set<Tag> initialSelectedTags = {};
+
+    if (widget.recipe.aiTagNames != null &&
+        widget.recipe.aiTagNames!.isNotEmpty) {
+      for (String tagName in widget.recipe.aiTagNames!) {
+        Tag? matchedTag = _findTagByName(tagName, allTags);
+        if (matchedTag != null) {
+          initialSelectedTags.add(matchedTag);
+        }
+      }
+    } else if (widget.recipe.tags.isNotEmpty) {
+      // If tags are already set (e.g., user edited), use them
+      initialSelectedTags = widget.recipe.tags.toSet();
+    }
+
+    // Categorize tags
     Map<String, List<Tag>> tempCategorizedTags = {};
 
-    for (var doc in snapshot.docs) {
-      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-      Tag tag = Tag.fromMap(data, doc.id);
-
+    for (var tag in allTags) {
       if (!tempCategorizedTags.containsKey(tag.category)) {
         tempCategorizedTags[tag.category] = [];
       }
-
       tempCategorizedTags[tag.category]!.add(tag);
     }
 
     setState(() {
       categorizedTags = tempCategorizedTags;
+      selectedTags = initialSelectedTags;
     });
+  }
+
+  Tag? _findTagByName(String tagName, List<Tag> tags) {
+    for (var tag in tags) {
+      if (tag.name.toLowerCase() == tagName.toLowerCase()) {
+        return tag;
+      }
+    }
+    return null;
   }
 
   @override

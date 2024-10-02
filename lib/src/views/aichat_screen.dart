@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
@@ -10,7 +11,9 @@ import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
+import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lottie/lottie.dart';
 import 'package:provider/provider.dart';
 
 // Define your users
@@ -22,22 +25,62 @@ ChatUser geminiUser = ChatUser(
       "https://seeklogo.com/images/G/google-gemini-logo-A5787B2669-seeklogo.com.png",
 );
 
-// Helper function to determine if a message contains a JSON recipe
+// Helper function to extract and parse the JSON code block
 Map<String, dynamic>? extractJsonRecipe(String text) {
   try {
-    final Map<String, dynamic> decoded = json.decode(text);
-    print(decoded);
-    if (decoded.containsKey('title') &&
-        decoded.containsKey('description') &&
-        decoded.containsKey('cookingTime') &&
-        decoded.containsKey('ingredients') &&
-        decoded.containsKey('cookingSteps')) {
-      return decoded;
+    // Regular expression to find JSON code blocks
+    final codeBlockRegExp =
+        RegExp(r'```json\s*(\{[\s\S]*?\})\s*```', multiLine: true);
+    final match = codeBlockRegExp.firstMatch(text);
+    if (match != null) {
+      String? jsonString = match.group(1);
+      if (jsonString != null) {
+        // Preprocess the JSON string to replace fractions with decimal equivalents
+        jsonString = jsonString.replaceAllMapped(
+          RegExp(r'(\d+)/(\d+)'),
+          (match) {
+            final numerator = int.parse(match.group(1)!);
+            final denominator = int.parse(match.group(2)!);
+            return (numerator / denominator).toString();
+          },
+        );
+
+        final Map<String, dynamic> decoded = json.decode(jsonString);
+        if (decoded.containsKey('title') &&
+            decoded.containsKey('description') &&
+            decoded.containsKey('ingredients') &&
+            decoded.containsKey('cookingSteps')) {
+          print("Decoded Recipe: $decoded");
+          return decoded;
+        }
+      }
     }
   } catch (e) {
+    print('Error parsing JSON: $e');
     // Ignore parsing errors, just return null
   }
   return null;
+}
+
+// Function to remove the JSON code block from the message text
+String removeJsonCodeBlock(String text) {
+  final codeBlockRegExp =
+      RegExp(r'```json\s*(\{[\s\S]*?\})\s*```', multiLine: true);
+  return text.replaceAll(codeBlockRegExp, '');
+}
+
+// Function to extract options from a text message
+List<String> extractOptions(String text) {
+  // final regex = RegExp(r'^\d+\.\s*(?:\S+\s)?\*\*(.*?)\*\*', multiLine: true);
+  final regex = RegExp(r'^\d+\.\s*(.+)$', multiLine: true);
+  final matches = regex.allMatches(text);
+
+  // Print each match for debugging
+  for (var match in matches) {
+    print('Match: ${match.group(1)}');
+  }
+
+  return matches.map((match) => match.group(1)?.trim() ?? '').toList();
 }
 
 class AIChatScreen extends StatefulWidget {
@@ -48,93 +91,130 @@ class AIChatScreen extends StatefulWidget {
 }
 
 class _AIChatScreenState extends State<AIChatScreen> {
+  bool isLoading = false;
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
+    bool isChatEmpty = chatProvider.messages.isEmpty;
 
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
         title: const Text("FoodFellas AI Assistant"),
       ),
-      body: DashChat(
-        inputOptions: InputOptions(trailing: [
-          IconButton(
-            onPressed: _sendMediaMessage,
-            icon: const Icon(Icons.image),
-          )
-        ]),
-        quickReplyOptions: QuickReplyOptions(
-          onTapQuickReply: _onQuickReply,
-        ),
-        messageOptions: MessageOptions(
-          messageDecorationBuilder: (ChatMessage message,
-              ChatMessage? previousMessage, ChatMessage? nextMessage) {
-            return BoxDecoration(
-              color: message.customProperties?['isAIMessage'] == true
-                  ? Colors.lightBlueAccent.withOpacity(0.1)
-                  : Colors.greenAccent.withOpacity(0.1),
-              borderRadius: BorderRadius.circular(8.0),
-            );
-          },
-          messageTextBuilder: (ChatMessage message,
-              ChatMessage? previousMessage, ChatMessage? nextMessage) {
-            // Check if the message contains a JSON recipe
-            if (message.customProperties?['jsonRecipe'] != null) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  MarkdownBody(
-                    data: message.text ?? '',
-                    styleSheet: MarkdownStyleSheet(
-                      p: TextStyle(
-                        color: Colors.black,
-                      ),
-                      strong: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        color: Colors.black,
-                      ),
-                      blockquote: TextStyle(
-                        color: Colors.black,
-                        fontStyle: FontStyle.italic,
-                      ),
-                    ),
-                  ),
-                  SizedBox(height: 8.0),
-                  ElevatedButton(
-                    onPressed: () {
+      body: Stack(children: [
+        Column(
+          children: [
+            if (isChatEmpty)
+              // Display Quick Replies at the top
+              Padding(
+                padding: const EdgeInsets.fromLTRB(8.0, 128.0, 8.0, 8.0),
+                child: Column(
+                  //spacing: 8,
+                  children: _getQuickReplies().map((quickReply) {
+                    return ChoiceChip(
+                      label: Text(quickReply.title ?? ''),
+                      selected: false,
+                      onSelected: (selected) {
+                        _onQuickReply(quickReply);
+                      },
+                    );
+                  }).toList(),
+                ),
+              ),
+            Expanded(
+              child: DashChat(
+                inputOptions: InputOptions(trailing: [
+                  IconButton(
+                    onPressed: _sendMediaMessage,
+                    icon: const Icon(Icons.image),
+                  )
+                ]),
+                quickReplyOptions: QuickReplyOptions(
+                  onTapQuickReply: _onQuickReply,
+                ),
+                messageOptions: MessageOptions(
+                  messageDecorationBuilder: (ChatMessage message,
+                      ChatMessage? previousMessage, ChatMessage? nextMessage) {
+                    return BoxDecoration(
+                      color: message.customProperties?['isAIMessage'] == true
+                          ? Colors.lightBlueAccent.withOpacity(0.1)
+                          : Colors.greenAccent.withOpacity(0.1),
+                      borderRadius: BorderRadius.circular(8.0),
+                    );
+                  },
+                  messageTextBuilder: (ChatMessage message,
+                      ChatMessage? previousMessage, ChatMessage? nextMessage) {
+                    // Check if the message contains a JSON recipe
+                    if (message.customProperties?['jsonRecipe'] != null) {
                       final recipeJson =
                           message.customProperties?['jsonRecipe'];
-                      _navigateToAddRecipeForm(context, recipeJson);
-                    },
-                    child: Text('Add to Recipes'),
-                  ),
-                ],
-              );
-            } else {
-              return MarkdownBody(
-                data: message.text ?? '',
-                styleSheet: MarkdownStyleSheet(
-                  p: TextStyle(
-                    color: Colors.black,
-                  ),
-                  strong: TextStyle(
-                    fontWeight: FontWeight.bold,
-                    color: Colors.black,
-                  ),
-                  blockquote: TextStyle(
-                    color: Colors.black,
-                    fontStyle: FontStyle.italic,
-                  ),
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          // Display the message text (without JSON)
+                          if ((message.text ?? '').trim().isNotEmpty)
+                            MarkdownBody(
+                              data: message.text ?? '',
+                              styleSheet: MarkdownStyleSheet(
+                                p: TextStyle(
+                                  color: Colors.black,
+                                ),
+                                strong: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.black,
+                                ),
+                                blockquote: TextStyle(
+                                  color: Colors.black,
+                                  fontStyle: FontStyle.italic,
+                                ),
+                              ),
+                            ),
+                          // Display the RecipeCard
+                          ChatRecipeCard(
+                            recipe: recipeJson,
+                            onAddRecipe: () {
+                              _navigateToAddRecipeForm(context, recipeJson);
+                            },
+                          ),
+                        ],
+                      );
+                    } else {
+                      // Regular message display
+                      return MarkdownBody(
+                        data: message.text ?? '',
+                        styleSheet: MarkdownStyleSheet(
+                          p: TextStyle(
+                            color: Colors.black,
+                          ),
+                          strong: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: Colors.black,
+                          ),
+                          blockquote: TextStyle(
+                            color: Colors.black,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      );
+                    }
+                  },
                 ),
-              );
-            }
-          },
+                currentUser: currentUser,
+                onSend: _sendMessage,
+                messages: chatProvider.messages,
+              ),
+            ),
+          ],
         ),
-        currentUser: currentUser,
-        onSend: _sendMessage,
-        messages: chatProvider.messages,
-      ),
+        if (isLoading)
+          Container(
+            color: Colors.black54,
+            child: Center(
+              child: Lottie.asset('lib/assets/lottie/loadingAnim.json'),
+            ),
+          ),
+      ]),
     );
   }
 
@@ -148,7 +228,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     _sendMessage(quickReplyMessage);
   }
 
-  // Send message and handle AI response
   Future<void> _sendMessage(ChatMessage chatMessage) async {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
 
@@ -171,17 +250,31 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
       print('AI Response: $responseText');
 
-      // Check if the AI response contains a JSON recipe
+      // Extract the JSON recipe from the response
       final recipeJson = extractJsonRecipe(responseText);
+      // Remove the JSON code block from the response text
+      final displayText = removeJsonCodeBlock(responseText).trim();
+
+      // **Extract options from the AI's response**
+      List<String> extractedOptions = extractOptions(displayText);
+      List<QuickReply> dynamicQuickReplies = [];
+
+      if (extractedOptions.isNotEmpty) {
+        // Create quick replies from the extracted options
+        dynamicQuickReplies = extractedOptions.map((option) {
+          return QuickReply(
+            title: option,
+            value: option,
+          );
+        }).toList();
+      }
 
       ChatMessage aiMessage = ChatMessage(
         user: geminiUser,
         createdAt: DateTime.now(),
-        text: recipeJson == null
-            ? responseText
-            : responseText.replaceAll(json.encode(recipeJson), ''),
+        text: displayText,
         customProperties: {"isAIMessage": true, "jsonRecipe": recipeJson},
-        quickReplies: _getQuickReplies(),
+        quickReplies: dynamicQuickReplies.isNotEmpty ? dynamicQuickReplies : null,
       );
 
       chatProvider.addMessage(aiMessage);
@@ -234,11 +327,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
     ];
   }
 
-  // Navigate to the AddRecipeForm screen with the parsed JSON recipe
   void _navigateToAddRecipeForm(
-      BuildContext context, Map<String, dynamic>? recipeJson) {
+      BuildContext context, Map<String, dynamic>? recipeJson) async {
     if (recipeJson != null) {
+      setState(() {
+        isLoading = true;
+      });
+
       Recipe recipe = Recipe.fromJson(recipeJson);
+      recipe.createdByAI = true; // Set the AI-created flag
+
+      // Check and add missing ingredients
+      await _checkAndAddIngredients(recipe);
+
+      setState(() {
+        isLoading = false;
+      });
+
       print('Navigating to AddRecipeForm with recipe: $recipe');
       Navigator.push(
         context,
@@ -248,6 +353,29 @@ class _AIChatScreenState extends State<AIChatScreen> {
           ),
         ),
       );
+    }
+  }
+
+  Future<void> _checkAndAddIngredients(Recipe recipe) async {
+    final ingredientsCollection =
+        FirebaseFirestore.instance.collection('ingredients');
+
+    for (var recipeIngredient in recipe.ingredients) {
+      String ingredientName = recipeIngredient.ingredient.ingredientName;
+
+      // Check if ingredient exists
+      QuerySnapshot snapshot = await ingredientsCollection
+          .where('ingredientName', isEqualTo: ingredientName)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        // Ingredient doesn't exist, add it with approved: false
+        await ingredientsCollection.add({
+          'ingredientName': ingredientName,
+          'category': recipeIngredient.ingredient.category,
+          'approved': false,
+        });
+      }
     }
   }
 }

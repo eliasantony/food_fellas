@@ -299,7 +299,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           recipe.cookingSteps = value;
           break;
         case 'tags':
-          print("List<Tag>:" + List<Tag>.from(value).toString());
           recipe.tags = List<Tag>.from(value);
           break;
         case 'imageFile':
