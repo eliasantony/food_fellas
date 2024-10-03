@@ -5,6 +5,7 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
+import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:provider/provider.dart';
@@ -43,8 +44,9 @@ void main() async {
   runApp(
     MultiProvider(
       providers: [
+        ChangeNotifierProvider(create: (_) => RecipeProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
-        ChangeNotifierProvider(create: (_) => TagProvider()), 
+        ChangeNotifierProvider(create: (_) => TagProvider()),
       ],
       child: const MainApp(),
     ),

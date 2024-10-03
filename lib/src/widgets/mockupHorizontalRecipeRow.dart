@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:food_fellas/src/widgets/mockupRecipeCard.dart';
 import '../views/recipeDetails_screen.dart';
 import 'recipeCard.dart';
 
@@ -9,7 +10,7 @@ class MockupHorizontalRecipeRow extends StatelessWidget {
       scrollDirection: Axis.horizontal,
       child: Row(
         children: [
-          RecipeCard(
+          MockupRecipeCard(
             big: false,
             recipeId: 'testId',
             title: 'Spaghetti Bolognese',
@@ -17,9 +18,10 @@ class MockupHorizontalRecipeRow extends StatelessWidget {
             rating: 4.5,
             thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
             author: 'Elias Antony',
-            cookTime: '30 mins',
+            totalTime: '30 mins',
+            ratingsCount: 0,
           ),
-          RecipeCard(
+          MockupRecipeCard(
             big: false,
             recipeId: 'testId',
             title: 'Spaghetti Bolognese',
@@ -27,9 +29,10 @@ class MockupHorizontalRecipeRow extends StatelessWidget {
             rating: 4.5,
             thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
             author: 'Elias Antony',
-            cookTime: '30 mins',
+            totalTime: '30 mins',
+            ratingsCount: 0,
           ),
-          RecipeCard(
+          MockupRecipeCard(
             big: false,
             recipeId: 'testId',
             title: 'Spaghetti Bolognese',
@@ -37,7 +40,8 @@ class MockupHorizontalRecipeRow extends StatelessWidget {
             rating: 4.5,
             thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
             author: 'Elias Antony',
-            cookTime: '30 mins',
+            totalTime: '30 mins',
+            ratingsCount: 0,
           ),
         ],
       ),

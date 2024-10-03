@@ -85,12 +85,6 @@ class CollectionDetailScreen extends StatelessWidget {
                       recipes[index].data() as Map<String, dynamic>;
                   return RecipeCard(
                     recipeId: recipes[index].id,
-                    title: recipeData['title'] ?? 'Unnamed Recipe',
-                    description: recipeData['description'] ?? '',
-                    rating: recipeData['averageRating']?.toDouble() ?? 0.0,
-                    cookTime: recipeData['cookingTime'] ?? '',
-                    thumbnailUrl: recipeData['imageUrl'] ?? '',
-                    author: recipeData['author'] ?? '',
                     big: true,
                   );
                 },

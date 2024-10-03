@@ -1,5 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:provider/provider.dart';
+import 'package:food_fellas/providers/recipeProvider.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -59,30 +61,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     super.dispose();
   }
 
-  // Fetch average rating and count
-  Future<Map<String, dynamic>> _fetchAverageRating() async {
-    final ratingsSnapshot = await FirebaseFirestore.instance
-        .collection('recipes')
-        .doc(widget.recipeId)
-        .collection('ratings')
-        .get();
-
-    int ratingsCount = ratingsSnapshot.docs.length;
-
-    if (ratingsCount == 0) {
-      return {'averageRating': 0.0, 'ratingsCount': 0};
-    }
-
-    double totalRating = 0.0;
-    ratingsSnapshot.docs.forEach((doc) {
-      totalRating += doc.data()['rating']?.toDouble() ?? 0.0;
-    });
-
-    double averageRating = totalRating / ratingsCount;
-
-    return {'averageRating': averageRating, 'ratingsCount': ratingsCount};
-  }
-
   // Fetch user's rating
   Future<void> _fetchUserRating() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -114,12 +92,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       return;
     }
 
-    await FirebaseFirestore.instance
-        .collection('recipes')
-        .doc(widget.recipeId)
-        .collection('ratings')
-        .doc(user.uid)
-        .set({
+    final recipeRef =
+        FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
+    final ratingsCollection = recipeRef.collection('ratings');
+    final userRatingDoc = await ratingsCollection.doc(user.uid).get();
+
+    await ratingsCollection.doc(user.uid).set({
       'rating': rating,
       'timestamp': FieldValue.serverTimestamp(),
     });
@@ -127,6 +105,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     setState(() {
       userRating = rating;
     });
+
+    // Optionally, you can refresh the recipe data to get the updated ratings
+    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+    recipeProvider.refreshRecipe(widget.recipeId);
   }
 
   // Submit user's comment
@@ -380,9 +362,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     });
   }
 
-  // Build the screen
   @override
   Widget build(BuildContext context) {
+    final recipeProvider = Provider.of<RecipeProvider>(context);
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recipe Details'),
@@ -396,8 +379,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ),
         ],
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: _recipeFuture,
+      body: FutureBuilder<Map<String, dynamic>?>(
+        future: recipeProvider.getRecipeById(widget.recipeId),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -407,12 +390,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             return const Center(
               child: Text('Error fetching recipe'),
             );
-          } else if (!snapshot.hasData || !snapshot.data!.exists) {
+          } else if (!snapshot.hasData || snapshot.data == null) {
             return const Center(
               child: Text('Recipe not found'),
             );
           } else {
-            final recipeData = snapshot.data!.data() as Map<String, dynamic>;
+            final recipeData = snapshot.data!;
             // Set initialServings and servings only if they are null
             if (initialServings == null) {
               initialServings = recipeData['initialServings'] ?? 1;
@@ -472,7 +455,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildRatingSection(),
+                _buildRatingSection(recipeData),
                 SizedBox(height: 16),
                 // Description
                 Text(
@@ -640,49 +623,38 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   // Rating Section
-  Widget _buildRatingSection() {
-    return FutureBuilder<Map<String, dynamic>>(
-      future: _fetchAverageRating(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return CircularProgressIndicator();
-        } else if (snapshot.hasError) {
-          return Text('Error fetching rating');
-        } else {
-          double averageRating = snapshot.data?['averageRating'] ?? 0.0;
-          int ratingsCount = snapshot.data?['ratingsCount'] ?? 0;
+  Widget _buildRatingSection(Map<String, dynamic> recipeData) {
+    double averageRating = recipeData['averageRating']?.toDouble() ?? 0.0;
+    int ratingsCount = recipeData['ratingsCount'] ?? 0;
 
-          return Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    averageRating.toStringAsFixed(1),
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(width: 4),
-                  RatingBarIndicator(
-                    rating: averageRating,
-                    itemBuilder: (context, index) => Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                    ),
-                    itemCount: 5,
-                    itemSize: 24.0,
-                  ),
-                ],
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              averageRating.toStringAsFixed(1),
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+            SizedBox(width: 4),
+            RatingBarIndicator(
+              rating: averageRating,
+              itemBuilder: (context, index) => Icon(
+                Icons.star,
+                color: Colors.amber,
               ),
-              SizedBox(height: 8),
-              Text(
-                '$ratingsCount ratings',
-                style: TextStyle(color: Colors.grey),
-              ),
-            ],
-          );
-        }
-      },
+              itemCount: 5,
+              itemSize: 24.0,
+            ),
+            SizedBox(width: 4),
+            Text(
+              '($ratingsCount)',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+            ),
+          ],
+        ),
+      ],
     );
   }
 
@@ -694,7 +666,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0),
           child: Chip(
-            label: Text('⭐ AI Generated'),
+            label: Text('✨ AI Generated'),
           ),
         ),
       );

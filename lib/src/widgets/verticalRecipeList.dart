@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart';
-import 'recipeCard.dart';
+import 'mockupRecipeCard.dart';
 
 class VerticalRecipeList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
+    return const SingleChildScrollView(
       scrollDirection: Axis.vertical,
       child: Column(
         children: [
-          RecipeCard(
+          MockupRecipeCard(
             big: true,
             recipeId: 'testId',
             title: 'Spaghetti Bolognese',
@@ -16,9 +16,10 @@ class VerticalRecipeList extends StatelessWidget {
             rating: 4.5,
             thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
             author: 'Elias Antony',
-            cookTime: '30 mins',
+            totalTime: '30 mins',
+                       ratingsCount: 0,
           ),
-          RecipeCard(
+          MockupRecipeCard(
             big: true,
             recipeId: 'testId',
             title: 'Spaghetti Bolognese',
@@ -26,9 +27,10 @@ class VerticalRecipeList extends StatelessWidget {
             rating: 4.5,
             thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
             author: 'Elias Antony',
-            cookTime: '30 mins',
+            totalTime: '30 mins',
+                       ratingsCount: 0,
           ),
-          RecipeCard(
+          MockupRecipeCard(
             big: true,
             recipeId: 'testId',
             title: 'Spaghetti Bolognese',
@@ -36,7 +38,8 @@ class VerticalRecipeList extends StatelessWidget {
             rating: 4.5,
             thumbnailUrl: 'lib/assets/images/spaghettiBolognese.webp',
             author: 'Elias Antony',
-            cookTime: '30 mins',
+            totalTime: '30 mins',
+                       ratingsCount: 0,
           ),
           // Add more RecipeCard widgets here
         ],

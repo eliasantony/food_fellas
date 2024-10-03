@@ -1,0 +1,12 @@
+{
+  "projects": {
+    "default": "food-fellas-rts94q"
+  },
+  "targets": {},
+  "etags": {
+    "food-fellas-rts94q": {
+      "extensionInstances": {}
+    }
+  },
+  "dataconnectEmulatorConfig": {}
+}

@@ -13,14 +13,8 @@ class HorizontalRecipeRow extends StatelessWidget {
       child: Row(
         children: recipes.map((recipeData) {
           return RecipeCard(
+            recipeId: recipeData['id'], // Access the 'id' from recipeData
             big: false,
-            recipeId: recipeData['recipeId'],
-            title: recipeData['title'] ?? 'Unnamed Recipe',
-            description: recipeData['description'] ?? '',
-            rating: recipeData['averageRating']?.toDouble() ?? 0.0,
-            thumbnailUrl: recipeData['imageUrl'] ?? '',
-            author: recipeData['author'] ?? '',
-            cookTime: recipeData['cookingTime'] ?? '',
           );
         }).toList(),
       ),

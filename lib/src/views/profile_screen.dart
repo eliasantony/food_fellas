@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
-import 'package:food_fellas/src/widgets/hoprizontalRecipeRow.dart';
+import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:path/path.dart';
 import '../widgets/recipeCard.dart';
 
