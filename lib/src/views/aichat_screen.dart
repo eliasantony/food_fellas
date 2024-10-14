@@ -14,6 +14,7 @@ import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:provider/provider.dart';
 
 // Define your users
@@ -22,7 +23,7 @@ ChatUser geminiUser = ChatUser(
   id: "1",
   firstName: "FoodFella Assist",
   profileImage:
-      "https://seeklogo.com/images/G/google-gemini-logo-A5787B2669-seeklogo.com.png",
+      "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/FoodFellas_Assistant.png?alt=media&token=a6f11228-1b4f-42f7-9dbb-5844e3093431",
 );
 
 // Helper function to extract and parse the JSON code block
@@ -50,7 +51,6 @@ Map<String, dynamic>? extractJsonRecipe(String text) {
             decoded.containsKey('description') &&
             decoded.containsKey('ingredients') &&
             decoded.containsKey('cookingSteps')) {
-          print("Decoded Recipe: $decoded");
           return decoded;
         }
       }
@@ -69,18 +69,20 @@ String removeJsonCodeBlock(String text) {
   return text.replaceAll(codeBlockRegExp, '');
 }
 
-// Function to extract options from a text message
 List<String> extractOptions(String text) {
-  // final regex = RegExp(r'^\d+\.\s*(?:\S+\s)?\*\*(.*?)\*\*', multiLine: true);
-  final regex = RegExp(r'^\d+\.\s*(.+)$', multiLine: true);
+  final regex = RegExp(r'^(?:\d+\.\s*)?(.*?)\s*\*\*(.*?)\*\*', multiLine: true);
   final matches = regex.allMatches(text);
 
-  // Print each match for debugging
+  List<String> options = [];
   for (var match in matches) {
-    print('Match: ${match.group(1)}');
+    final emoji = match.group(1)?.trim() ?? '';
+    final title = match.group(2)?.trim() ?? '';
+    final option = '$emoji $title';
+    options.add(option);
+    print('Match: $option');
   }
 
-  return matches.map((match) => match.group(1)?.trim() ?? '').toList();
+  return options;
 }
 
 class AIChatScreen extends StatefulWidget {
@@ -138,8 +140,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       ChatMessage? previousMessage, ChatMessage? nextMessage) {
                     return BoxDecoration(
                       color: message.customProperties?['isAIMessage'] == true
-                          ? Colors.lightBlueAccent.withOpacity(0.1)
-                          : Colors.greenAccent.withOpacity(0.1),
+                          ? Colors.greenAccent.withOpacity(0.3)
+                          : const Color.fromARGB(255, 163, 163, 163)
+                              .withOpacity(0.1),
                       borderRadius: BorderRadius.circular(8.0),
                     );
                   },
@@ -248,7 +251,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       final response = await chat?.sendMessage(prompt.first);
       final responseText = response?.text ?? '';
 
-      print('AI Response: $responseText');
+      // print('AI Response: $responseText');
 
       // Extract the JSON recipe from the response
       final recipeJson = extractJsonRecipe(responseText);
@@ -274,7 +277,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
         createdAt: DateTime.now(),
         text: displayText,
         customProperties: {"isAIMessage": true, "jsonRecipe": recipeJson},
-        quickReplies: dynamicQuickReplies.isNotEmpty ? dynamicQuickReplies : null,
+        quickReplies:
+            dynamicQuickReplies.isNotEmpty ? dynamicQuickReplies : null,
       );
 
       chatProvider.addMessage(aiMessage);
@@ -335,6 +339,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
       });
 
       Recipe recipe = Recipe.fromJson(recipeJson);
+      // Save the recipeJson to a local JSON file
+      final directory = await getApplicationDocumentsDirectory();
       recipe.createdByAI = true; // Set the AI-created flag
 
       // Check and add missing ingredients

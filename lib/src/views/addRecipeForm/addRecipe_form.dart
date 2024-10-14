@@ -237,7 +237,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       // Save the recipe to Firestore
       try {
         await docRef.set(recipe.toJson());
-        print(recipe.toJson());
 
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Recipe submitted successfully!')),

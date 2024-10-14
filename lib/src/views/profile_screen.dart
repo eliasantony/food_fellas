@@ -9,12 +9,18 @@ import 'package:path/path.dart';
 import '../widgets/recipeCard.dart';
 
 class ProfileScreen extends StatelessWidget {
+  final String? userId;
+
+  ProfileScreen({this.userId});
+
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
-    final User? user = FirebaseAuth.instance.currentUser;
+    final User? currentUser = FirebaseAuth.instance.currentUser;
 
-    if (user == null) {
+    String? displayUserId = userId ?? currentUser?.uid;
+
+    if (currentUser == null) {
       // Handle unauthenticated user
       return Scaffold(
         body: Center(
@@ -24,7 +30,7 @@ class ProfileScreen extends StatelessWidget {
     }
 
     final DocumentReference userDoc =
-        FirebaseFirestore.instance.collection('users').doc(user.uid);
+        FirebaseFirestore.instance.collection('users').doc(displayUserId);
 
     return FutureBuilder<DocumentSnapshot>(
       future: userDoc.get(),
@@ -55,24 +61,30 @@ class ProfileScreen extends StatelessWidget {
 
   Widget _buildProfileScreen(
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isCurrentUser = (userData['uid'] == currentUser?.uid);
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('Profile', style: theme.textTheme.titleLarge),
+        title: Text('${userData['display_name']}',
+            style: theme.textTheme.titleLarge),
         backgroundColor: theme.appBarTheme.backgroundColor,
-        actions: [
-          IconButton(
-            icon: Icon(Icons.edit, color: theme.iconTheme.color),
-            onPressed: () {
-              // Navigate to edit profile screen
-            },
-          ),
-          IconButton(
-            icon: Icon(Icons.settings, color: theme.iconTheme.color),
-            onPressed: () {
-              // Navigate to settings screen or perform other actions
-            },
-          ),
-        ],
+        actions: isCurrentUser
+            ? [
+                IconButton(
+                  icon: Icon(Icons.edit, color: theme.iconTheme.color),
+                  onPressed: () {
+                    // Navigate to edit profile screen
+                  },
+                ),
+                IconButton(
+                  icon: Icon(Icons.settings, color: theme.iconTheme.color),
+                  onPressed: () {
+                    // Navigate to settings screen or perform other actions
+                  },
+                ),
+              ]
+            : [],
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -84,7 +96,7 @@ class ProfileScreen extends StatelessWidget {
             // Statistics Section
             _buildStatisticsSection(context, theme, userData),
             // Collections Section
-            _buildCollectionsSection(context, theme, userData),
+            _buildCollectionsSection(context, theme, userData, isCurrentUser),
             // Recipes Section
             _buildRecipesSection(context, theme, userData),
             // Badges Section
@@ -271,9 +283,10 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildCollectionsSection(
-      BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
-    String userId = userData['uid'] ?? FirebaseAuth.instance.currentUser!.uid;
+// Modify _buildCollectionsSection to handle public/private collections
+  Widget _buildCollectionsSection(BuildContext context, ThemeData theme,
+      Map<String, dynamic> userData, bool isCurrentUser) {
+    String userId = userData['uid'];
 
     return Column(
       children: [
@@ -282,7 +295,9 @@ class ProfileScreen extends StatelessWidget {
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
           child: Text(
-            'My Collections',
+            isCurrentUser
+                ? 'My Collections'
+                : '${userData['display_name']}\'s Collections',
             style: theme.textTheme.titleLarge,
           ),
         ),
@@ -304,28 +319,44 @@ class ProfileScreen extends StatelessWidget {
               }
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 // No collections yet
-                return ListView(
-                  scrollDirection: Axis.horizontal,
-                  children: [
-                    _buildCreateCollectionCard(context, theme),
-                  ],
-                );
+                if (isCurrentUser) {
+                  return ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: [
+                      _buildCreateCollectionCard(context, theme),
+                    ],
+                  );
+                } else {
+                  return Center(child: Text('No public collections'));
+                }
               }
               final collections = snapshot.data!.docs;
 
+              // Filter collections to only public ones if not current user
+              List<DocumentSnapshot> filteredCollections = collections;
+              if (!isCurrentUser) {
+                filteredCollections = collections.where((doc) {
+                  return (doc.data() as Map<String, dynamic>)['isPublic'] ==
+                      true;
+                }).toList();
+              }
+
               return ListView.builder(
                 scrollDirection: Axis.horizontal,
-                itemCount:
-                    collections.length + 1, // Extra item for "Create New"
+                itemCount: isCurrentUser
+                    ? filteredCollections.length +
+                        1 // Extra item for "Create New"
+                    : filteredCollections.length,
                 itemBuilder: (context, index) {
-                  if (index == collections.length) {
+                  if (isCurrentUser && index == filteredCollections.length) {
                     // "Create New" card
                     return _buildCreateCollectionCard(context, theme);
                   } else {
+                    final collection = filteredCollections[index];
                     final collectionData =
-                        collections[index].data() as Map<String, dynamic>;
+                        collection.data() as Map<String, dynamic>;
                     return _buildCollectionCard(
-                        context, theme, collections[index].id, collectionData);
+                        context, theme, collection.id, collectionData);
                   }
                 },
               );

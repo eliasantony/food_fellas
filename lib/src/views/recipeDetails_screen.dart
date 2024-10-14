@@ -1,5 +1,6 @@
 import 'dart:developer';
 import 'dart:io';
+import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 
@@ -541,35 +542,49 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
                 SizedBox(height: 4),
                 // Author Name
-                FutureBuilder<DocumentSnapshot>(
-                  future: FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(authorId)
-                      .get(),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                      return Text(
-                        'Loading author...',
-                        style: TextStyle(color: Colors.white),
-                      );
-                    } else if (snapshot.hasError ||
-                        !snapshot.hasData ||
-                        !snapshot.data!.exists) {
-                      return Text(
-                        'Unknown author',
-                        style: TextStyle(color: Colors.white),
-                      );
-                    } else {
-                      final authorData =
-                          snapshot.data!.data() as Map<String, dynamic>;
-                      String authorName =
-                          authorData['display_name'] ?? 'Unknown author';
-                      return Text(
-                        'by $authorName',
-                        style: TextStyle(color: Colors.white),
-                      );
-                    }
+                GestureDetector(
+                  onTap: () {
+                    // Navigate to the author's profile
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ProfileScreen(userId: authorId),
+                      ),
+                    );
                   },
+                  child: FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(authorId)
+                        .get(),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                        return Text(
+                          'Loading author...',
+                          style: TextStyle(color: Colors.white),
+                        );
+                      } else if (snapshot.hasError ||
+                          !snapshot.hasData ||
+                          !snapshot.data!.exists) {
+                        return Text(
+                          'Unknown author',
+                          style: TextStyle(color: Colors.white),
+                        );
+                      } else {
+                        final authorData =
+                            snapshot.data!.data() as Map<String, dynamic>;
+                        String authorName =
+                            authorData['display_name'] ?? 'Unknown author';
+                        return Text(
+                          'by $authorName',
+                          style: TextStyle(
+                            color: Colors.white,
+                            decoration: TextDecoration.underline,
+                          ),
+                        );
+                      }
+                    },
+                  ),
                 ),
                 SizedBox(height: 4),
                 // Details Row
@@ -683,7 +698,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     chips.addAll(
       tags.map((tag) {
-        print(tag);
         return Padding(
           padding: const EdgeInsets.symmetric(horizontal: 4.0),
           child: Chip(

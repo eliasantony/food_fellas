@@ -55,7 +55,7 @@ class ChatRecipeCard extends StatelessWidget {
             }).toList(),
             SizedBox(height: 12.0),
             // Tags
-/*             if (tags.isNotEmpty)
+            if (tags.isNotEmpty)
               SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
                 child: Row(
@@ -68,7 +68,7 @@ class ChatRecipeCard extends StatelessWidget {
                   }).toList(),
                 ),
               ),
-            SizedBox(height: 12.0), */
+            SizedBox(height: 12.0),
             // Add Recipe Button
             ElevatedButton(
               onPressed: onAddRecipe,
