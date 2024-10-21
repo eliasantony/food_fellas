@@ -7,11 +7,13 @@ import 'package:dash_chat_2/dash_chat_2.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
@@ -101,8 +103,24 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        centerTitle: true,
-        title: const Text("FoodFellas AI Assistant"),
+        title: Text(
+          "FoodFellas' AI Chef",
+          style: GoogleFonts.poppins(
+            color: Color(0xFF116131),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+          child: SizedBox(
+            width: 8,
+            height: 8,
+            child: SvgPicture.asset(
+              'lib/assets/brand/hat.svg',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Stack(children: [
         Column(
@@ -126,7 +144,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
               ),
             Expanded(
               child: DashChat(
-                inputOptions: InputOptions(trailing: [
+                inputOptions: InputOptions(
+                  sendOnEnter: true,
+                  
+                  trailing: [
                   IconButton(
                     onPressed: _sendMediaMessage,
                     icon: const Icon(Icons.image),
@@ -340,7 +361,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
       Recipe recipe = Recipe.fromJson(recipeJson);
       // Save the recipeJson to a local JSON file
-      final directory = await getApplicationDocumentsDirectory();
+      // final directory = await getApplicationDocumentsDirectory();
       recipe.createdByAI = true; // Set the AI-created flag
 
       // Check and add missing ingredients

@@ -45,6 +45,8 @@ dependencies:
   emoji_picker_flutter: ^3.0.0
   http: ^1.2.2
   cloud_functions: ^5.1.3
+  google_fonts: ^6.2.1
+  flutter_expandable_fab: ^2.3.0
 
 dev_dependencies:
   flutter_test:
@@ -56,4 +58,5 @@ flutter:
   assets:
     - lib/assets/images/
     - lib/assets/lottie/
+    - lib/assets/brand/
     - .env

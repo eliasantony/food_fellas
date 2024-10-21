@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:food_fellas/src/views/aichat_screen.dart';
+import 'package:food_fellas/src/views/uploadPhoto_screen.dart';
 import '../widgets/mockupHorizontalRecipeRow.dart';
 import 'addRecipeForm/addRecipe_form.dart';
+import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -43,6 +46,7 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
+      // TODO: Implement the ExpandableFab
       floatingActionButton: FloatingActionButton(
         onPressed: () {
           Navigator.push(
