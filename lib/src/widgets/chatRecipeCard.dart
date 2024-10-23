@@ -62,8 +62,11 @@ class ChatRecipeCard extends StatelessWidget {
                   children: tags.map<Widget>((tag) {
                     final name = tag['name'] ?? '';
                     final icon = tag['icon'] ?? '';
-                    return Chip(
-                      label: Text('$icon $name'),
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                      child: Chip(
+                        label: Text('$icon $name'),
+                      ),
                     );
                   }).toList(),
                 ),

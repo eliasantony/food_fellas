@@ -341,24 +341,27 @@ class ProfileScreen extends StatelessWidget {
                 }).toList();
               }
 
-              return ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: isCurrentUser
-                    ? filteredCollections.length +
-                        1 // Extra item for "Create New"
-                    : filteredCollections.length,
-                itemBuilder: (context, index) {
-                  if (isCurrentUser && index == filteredCollections.length) {
-                    // "Create New" card
-                    return _buildCreateCollectionCard(context, theme);
-                  } else {
-                    final collection = filteredCollections[index];
-                    final collectionData =
-                        collection.data() as Map<String, dynamic>;
-                    return _buildCollectionCard(
-                        context, theme, collection.id, collectionData);
-                  }
-                },
+              return Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: isCurrentUser
+                      ? filteredCollections.length +
+                          1 // Extra item for "Create New"
+                      : filteredCollections.length,
+                  itemBuilder: (context, index) {
+                    if (isCurrentUser && index == filteredCollections.length) {
+                      // "Create New" card
+                      return _buildCreateCollectionCard(context, theme);
+                    } else {
+                      final collection = filteredCollections[index];
+                      final collectionData =
+                          collection.data() as Map<String, dynamic>;
+                      return _buildCollectionCard(
+                          context, theme, collection.id, collectionData);
+                    }
+                  },
+                ),
               );
             },
           ),
@@ -486,7 +489,10 @@ class ProfileScreen extends StatelessWidget {
         ),
         SizedBox(height: 10),
         // Fetch and display user's recipes
-        _buildUserRecipesRow(context, theme, userData),
+        Container(
+          margin: const EdgeInsets.only(left: 8),
+          child: _buildUserRecipesRow(context, theme, userData),
+        ),
       ],
     );
   }

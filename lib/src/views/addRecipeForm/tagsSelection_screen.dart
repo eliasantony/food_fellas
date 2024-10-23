@@ -1,10 +1,8 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 import '../../models/tag.dart';
-import 'package:food_fellas/providers/tagProvider.dart';
 
 class TagsSelectionPage extends StatefulWidget {
   final Recipe recipe;
@@ -38,20 +36,25 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
 
     List<Tag> allTags = tagProvider.tags;
 
-    // Perform matching using aiTagNames
+    // Prepare a set to hold the initial selected tags
     Set<Tag> initialSelectedTags = {};
+
+    // Collect tag names to match from either aiTagNames or recipe.tags
+    List<String> tagNamesToMatch = [];
 
     if (widget.recipe.aiTagNames != null &&
         widget.recipe.aiTagNames!.isNotEmpty) {
-      for (String tagName in widget.recipe.aiTagNames!) {
-        Tag? matchedTag = _findTagByName(tagName, allTags);
-        if (matchedTag != null) {
-          initialSelectedTags.add(matchedTag);
-        }
-      }
+      tagNamesToMatch = widget.recipe.aiTagNames!;
     } else if (widget.recipe.tags.isNotEmpty) {
-      // If tags are already set (e.g., user edited), use them
-      initialSelectedTags = widget.recipe.tags.toSet();
+      tagNamesToMatch = widget.recipe.tags.map((tag) => tag.name).toList();
+    }
+
+    // Match tags by name and collect them from allTags
+    for (String tagName in tagNamesToMatch) {
+      Tag? matchedTag = _findTagByName(tagName, allTags);
+      if (matchedTag != null) {
+        initialSelectedTags.add(matchedTag);
+      }
     }
 
     // Categorize tags

@@ -44,6 +44,8 @@ class _DietaryPreferencesScreenState extends State<DietaryPreferencesScreen> {
   }
 
   void _navigateToNext() {
+    widget.userData.dietaryPreferences = selectedPreferences;
+    
     Navigator.push(
       context,
       MaterialPageRoute(

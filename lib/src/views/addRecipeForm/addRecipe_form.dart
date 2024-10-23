@@ -299,6 +299,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           break;
         case 'tags':
           recipe.tags = List<Tag>.from(value);
+          print('Tags: ${recipe.tags}');
           break;
         case 'imageFile':
           recipe.imageFile = value;

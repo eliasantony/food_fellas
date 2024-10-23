@@ -1,6 +1,7 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:food_fellas/src/views/profile_screen.dart';
+import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 
@@ -506,19 +507,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     return Stack(
       children: [
         // Recipe Image
-        imageUrl.startsWith('http')
-            ? Image.network(
-                imageUrl,
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
-              )
-            : Image.asset(
-                imageUrl,
-                width: double.infinity,
-                height: 250,
-                fit: BoxFit.cover,
+        GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => PhotoViewScreen(imageUrl: imageUrl),
               ),
+            );
+          },
+          child: imageUrl.startsWith('http')
+              ? Image.network(
+                  imageUrl,
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                )
+              : Image.asset(
+                  imageUrl,
+                  width: double.infinity,
+                  height: 250,
+                  fit: BoxFit.cover,
+                ),
+        ),
         // Overlay Container
         Positioned(
           bottom: 0,
@@ -580,6 +591,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           style: TextStyle(
                             color: Colors.white,
                             decoration: TextDecoration.underline,
+                            decorationColor: Colors.white,
                           ),
                         );
                       }
@@ -795,7 +807,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             final ingredient = ingredients[index];
             final ingredientName =
                 ingredient['ingredient']['ingredientName'] ?? 'Unknown';
-            final baseAmount = ingredient['baseAmount']?.toDouble() ?? 0.0;
+            final baseAmount = ingredient['baseAmount'] is num
+                ? ingredient['baseAmount'].toDouble()
+                : 1;
             final unit = ingredient['unit'] ?? '';
             final initialIngredientServings =
                 ingredient['servings'] ?? initialServings;
@@ -994,6 +1008,28 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           },
         ),
       ],
+    );
+  }
+}
+
+class PhotoViewScreen extends StatelessWidget {
+  final String imageUrl;
+
+  PhotoViewScreen({required this.imageUrl});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(),
+      body: Center(
+        child: PhotoView(
+          imageProvider: imageUrl.startsWith('http')
+              ? NetworkImage(imageUrl)
+              : AssetImage(imageUrl) as ImageProvider,
+          minScale: PhotoViewComputedScale.contained,
+          maxScale: PhotoViewComputedScale.covered * 2,
+        ),
+      ),
     );
   }
 }

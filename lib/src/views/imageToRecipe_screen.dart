@@ -1,0 +1,473 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+import 'dart:ui';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/material.dart';
+import 'package:food_fellas/src/models/aiPhotoRecognitionModel_config.dart';
+import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
+import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:lottie/lottie.dart';
+import 'package:photo_view/photo_view.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+
+class ImageToRecipeScreen extends StatefulWidget {
+  @override
+  _ImageToRecipeScreenState createState() => _ImageToRecipeScreenState();
+}
+
+class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
+  File? _selectedImage;
+  String _description = '';
+  bool _isLoading = false;
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  Timer? _hintTimer;
+  late TextEditingController _descriptionController;
+
+  final List<String> _loadingHints = [
+    "This may take a moment...",
+    "Remember, this is AI-generated and might have some inaccuracies.",
+    "Hang tight! We're analyzing your delicious dish."
+  ];
+
+  String _currentHint = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _speech = stt.SpeechToText();
+    _descriptionController = TextEditingController();
+    _currentHint = _loadingHints[0];
+    _startHintLoop();
+  }
+
+  void _startHintLoop() {
+    int hintIndex = 0;
+    _hintTimer = Timer.periodic(Duration(seconds: 3), (Timer timer) {
+      if (mounted) {
+        setState(() {
+          hintIndex = (hintIndex + 1) % _loadingHints.length;
+          _currentHint = _loadingHints[hintIndex];
+        });
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _hintTimer?.cancel();
+    _speech.stop();
+    _descriptionController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: Text('Image to Recipe AI'),
+      ),
+      body: Stack(
+        children: [
+          // Content
+          SingleChildScrollView(
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => Scaffold(
+                          appBar: AppBar(),
+                          body: Center(
+                            child: PhotoView(
+                              imageProvider: FileImage(_selectedImage!),
+                              minScale: PhotoViewComputedScale.contained,
+                              maxScale: PhotoViewComputedScale.covered * 2,
+                            ),
+                          ),
+                        ),
+                      ),
+                    );
+                  },
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(20.0),
+                      bottomRight: Radius.circular(20.0),
+                    ),
+                    child: _selectedImage == null
+                        ? Image.asset(
+                            'lib/assets/images/dinner-placeholder.png',
+                            height: 250,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          )
+                        : Image.file(
+                            _selectedImage!,
+                            height: 250,
+                            width: double.infinity,
+                            fit: BoxFit.cover,
+                          ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _pickImage,
+                  child: Text('Upload Photo'),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: _descriptionController,
+                          onChanged: (value) {
+                            setState(() {
+                              _description = value;
+                            });
+                          },
+                          decoration: InputDecoration(
+                            labelText: 'Description',
+                            hintText:
+                                'Enter a short description of the dish...',
+                            border: OutlineInputBorder(),
+                          ),
+                        ),
+                      ),
+                      IconButton(
+                        icon: Icon(
+                          _isListening ? Icons.mic : Icons.mic_none,
+                          color: _isListening ? Colors.red : Colors.black,
+                        ),
+                        onPressed: _listen,
+                      ),
+                    ],
+                  ),
+                ),
+                SizedBox(height: 80),
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Center(
+                    child: Text(
+                      'This will submit the image and description to the AI to try to figure out your recipe.',
+                      textAlign: TextAlign.center,
+                    ),
+                  ),
+                ),
+                SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: _canSubmit() ? _startProcessing : null,
+                  child: Text('Identify Recipe'),
+                ),
+                SizedBox(height: 20),
+              ],
+            ),
+          ),
+          // Loading Overlay
+          if (_isLoading) _buildLoadingOverlay(),
+        ],
+      ),
+    );
+  }
+
+  bool _canSubmit() {
+    return _description.isNotEmpty && _selectedImage != null;
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      bool available = await _speech.initialize(
+        onStatus: (val) {
+          setState(() {
+            _isListening = val == "listening";
+          });
+          print('Speech status: $val');
+        },
+        onError: (val) {
+          print('Speech error: $val');
+        },
+      );
+      if (available) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _descriptionController.text =
+                val.recognizedWords; // Update with the latest result only
+            print('Recognized words: ${val.recognizedWords}');
+          }),
+          listenFor: Duration(minutes: 1),
+          pauseFor: Duration(seconds: 10),
+          localeId: 'en_US',
+          partialResults: true, // Enable partial results
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Speech recognition is not available')),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
+  }
+
+  Widget _buildLoadingOverlay() {
+    return Stack(
+      children: [
+        // Blur Background
+        BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+          child: Container(
+            color: Colors.black.withOpacity(0.5),
+          ),
+        ),
+        // Loading Animation and Hint
+        Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Lottie.asset('lib/assets/lottie/loadingAnim.json'),
+              SizedBox(height: 20),
+              AnimatedSwitcher(
+                duration: Duration(seconds: 3),
+                child: Text(
+                  _currentHint,
+                  key: ValueKey<String>(_currentHint),
+                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+
+/*   void _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      CroppedFile? croppedFile = await ImageCropper().cropImage(
+        sourcePath: image.path,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Cropper',
+            toolbarColor: Colors.green,
+            toolbarWidgetColor: Colors.white,
+            aspectRatioPresets: [
+              CropAspectRatioPreset.original,
+              CropAspectRatioPreset.square,
+              CropAspectRatioPreset.ratio3x2,
+              CropAspectRatioPreset.ratio4x3,
+            ],
+          ),
+          IOSUiSettings(
+            title: 'Cropper',
+            aspectRatioPresets: [
+              CropAspectRatioPreset.original,
+              CropAspectRatioPreset.square,
+              CropAspectRatioPreset.ratio3x2,
+              CropAspectRatioPreset.ratio4x3,
+            ],
+          ),
+          WebUiSettings(
+            context: context,
+          ),
+        ],
+      );
+
+      if (croppedFile != null) {
+        setState(() {
+          _selectedImage = File(croppedFile.path);
+        });
+      }
+    }
+  } */
+
+  void _pickImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null) {
+      setState(() {
+        _selectedImage = File(image.path);
+      });
+    }
+  }
+
+  void _startProcessing() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Display changing hints during processing
+    for (int i = 0; i < _loadingHints.length; i++) {
+      await Future.delayed(Duration(seconds: 2), () {
+        setState(() {
+          _currentHint = _loadingHints[i];
+        });
+      });
+    }
+
+    // Send the data to the AI for processing
+    await _sendPhotoAndDescription(_selectedImage!, _description);
+
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  Future<void> _sendPhotoAndDescription(File image, String description) async {
+    try {
+      // Upload the image to Firebase Storage
+      String imageUrl = await _uploadImageToFirestore(image);
+
+      // Get the AI model for identifying the recipe
+      final model = getRecipeFromPhotoModel();
+      // final chat = model?.startChat();
+
+      final _imageBytes = await image.readAsBytes();
+      // Prepare the prompt with the description and image URL
+      final prompt = [
+        Content.multi([
+          TextPart(description),
+          // The only accepted mime types are image/*.
+          DataPart('image/${image.path.split('.').last}', _imageBytes),
+          // DataPart('image/jpeg', sconeBytes.buffer.asUint8List()),
+        ])
+      ];
+      // final response = await chat?.sendMessage(prompt);
+
+      final response = await model?.generateContent(prompt);
+      final responseText = response?.text ?? '';
+      print('Response: $responseText');
+      // Extract the JSON recipe from the AI response
+      final recipeJson = extractJsonRecipe(responseText);
+      print('Recipe JSON: $recipeJson');
+
+      if (recipeJson != null) {
+        // Add the image URL to the recipe JSON object
+        recipeJson['imageUrl'] = imageUrl;
+
+        // Navigate to addRecipe form
+        await _navigateToAddRecipeForm(context, recipeJson);
+      } else {
+        // Show error if recipe extraction failed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+              content: Text('Error: Could not extract recipe information')),
+        );
+      }
+    } catch (e) {
+      print('Error: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error: ${e.toString()}')),
+      );
+    }
+  }
+
+  Future<String> _uploadImageToFirestore(File image) async {
+    try {
+      // Create a unique filename for the image
+      String fileName = 'recipes/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+      // Upload the file to Firebase Storage
+      final ref = FirebaseStorage.instance.ref().child(fileName);
+      await ref.putFile(image);
+
+      // Get the download URL
+      String downloadUrl = await ref.getDownloadURL();
+      return downloadUrl;
+    } catch (e) {
+      throw Exception('Error uploading image: $e');
+    }
+  }
+
+  Future<void> _checkAndAddIngredients(Recipe recipe) async {
+    final ingredientsCollection =
+        FirebaseFirestore.instance.collection('ingredients');
+
+    for (var recipeIngredient in recipe.ingredients) {
+      String ingredientName = recipeIngredient.ingredient.ingredientName;
+
+      // Check if ingredient exists
+      QuerySnapshot snapshot = await ingredientsCollection
+          .where('ingredientName', isEqualTo: ingredientName)
+          .get();
+
+      if (snapshot.docs.isEmpty) {
+        // Ingredient doesn't exist, add it with approved: false
+        await ingredientsCollection.add({
+          'ingredientName': ingredientName,
+          'category': recipeIngredient.ingredient.category,
+          'approved': false,
+        });
+      }
+    }
+  }
+
+  Future<void> _navigateToAddRecipeForm(
+      BuildContext context, Map<String, dynamic>? recipeJson) async {
+    if (recipeJson != null) {
+      Recipe recipe = Recipe.fromJson(recipeJson);
+      recipe.createdByAI = true; // Set the AI-created flag
+
+      // Check and add missing ingredients
+      await _checkAndAddIngredients(recipe);
+
+      // Navigate to AddRecipeForm with the pre-filled recipe data
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => AddRecipeForm(
+            initialRecipe: recipe,
+          ),
+        ),
+      );
+    }
+  }
+
+  Map<String, dynamic>? extractJsonRecipe(String text) {
+    try {
+      // Regular expression to find JSON code blocks
+      final codeBlockRegExp =
+          RegExp(r'```json\s*(\{[\s\S]*?\})\s*```', multiLine: true);
+      final match = codeBlockRegExp.firstMatch(text);
+      if (match != null) {
+        String? jsonString = match.group(1);
+        if (jsonString != null) {
+          // Preprocess the JSON string to replace fractions with decimal equivalents
+          jsonString = jsonString.replaceAllMapped(
+            RegExp(r'(\d+)/(\d+)'),
+            (match) {
+              final numerator = int.parse(match.group(1)!);
+              final denominator = int.parse(match.group(2)!);
+              return (numerator / denominator).toString();
+            },
+          );
+
+          final Map<String, dynamic> decoded = json.decode(jsonString);
+          if (decoded.containsKey('title') &&
+              decoded.containsKey('description') &&
+              decoded.containsKey('ingredients') &&
+              decoded.containsKey('cookingSteps')) {
+            return decoded;
+          }
+        }
+      }
+    } catch (e) {
+      print('Error parsing JSON: $e');
+      // Ignore parsing errors, just return null
+    }
+    return null;
+  }
+}

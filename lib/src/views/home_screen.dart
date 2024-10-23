@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:food_fellas/main.dart';
 import 'package:food_fellas/src/views/aichat_screen.dart';
-import 'package:food_fellas/src/views/uploadPhoto_screen.dart';
+import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
+import 'package:food_fellas/src/widgets/expandableFAB.dart';
 import '../widgets/mockupHorizontalRecipeRow.dart';
 import 'addRecipeForm/addRecipe_form.dart';
-import 'package:flutter_expandable_fab/flutter_expandable_fab.dart';
 
 class HomeScreen extends StatelessWidget {
   @override
@@ -46,17 +47,34 @@ class HomeScreen extends StatelessWidget {
           ),
         ],
       ),
-      // TODO: Implement the ExpandableFab
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => AddRecipeForm()),
-          );
-        },
-        child: const Icon(Icons.add),
-        backgroundColor: Colors.green,
-        tooltip: 'Add a Recipe',
+      floatingActionButton: ExpandableFab(
+        distance: 130,
+        children: [
+                    ActionButton(
+            onPressed: () {
+              mainPageKey.currentState?.onItemTapped(3); // Index of AIChatScreen
+            },
+            icon: const Icon(Icons.chat),
+          ),
+          ActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => AddRecipeForm()),
+              );
+            },
+            icon: const Icon(Icons.create),
+          ),
+          ActionButton(
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => ImageToRecipeScreen()),
+              );
+            },
+            icon: const Icon(Icons.camera_alt),
+          ),
+        ],
       ),
     );
   }

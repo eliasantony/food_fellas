@@ -26,6 +26,8 @@ import 'src/views/auth/favorite_cuisines_screen.dart';
 import 'src/views/auth/final_welcome_screen.dart';
 import 'src/widgets/initializer_widget.dart';
 
+final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
@@ -69,7 +71,7 @@ class MainApp extends StatelessWidget {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
-        '/mainPage': (context) => const MainPage(),
+        '/mainPage': (context) => MainPage(key: mainPageKey),
       },
     );
   }
@@ -94,7 +96,7 @@ class _MainPageState extends State<MainPage> {
     ProfileScreen(),
   ];
 
-  void _onItemTapped(int index) {
+  void onItemTapped(int index) {
     setState(() {
       _selectedIndex = index;
     });
@@ -132,7 +134,7 @@ class _MainPageState extends State<MainPage> {
         currentIndex: _selectedIndex,
         selectedItemColor: Theme.of(context).colorScheme.primary,
         unselectedItemColor: Theme.of(context).colorScheme.onSurface,
-        onTap: _onItemTapped,
+        onTap: onItemTapped,
       ),
     );
   }
