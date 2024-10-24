@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
@@ -49,6 +50,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => RecipeProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),
+        ChangeNotifierProvider(create: (_) => BottomNavBarProvider()),
       ],
       child: const MainApp(),
     ),
@@ -97,13 +99,13 @@ class _MainPageState extends State<MainPage> {
   ];
 
   void onItemTapped(int index) {
-    setState(() {
-      _selectedIndex = index;
-    });
+    Provider.of<BottomNavBarProvider>(context, listen: false).setIndex(index);
   }
 
   @override
   Widget build(BuildContext context) {
+    int _selectedIndex =
+        Provider.of<BottomNavBarProvider>(context).selectedIndex;
     return Scaffold(
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),
