@@ -37,16 +37,20 @@ exports.updateRecipeRating = functions.firestore
 
     const ratingsCount = ratingsSnapshot.size;
     let totalRating = 0;
+    const ratingCounts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
 
     ratingsSnapshot.forEach((doc) => {
-      totalRating += doc.data().rating;
+      const rating = doc.data().rating;
+      totalRating += rating;
+      ratingCounts[rating] = (ratingCounts[rating] || 0) + 1;
     });
 
     const averageRating = ratingsCount === 0 ? 0 : totalRating / ratingsCount;
 
     await recipeRef.update({
-      averageRating: averageRating,
-      ratingsCount: ratingsCount,
+      averageRating,
+      ratingsCount,
+      ratingCounts,
     });
 
     return null;

@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_svg/svg.dart';
+import 'package:google_fonts/google_fonts.dart';
 
 class ShoppingListScreen extends StatelessWidget {
   @override
@@ -14,7 +16,24 @@ class ShoppingListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Shopping List'),
+        title: Text(
+          "Shopping List",
+          style: GoogleFonts.poppins(
+            color: Color(0xFF116131),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+          child: SizedBox(
+            width: 8,
+            height: 8,
+            child: Image.asset(
+              'lib/assets/brand/hat.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance

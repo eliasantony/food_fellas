@@ -1,3 +1,5 @@
+// ignore_for_file: use_build_context_synchronously
+
 import 'dart:developer';
 import 'dart:io';
 import 'package:food_fellas/src/views/profile_screen.dart';
@@ -24,11 +26,18 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   late Future<DocumentSnapshot> _recipeFuture;
+  bool isRecipeSaved = false;
+  String _recipeTitle = 'Recipe Details';
+  bool _isTitleSet = false;
   int? servings;
   int? initialServings;
   double userRating = 0.0;
+  Map<int, int> ratingCounts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+  int totalRatings = 0;
+  bool _hasRatingChanged = false;
   final TextEditingController _commentController = TextEditingController();
   Set<String> _shoppingListItems = Set();
+  late ValueNotifier<int> servingsNotifier;
 
   @override
   void initState() {
@@ -37,8 +46,35 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         .collection('recipes')
         .doc(widget.recipeId)
         .get();
-    _fetchUserRating(); // Fetch the user's rating
-    _fetchShoppingListItems(); // Fetch shopping list items
+    servingsNotifier = ValueNotifier<int>(initialServings ?? 2);
+    _fetchUserRating();
+    _fetchShoppingListItems();
+    _checkIfRecipeIsSaved();
+  }
+
+  void _checkIfRecipeIsSaved() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    QuerySnapshot collectionsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('collections')
+        .get();
+
+    bool saved = false;
+
+    for (var collection in collectionsSnapshot.docs) {
+      List<dynamic> recipes = collection['recipes'] ?? [];
+      if (recipes.contains(widget.recipeId)) {
+        saved = true;
+        break;
+      }
+    }
+
+    setState(() {
+      isRecipeSaved = saved;
+    });
   }
 
   void _fetchShoppingListItems() async {
@@ -57,8 +93,40 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     });
   }
 
+  void _fetchRatingBreakdown() async {
+    final ratingsSnapshot = await FirebaseFirestore.instance
+        .collection('recipes')
+        .doc(widget.recipeId)
+        .collection('ratings')
+        .get();
+
+    Map<int, int> counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+    int total = 0;
+    double sum = 0.0;
+
+    for (var doc in ratingsSnapshot.docs) {
+      int rating = doc['rating']?.toInt() ?? 0;
+      if (rating >= 1 && rating <= 5) {
+        counts[rating] = counts[rating]! + 1;
+        total += 1;
+        sum += rating;
+      }
+    }
+
+    double averageRating = total > 0 ? sum / total : 0.0;
+
+    setState(() {
+      ratingCounts = counts;
+      totalRatings = total;
+      userRating = averageRating;
+    });
+  }
+
   @override
   void dispose() {
+    if (_hasRatingChanged) {
+      _submitRating(userRating);
+    }
     _commentController.dispose();
     super.dispose();
   }
@@ -85,32 +153,54 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   // Submit user's rating
-  void _submitRating(double rating) async {
+  Future<void> _submitRating(double rating) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to submit a rating.')),
+        const SnackBar(
+            content: Text('You must be logged in to submit a rating.')),
       );
       return;
     }
 
-    final recipeRef =
-        FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
-    final ratingsCollection = recipeRef.collection('ratings');
-    final userRatingDoc = await ratingsCollection.doc(user.uid).get();
+    try {
+      final recipeRef =
+          FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
+      final ratingsCollection = recipeRef.collection('ratings');
+      final userRatingDoc = await ratingsCollection.doc(user.uid).get();
 
-    await ratingsCollection.doc(user.uid).set({
-      'rating': rating,
-      'timestamp': FieldValue.serverTimestamp(),
-    });
+      await ratingsCollection.doc(user.uid).set({
+        'rating': rating,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
 
+      if (!mounted) return;
+
+      setState(() {
+        userRating = rating;
+      });
+
+      final recipeProvider =
+          Provider.of<RecipeProvider>(context, listen: false);
+      // recipeProvider.refreshRecipe(widget.recipeId);
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('An error occurred while submitting your rating.')),
+        );
+      }
+    }
+  }
+
+  void _updateRating(double rating) {
     setState(() {
       userRating = rating;
+      _hasRatingChanged = true;
     });
 
-    // Optionally, you can refresh the recipe data to get the updated ratings
-    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
-    recipeProvider.refreshRecipe(widget.recipeId);
+    // Submit rating in the background
+    Future.microtask(() => _submitRating(rating));
   }
 
   // Submit user's comment
@@ -118,7 +208,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to submit a comment.')),
+        const SnackBar(
+            content: Text('You must be logged in to submit a comment.')),
       );
       return;
     }
@@ -145,6 +236,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     });
 
     _commentController.clear();
+    // Submit the rating if it has changed
+    if (_hasRatingChanged) {
+      _submitRating(userRating);
+      _hasRatingChanged = false;
+    }
   }
 
   // Add ingredient to shopping list
@@ -153,7 +249,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
             content:
                 Text('You must be logged in to add to the shopping list.')),
       );
@@ -190,9 +286,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       });
     }
 
-    setState(() {
-      _shoppingListItems.add(ingredientName);
-    });
+    _shoppingListItems.add(ingredientName);
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$ingredientName added to your shopping list.')),
@@ -218,9 +312,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       if (newAmount <= 0) {
         // Remove the item
         await docRef.delete();
-        setState(() {
-          _shoppingListItems.remove(ingredientName);
-        });
+        _shoppingListItems.remove(ingredientName);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content:
@@ -243,7 +335,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('You must be logged in to save recipes.')),
+        const SnackBar(content: Text('You must be logged in to save recipes.')),
       );
       return;
     }
@@ -265,13 +357,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       collectionSelection[collection.id] = recipes.contains(widget.recipeId);
     }
 
-    showDialog(
+    await showDialog(
       context: context,
       builder: (context) {
         return StatefulBuilder(
           builder: (context, setState) {
             return AlertDialog(
-              title: Text('Save Recipe to Collections'),
+              title: const Text('Save Recipe to Collections'),
               content: Container(
                 width: double.maxFinite,
                 child: Column(
@@ -286,8 +378,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                           if (index == collections.length) {
                             // Create New Collection
                             return ListTile(
-                              leading: Icon(Icons.add),
-                              title: Text('Create New Collection'),
+                              leading: const Icon(Icons.add),
+                              title: const Text('Create New Collection'),
                               onTap: () {
                                 Navigator.pop(context);
                                 showCreateCollectionDialog(context,
@@ -304,8 +396,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               title: Row(
                                 children: [
                                   Text(collection['icon'] ?? '🍽',
-                                      style: TextStyle(fontSize: 24)),
-                                  SizedBox(width: 8),
+                                      style: const TextStyle(fontSize: 24)),
+                                  const SizedBox(width: 8),
                                   Text(collection['name'] ?? 'Unnamed'),
                                 ],
                               ),
@@ -335,7 +427,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: Text('Done'),
+                  child: const Text('Done'),
                 ),
               ],
             );
@@ -343,6 +435,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         );
       },
     );
+    _checkIfRecipeIsSaved();
   }
 
   void _createNewCollection(String name, String icon, bool isPublic) async {
@@ -370,13 +463,16 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Recipe Details'),
+        title: Text(_recipeTitle),
         leading: BackButton(
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.bookmark_border), // Change icon if recipe is saved
+            icon: Icon(
+              isRecipeSaved ? Icons.bookmark : Icons.bookmark_border,
+              color: isRecipeSaved ? Colors.green : null,
+            ),
             onPressed: _showSaveDialog,
           ),
         ],
@@ -398,6 +494,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             );
           } else {
             final recipeData = snapshot.data!;
+            // In the FutureBuilder
+            if (!_isTitleSet) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                setState(() {
+                  _recipeTitle = recipeData['title'] ?? 'Recipe Details';
+                  _isTitleSet = true;
+                });
+              });
+            }
             // Set initialServings and servings only if they are null
             if (initialServings == null) {
               initialServings = recipeData['initialServings'] ?? 1;
@@ -426,14 +531,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     String title = recipeData['title'] ?? '';
     String authorId = recipeData['authorId'] ?? '';
     String description = recipeData['description'] ?? '';
-    String cookingTime = recipeData['cookingTime'] ?? '';
+    int cookingTime = recipeData['totalTime'] ?? '';
     List<dynamic> ingredientsData = recipeData['ingredients'] ?? [];
     List<dynamic> cookingSteps = recipeData['cookingSteps'] ?? [];
     List<dynamic> tags = recipeData['tags'] ?? [];
     bool createdByAI = recipeData['createdByAI'] ?? false;
     Map<String, dynamic>? nutrition = recipeData['nutrition'];
 
-    _printOutJSONObject(recipeData);
+    // _printOutJSONObject(recipeData);
 
     int ingredientsCount = ingredientsData.length;
     int stepsCount = cookingSteps.length;
@@ -458,7 +563,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 _buildRatingSection(recipeData),
-                SizedBox(height: 16),
+                const SizedBox(height: 16),
                 // Description
                 Text(
                   description,
@@ -477,19 +582,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: _buildIngredientsSection(ingredientsData),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           // Instructions Section
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: _buildInstructionsSection(cookingSteps),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
           // Comments and Reviews Section
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildCommentsAndReviewsSection(),
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: _buildRatingAndCommentsSection(),
           ),
-          SizedBox(height: 16),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16.0),
+            child: _buildRatingBreakdown(),
+          ),
+          const SizedBox(height: 16),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: _buildCommentsList(),
+          ),
+          const SizedBox(height: 16),
         ],
       ),
     );
@@ -502,7 +617,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     String authorId,
     int ingredientsCount,
     int stepsCount,
-    String cookingTime,
+    int cookingTime,
   ) {
     return Stack(
       children: [
@@ -537,21 +652,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           right: 0,
           child: Container(
             color: Colors.black54,
-            padding: EdgeInsets.all(8.0),
+            padding: const EdgeInsets.all(8.0),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
                 // Recipe Title
                 Text(
                   title,
-                  style: TextStyle(
+                  style: const TextStyle(
                     color: Colors.white,
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 // Author Name
                 GestureDetector(
                   onTap: () {
@@ -570,14 +685,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                         .get(),
                     builder: (context, snapshot) {
                       if (snapshot.connectionState == ConnectionState.waiting) {
-                        return Text(
+                        return const Text(
                           'Loading author...',
                           style: TextStyle(color: Colors.white),
                         );
                       } else if (snapshot.hasError ||
                           !snapshot.hasData ||
                           !snapshot.data!.exists) {
-                        return Text(
+                        return const Text(
                           'Unknown author',
                           style: TextStyle(color: Colors.white),
                         );
@@ -588,7 +703,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                             authorData['display_name'] ?? 'Unknown author';
                         return Text(
                           'by $authorName',
-                          style: TextStyle(
+                          style: const TextStyle(
                             color: Colors.white,
                             decoration: TextDecoration.underline,
                             decorationColor: Colors.white,
@@ -598,7 +713,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     },
                   ),
                 ),
-                SizedBox(height: 4),
+                const SizedBox(height: 4),
                 // Details Row
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
@@ -606,36 +721,36 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     // Ingredients Count
                     Row(
                       children: [
-                        Icon(Icons.restaurant_menu,
+                        const Icon(Icons.restaurant_menu,
                             color: Colors.white, size: 16),
-                        SizedBox(width: 4),
+                        const SizedBox(width: 4),
                         Text(
                           '$ingredientsCount ingredients',
-                          style: TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     // Steps Count
                     Row(
                       children: [
-                        Icon(Icons.list, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
+                        const Icon(Icons.list, color: Colors.white, size: 16),
+                        const SizedBox(width: 4),
                         Text(
                           '$stepsCount steps',
-                          style: TextStyle(color: Colors.white),
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
-                    SizedBox(width: 16),
+                    const SizedBox(width: 16),
                     // Cooking Time
                     Row(
                       children: [
-                        Icon(Icons.timer, color: Colors.white, size: 16),
-                        SizedBox(width: 4),
+                        const Icon(Icons.timer, color: Colors.white, size: 16),
+                        const SizedBox(width: 4),
                         Text(
-                          '$cookingTime',
-                          style: TextStyle(color: Colors.white),
+                          '$cookingTime min',
+                          style: const TextStyle(color: Colors.white),
                         ),
                       ],
                     ),
@@ -662,24 +777,86 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           children: [
             Text(
               averageRating.toStringAsFixed(1),
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             RatingBarIndicator(
               rating: averageRating,
-              itemBuilder: (context, index) => Icon(
+              itemBuilder: (context, index) => const Icon(
                 Icons.star,
                 color: Colors.amber,
               ),
               itemCount: 5,
               itemSize: 24.0,
             ),
-            SizedBox(width: 4),
+            const SizedBox(width: 4),
             Text(
               '($ratingsCount)',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
+        ),
+      ],
+    );
+  }
+
+  Widget _buildRatingBreakdown() {
+    double averageRating = userRating;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Average Rating Section
+        Column(
+          children: [
+            Text(
+              averageRating.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w600),
+            ),
+            // SizedBox(height: 8),
+            RatingBarIndicator(
+              rating: averageRating,
+              itemBuilder: (context, index) => const Icon(
+                Icons.star,
+                color: Colors.amber,
+              ),
+              itemCount: 5,
+              itemSize: 14.0,
+            ),
+            //SizedBox(height: 8),
+            Text('$totalRatings'),
+          ],
+        ),
+        const SizedBox(width: 24),
+        // Rating Breakdown Section
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 5; i >= 1; i--)
+                Row(
+                  children: [
+                    Text('$i'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 6,
+                        child: LinearProgressIndicator(
+                          value: totalRatings > 0
+                              ? (ratingCounts[i]! / totalRatings)
+                              : 0,
+                          backgroundColor: Colors.grey[300],
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${ratingCounts[i]}'),
+                  ],
+                ),
+            ],
+          ),
         ),
       ],
     );
@@ -690,8 +867,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     if (createdByAI == true) {
       chips.add(
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+        const Padding(
+          padding: EdgeInsets.symmetric(horizontal: 4.0),
           child: Chip(
             label: Text('✨ AI Generated'),
           ),
@@ -700,7 +877,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       chips.add(
         Container(
           height: 24,
-          child: VerticalDivider(
+          child: const VerticalDivider(
             color: Colors.grey,
             thickness: 1,
           ),
@@ -727,6 +904,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
+  Widget _buildServingsSection() {
+    return ValueListenableBuilder<int>(
+      valueListenable: servingsNotifier,
+      builder: (context, currentServings, _) {
+        return Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            IconButton(
+              icon: const Icon(Icons.remove),
+              onPressed: () {
+                if (currentServings > 1) {
+                  servingsNotifier.value = currentServings - 1;
+                }
+              },
+            ),
+            Text('$currentServings Servings'),
+            IconButton(
+              icon: const Icon(Icons.add),
+              onPressed: () {
+                servingsNotifier.value = currentServings + 1;
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   // Ingredients Section
   Widget _buildIngredientsSection(List<dynamic> ingredientsData) {
     List<Map<String, dynamic>> ingredients =
@@ -736,51 +941,26 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         // Servings Adjustment
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         Text(
           'Ingredients',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            IconButton(
-              icon: const Icon(Icons.remove),
-              onPressed: () {
-                if (servings! > 1) {
-                  setState(() {
-                    servings = servings! - 1;
-                  });
-                }
-              },
-            ),
-            Text(
-              '$servings Servings',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            IconButton(
-              icon: const Icon(Icons.add),
-              onPressed: () {
-                setState(() {
-                  servings = servings! + 1;
-                });
-              },
-            ),
-          ],
-        ),
-        SizedBox(height: 8),
+        _buildServingsSection(),
+        const SizedBox(height: 8),
         // Ingredients List Header
         Container(
           color: Colors.grey[200],
-          padding: EdgeInsets.symmetric(vertical: 8),
-          child: Row(
+          padding: const EdgeInsets.symmetric(vertical: 8),
+          child: const Row(
             children: [
+              SizedBox(width: 8),
               Expanded(
-                flex: 2,
+                flex: 3,
                 child: Text(
                   'Amount',
                   style: TextStyle(fontWeight: FontWeight.bold),
-                  textAlign: TextAlign.center,
+                  textAlign: TextAlign.left,
                 ),
               ),
               Expanded(
@@ -801,7 +981,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         // Ingredients List
         ListView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: ingredients.length,
           itemBuilder: (context, index) {
             final ingredient = ingredients[index];
@@ -820,12 +1000,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               padding: const EdgeInsets.symmetric(vertical: 4.0),
               child: Row(
                 children: [
+                  const SizedBox(width: 8),
                   // Amount and unit
                   Expanded(
-                    flex: 2,
+                    flex: 3,
                     child: Text(
                       '${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount.toStringAsFixed(1)} $unit',
-                      textAlign: TextAlign.center,
+                      textAlign: TextAlign.left,
                     ),
                   ),
                   // Ingredient name
@@ -837,23 +1018,26 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   // Plus/check button
                   Expanded(
                     flex: 1,
-                    child: IconButton(
-                      icon: Icon(
-                        _shoppingListItems.contains(ingredientName)
-                            ? Icons.check
-                            : Icons.add,
+                    child: AnimatedSwitcher(
+                      duration: const Duration(milliseconds: 300),
+                      child: IconButton(
+                        icon: Icon(
+                          _shoppingListItems.contains(ingredientName)
+                              ? Icons.check
+                              : Icons.add,
+                        ),
+                        onPressed: () {
+                          if (_shoppingListItems.contains(ingredientName)) {
+                            // Remove from shopping list
+                            _removeIngredientFromShoppingList(
+                                ingredientName, totalAmount, unit);
+                          } else {
+                            // Add to shopping list
+                            _addIngredientToShoppingList(
+                                ingredientName, totalAmount, unit);
+                          }
+                        },
                       ),
-                      onPressed: () {
-                        if (_shoppingListItems.contains(ingredientName)) {
-                          // Remove from shopping list
-                          _removeIngredientFromShoppingList(
-                              ingredientName, totalAmount, unit);
-                        } else {
-                          // Add to shopping list
-                          _addIngredientToShoppingList(
-                              ingredientName, totalAmount, unit);
-                        }
-                      },
                     ),
                   ),
                 ],
@@ -873,10 +1057,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           'Instructions',
           style: Theme.of(context).textTheme.headlineSmall,
         ),
-        SizedBox(height: 8),
+        const SizedBox(height: 8),
         ListView.builder(
           shrinkWrap: true,
-          physics: NeverScrollableScrollPhysics(),
+          physics: const NeverScrollableScrollPhysics(),
           itemCount: cookingSteps.length,
           itemBuilder: (context, index) {
             return ListTile(
@@ -892,122 +1076,136 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  // Comments and Reviews Section
-  Widget _buildCommentsAndReviewsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Rating and Comments Input
-        Text('Ratings & Comments',
-            style: Theme.of(context).textTheme.headlineSmall),
-        SizedBox(height: 8),
-        Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  Widget _buildRatingAndCommentsSection() {
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Rate this recipe:',
-              style: Theme.of(context).textTheme.bodyLarge,
+              'Rate this Recipe!',
+              style: Theme.of(context).textTheme.titleLarge,
             ),
-            RatingBar.builder(
-              initialRating: userRating,
-              minRating: 1,
-              direction: Axis.horizontal,
-              allowHalfRating: true,
-              itemCount: 5,
-              itemSize: 20.0,
-              itemPadding: EdgeInsets.symmetric(horizontal: 1.0),
-              itemBuilder: (context, _) => Icon(
-                Icons.star,
-                color: Colors.amber,
+            const SizedBox(height: 8),
+            Center(
+              child: RatingBar.builder(
+                initialRating: userRating,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: false,
+                itemCount: 5,
+                itemSize: 40.0,
+                itemBuilder: (context, _) => const Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                ),
+                onRatingUpdate: _updateRating,
               ),
-              onRatingUpdate: (rating) {
-                _submitRating(rating);
-              },
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: _commentController,
+              decoration: InputDecoration(
+                labelText: 'Leave a comment',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: _submitComment,
+                ),
+              ),
+              maxLines: null,
             ),
           ],
         ),
-        SizedBox(height: 8),
-        // Comments Text Field
-        TextField(
-          controller: _commentController,
-          decoration: InputDecoration(
-            labelText: 'Leave a comment',
-            border: OutlineInputBorder(),
-            suffixIcon: IconButton(
-              icon: Icon(Icons.send),
-              onPressed: _submitComment,
+      ),
+    );
+  }
+
+  Widget _buildCommentsList() {
+    return StreamBuilder<QuerySnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('recipes')
+          .doc(widget.recipeId)
+          .collection('comments')
+          .orderBy('timestamp', descending: true)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const CircularProgressIndicator();
+        } else if (snapshot.hasError) {
+          return const Text('Error loading comments');
+        } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+          return const Text('No comments yet. Be the first to comment!');
+        } else {
+          return Card(
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16.0),
             ),
-          ),
-          maxLines: null,
-        ),
-        SizedBox(height: 16),
-        // Display Comments
-        Text(
-          'Comments',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        SizedBox(height: 8),
-        StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance
-              .collection('recipes')
-              .doc(widget.recipeId)
-              .collection('comments')
-              .orderBy('timestamp', descending: true)
-              .snapshots(),
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return CircularProgressIndicator();
-            } else if (snapshot.hasError) {
-              return Text('Error loading comments');
-            } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return Text('No comments yet. Be the first to comment!');
-            } else {
-              return ListView.builder(
-                shrinkWrap: true,
-                physics: NeverScrollableScrollPhysics(),
-                itemCount: snapshot.data!.docs.length,
-                itemBuilder: (context, index) {
-                  final commentData =
-                      snapshot.data!.docs[index].data() as Map<String, dynamic>;
-                  double rating = commentData['rating']?.toDouble() ?? 0.0;
-                  return ListTile(
-                    title: Text(commentData['userName'] ?? 'Anonymous'),
-                    subtitle: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        if (rating > 0)
-                          RatingBarIndicator(
-                            rating: rating,
-                            itemBuilder: (context, index) => Icon(
-                              Icons.star,
-                              color: Colors.amber,
+            child: Column(
+              children: [
+                Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text(
+                      'Comments',
+                      style: Theme.of(context).textTheme.titleLarge,
+                    ),
+                  ),
+                ),
+                ListView.builder(
+                  shrinkWrap: true,
+                  physics: const NeverScrollableScrollPhysics(),
+                  itemCount: snapshot.data!.docs.length,
+                  itemBuilder: (context, index) {
+                    final commentData = snapshot.data!.docs[index].data()
+                        as Map<String, dynamic>;
+                    double rating = commentData['rating']?.toDouble() ?? 0.0;
+                    return ListTile(
+                      title: Text(commentData['userName'] ?? 'Anonymous'),
+                      subtitle: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (rating > 0)
+                            RatingBarIndicator(
+                              rating: rating,
+                              itemBuilder: (context, index) => const Icon(
+                                Icons.star,
+                                color: Colors.amber,
+                              ),
+                              itemCount: 5,
+                              itemSize: 16.0,
                             ),
-                            itemCount: 5,
-                            itemSize: 16.0,
-                          ),
-                        Text(commentData['comment'] ?? ''),
-                      ],
-                    ),
-                    trailing: Text(
-                      commentData['timestamp'] != null
-                          ? (commentData['timestamp'] as Timestamp)
-                              .toDate()
-                              .toLocal()
-                              .toString()
-                              .split(' ')[0]
-                              .split('-')
-                              .reversed
-                              .join('.')
-                          : '',
-                      style: TextStyle(fontSize: 12, color: Colors.grey),
-                    ),
-                  );
-                },
-              );
-            }
-          },
-        ),
-      ],
+                          Text(commentData['comment'] ?? ''),
+                        ],
+                      ),
+                      trailing: Text(
+                        commentData['timestamp'] != null
+                            ? (commentData['timestamp'] as Timestamp)
+                                .toDate()
+                                .toLocal()
+                                .toString()
+                                .split(' ')[0]
+                                .split('-')
+                                .reversed
+                                .join('.')
+                            : '',
+                        style:
+                            const TextStyle(fontSize: 12, color: Colors.grey),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          );
+        }
+      },
     );
   }
 }

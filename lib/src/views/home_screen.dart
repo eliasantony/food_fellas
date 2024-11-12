@@ -60,23 +60,31 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _fetchMealTypeTags() async {
-    QuerySnapshot snapshot = await FirebaseFirestore.instance
-        .collection('tags')
-        .where('category', isEqualTo: 'Meal Types')
-        .get();
+    try {
+      QuerySnapshot snapshot = await FirebaseFirestore.instance
+          .collection('tags')
+          .where('category', isEqualTo: 'Meal Types')
+          .get();
 
-    List<Tag> tags = snapshot.docs.map((doc) {
-      return Tag(
-        id: doc.id,
-        name: doc['name'],
-        icon: doc['icon'],
-        category: doc['category'],
-      );
-    }).toList();
+      List<Tag> tags = snapshot.docs.map((doc) {
+        return Tag(
+          id: doc.id,
+          name: doc['name'],
+          icon: doc['icon'],
+          category: doc['category'],
+        );
+      }).toList();
 
-    setState(() {
-      _mealTypeTags = tags;
-    });
+      if (!mounted) return; // Ensure the widget is still mounted
+
+      setState(() {
+        _mealTypeTags = tags;
+      });
+    } catch (e) {
+      if (mounted) {
+        // Optionally handle the error, e.g., show a message
+      }
+    }
   }
 
   String _getGreetingMessage() {
@@ -160,10 +168,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
                 centerTitle: false,
                 title: isExpanded
-                    ? Text(
-                        _getGreetingMessage(),
-                        style: TextStyle(fontSize: 12.0, color: Colors.white),
-                      )
+                    ? null
                     : Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -178,6 +183,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   .setIndex(4);
                             },
                             child: CircleAvatar(
+                              backgroundColor: Colors.transparent,
                               backgroundImage: _photoUrl != null
                                   ? NetworkImage(_photoUrl!)
                                   : const AssetImage(
@@ -206,13 +212,45 @@ class _HomeScreenState extends State<HomeScreen> {
                         alignment: Alignment.center,
                         child: Padding(
                           padding:
-                              const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
-                          child: Text(
-                            _getTitle(),
-                            style: TextStyle(
-                                fontSize: 24.0,
-                                color: Colors.white,
-                                fontWeight: FontWeight.bold),
+                              const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              // Column for greeting and title text
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  mainAxisSize: MainAxisSize.min,
+                                  children: [
+                                    const SizedBox(height: 20.0),
+                                    Text(
+                                      _getTitle(),
+                                      style: TextStyle(
+                                        fontSize: 22.0,
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 8.0),
+                                    Text(
+                                      _getGreetingMessage(),
+                                      style: TextStyle(
+                                        fontSize: 16.0,
+                                        color: Colors.white.withOpacity(0.8),
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                              // Adding the 3D AI sparkles illustration on the right
+                              Padding(
+                                padding: const EdgeInsets.only(left: 8.0),
+                                child: Image.asset(
+                                  'lib/assets/images/SPARKLES_EMOJI.png',
+                                  height: 100,
+                                ),
+                              ),
+                            ],
                           ),
                         ),
                       )
@@ -330,13 +368,32 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildSectionTitle(String title) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 0, 8.0),
-      child: Text(
-        title,
-        style: TextStyle(
-          fontWeight: FontWeight.bold,
-          fontSize: 20.0,
-        ),
+      padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(
+            title,
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20.0,
+            ),
+          ),
+          GestureDetector(
+            onTap: () {
+              // Implement navigation to the full list of items
+            },
+            child: Text(
+              'See All',
+              style: TextStyle(
+                color: Theme.of(context).primaryColor,
+                fontSize: 16.0,
+                fontWeight: FontWeight.w500,
+                decoration: TextDecoration.underline,
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }

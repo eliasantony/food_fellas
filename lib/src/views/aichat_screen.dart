@@ -72,7 +72,9 @@ String removeJsonCodeBlock(String text) {
 }
 
 List<String> extractOptions(String text) {
-  final regex = RegExp(r'^(?:\d+\.\s*)?(.*?)\s*\*\*(.*?)\*\*', multiLine: true);
+  // Updated regex to match only lines that start with a number, emoji, and bold title
+  final regex = RegExp(r'^\s*\d+\.\s*(\p{Emoji})\s+\*\*(.*?)\*\*',
+      multiLine: true, unicode: true);
   final matches = regex.allMatches(text);
 
   List<String> options = [];
@@ -81,7 +83,7 @@ List<String> extractOptions(String text) {
     final title = match.group(2)?.trim() ?? '';
     final option = '$emoji $title';
     options.add(option);
-    print('Match: $option');
+    print('Extracted option: $option');
   }
 
   return options;
@@ -115,8 +117,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
           child: SizedBox(
             width: 8,
             height: 8,
-            child: SvgPicture.asset(
-              'lib/assets/brand/hat.svg',
+            child: Image.asset(
+              'lib/assets/brand/hat.png',
               fit: BoxFit.contain,
             ),
           ),
@@ -144,10 +146,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
               ),
             Expanded(
               child: DashChat(
-                inputOptions: InputOptions(
-                  sendOnEnter: true,
-                  
-                  trailing: [
+                inputOptions: InputOptions(sendOnEnter: true, trailing: [
                   IconButton(
                     onPressed: _sendMediaMessage,
                     icon: const Icon(Icons.image),

@@ -59,9 +59,9 @@ class _RecipeCardState extends State<RecipeCard> {
     String description = recipeData['description'] ?? '';
     double rating = recipeData['averageRating']?.toDouble() ?? 0.0;
     int ratingsCount = recipeData['ratingsCount'] ?? 0;
-    String totalTime = recipeData['cookingTime'] ?? '';
+    int totalTime = recipeData['totalTime'] ?? '';
     String thumbnailUrl = recipeData['imageUrl'] ?? '';
-     String authorName = recipeData['authorName'] ?? 'Unknown author';
+    String authorName = recipeData['authorName'] ?? 'Unknown author';
 
     return Container(
       width: widget.big ? 400 : 250,
@@ -145,13 +145,13 @@ class _RecipeCardState extends State<RecipeCard> {
                             Row(
                               children: <Widget>[
                                 Icon(
-                                  Icons.timer,
+                                  Icons.timer_outlined,
                                   size: 18,
                                   color: theme.colorScheme.onSurface,
                                 ),
                                 SizedBox(width: 4),
                                 Text(
-                                  totalTime,
+                                  '$totalTime min',
                                   style: theme.textTheme.titleMedium,
                                 ),
                               ],

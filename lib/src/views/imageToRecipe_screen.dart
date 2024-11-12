@@ -238,10 +238,15 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
               SizedBox(height: 20),
               AnimatedSwitcher(
                 duration: Duration(seconds: 3),
-                child: Text(
-                  _currentHint,
-                  key: ValueKey<String>(_currentHint),
-                  style: TextStyle(fontSize: 16, color: Colors.grey),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                  child: Center(
+                    child: Text(
+                      _currentHint,
+                      key: ValueKey<String>(_currentHint),
+                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    ),
+                  ),
                 ),
               ),
             ],

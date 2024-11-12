@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter_svg/svg.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../widgets/categoryCard.dart';
 import '../widgets/verticalRecipeColumn.dart';
 import 'package:provider/provider.dart';
@@ -20,7 +22,24 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Discover'),
+        title: Text(
+          "Discover",
+          style: GoogleFonts.poppins(
+            color: Color(0xFF116131),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+          child: SizedBox(
+            width: 8,
+            height: 8,
+            child: Image.asset(
+              'lib/assets/brand/hat.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Column(
         children: [
