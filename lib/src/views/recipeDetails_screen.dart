@@ -11,9 +11,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
-import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
-import 'package:path_provider/path_provider.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
@@ -25,7 +23,7 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  late Future<DocumentSnapshot> _recipeFuture;
+  late Future<Map<String, dynamic>?> _recipeFuture;
   bool isRecipeSaved = false;
   String _recipeTitle = 'Recipe Details';
   bool _isTitleSet = false;
@@ -39,18 +37,29 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   ValueNotifier<Set<String>> shoppingListItemsNotifier =
       ValueNotifier<Set<String>>({});
   late ValueNotifier<int> servingsNotifier;
+  ScrollController _scrollController = ScrollController();
+  double _opacity = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _recipeFuture = FirebaseFirestore.instance
-        .collection('recipes')
-        .doc(widget.recipeId)
-        .get();
+    _scrollController.addListener(_handleScroll);
+    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+    _recipeFuture = recipeProvider.getRecipeById(widget.recipeId);
     servingsNotifier = ValueNotifier<int>(initialServings ?? 2);
     shoppingListItemsNotifier.value = Set<String>();
     _fetchShoppingListItems();
     _checkIfRecipeIsSaved();
+  }
+
+  void _handleScroll() {
+    if (!mounted) return;
+    double offset = _scrollController.offset;
+    double newOpacity = offset / (250.0 - kToolbarHeight); // Adjust as needed
+    newOpacity = newOpacity.clamp(0.0, 1.0);
+    setState(() {
+      _opacity = newOpacity;
+    });
   }
 
   void _checkIfRecipeIsSaved() async {
@@ -94,26 +103,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     shoppingListItemsNotifier.value = items;
   }
 
-  void _fetchRatingBreakdown(Map<String, dynamic> recipeData) {
-    setState(() {
-      ratingCounts = Map<int, int>.from(recipeData['ratingCounts'] ??
-          {
-            1: 0,
-            2: 0,
-            3: 0,
-            4: 0,
-            5: 0,
-          });
-      totalRatings = recipeData['ratingsCount'] ?? 0;
-      userRating = recipeData['averageRating']?.toDouble() ?? 0.0;
-    });
-  }
-
   @override
   void dispose() {
     if (_hasRatingChanged) {
       _submitRating(userRating);
     }
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
     _commentController.dispose();
     super.dispose();
   }
@@ -438,23 +434,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipeProvider = Provider.of<RecipeProvider>(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(_recipeTitle),
-        leading: BackButton(
-          onPressed: () => Navigator.pop(context),
-        ),
-        actions: [
-          IconButton(
-            icon: Icon(
-              isRecipeSaved ? Icons.bookmark : Icons.bookmark_border,
-              color: isRecipeSaved ? Colors.green : null,
-            ),
-            onPressed: _showSaveDialog,
-          ),
-        ],
-      ),
       body: FutureBuilder<Map<String, dynamic>?>(
-        future: recipeProvider.getRecipeById(widget.recipeId),
+        future: _recipeFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(
@@ -470,22 +451,155 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             );
           } else {
             final recipeData = snapshot.data!;
-            // In the FutureBuilder
-            if (!_isTitleSet) {
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                setState(() {
-                  _recipeTitle = recipeData['title'] ?? 'Recipe Details';
-                  _isTitleSet = true;
-                });
-              });
-            }
+            final recipeTitle = recipeData['title'] ?? 'Recipe Details';
             // Set initialServings and servings only if they are null
             if (initialServings == null) {
               initialServings = recipeData['initialServings'] ?? 1;
               servings = initialServings;
             }
 
-            return _buildRecipeDetail(recipeData);
+            return NestedScrollView(
+              controller: _scrollController,
+              headerSliverBuilder:
+                  (BuildContext context, bool innerBoxIsScrolled) {
+                return <Widget>[
+                  SliverAppBar(
+                    expandedHeight: 250.0,
+                    floating: false,
+                    pinned: true,
+                    automaticallyImplyLeading: false,
+                    flexibleSpace: LayoutBuilder(
+                      builder:
+                          (BuildContext context, BoxConstraints constraints) {
+                        double appBarHeight = constraints.biggest.height;
+                        double opacity = (_scrollController.offset) /
+                            (250.0 - kToolbarHeight);
+                        opacity = opacity.clamp(0.0, 1.0);
+
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Image Section
+                            _buildImageSection(recipeData),
+                            // Overlay Back and Save buttons over the image
+                            Positioned(
+                              top: MediaQuery.of(context).padding.top,
+                              left: 4.0,
+                              right: 4.0,
+                              child: Container(
+                                height: kToolbarHeight,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Back button
+                                    CircleAvatar(
+                                      backgroundColor: Colors.white70,
+                                      child: IconButton(
+                                        icon: Icon(Icons.arrow_back),
+                                        color: Colors.black
+                                            .withOpacity(1.0 - opacity),
+                                        onPressed: () => Navigator.pop(context),
+                                      ),
+                                    ),
+                                    // Save button
+                                    CircleAvatar(
+                                      backgroundColor: Colors.white70,
+                                      child: IconButton(
+                                        icon: Icon(
+                                          isRecipeSaved
+                                              ? Icons.bookmark
+                                              : Icons.bookmark_border,
+                                        ),
+                                        color: isRecipeSaved
+                                            ? Colors.green
+                                                .withOpacity(1.0 - opacity)
+                                            : Colors.white
+                                                .withOpacity(1.0 - opacity),
+                                        onPressed: _showSaveDialog,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ),
+                            // AppBar Title and Buttons when scrolled
+                            Positioned(
+                              top: 0.0,
+                              left: 0.0,
+                              right: 0.0,
+                              child: Opacity(
+                                opacity: opacity,
+                                child: Container(
+                                  color:
+                                      Theme.of(context).scaffoldBackgroundColor,
+                                  height: MediaQuery.of(context).padding.top +
+                                      kToolbarHeight,
+                                  child: Column(
+                                    children: [
+                                      SizedBox(
+                                          height: MediaQuery.of(context)
+                                              .padding
+                                              .top),
+                                      Container(
+                                        height: kToolbarHeight,
+                                        child: Row(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.spaceBetween,
+                                          children: [
+                                            // Back button
+                                            IconButton(
+                                              icon: Icon(Icons.arrow_back),
+                                              color: Colors.black,
+                                              onPressed: () =>
+                                                  Navigator.pop(context),
+                                            ),
+                                            // Title
+                                            Expanded(
+                                              child: Text(
+                                                recipeTitle,
+                                                style: TextStyle(
+                                                  color: Colors.black,
+                                                  fontSize: 20.0,
+                                                  fontWeight: FontWeight.bold,
+                                                ),
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                textAlign: TextAlign.center,
+                                              ),
+                                            ),
+                                            // Save button
+                                            IconButton(
+                                              icon: Icon(
+                                                isRecipeSaved
+                                                    ? Icons.bookmark
+                                                    : Icons.bookmark_border,
+                                              ),
+                                              color: isRecipeSaved
+                                                  ? Colors.green
+                                                  : Colors.black,
+                                              onPressed: _showSaveDialog,
+                                            ),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ),
+                  ),
+                ];
+              },
+              body: ListView(
+                padding: EdgeInsets.zero,
+                children: _buildRecipeDetail(recipeData),
+              ),
+            );
           }
         },
       ),
@@ -501,13 +615,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   //await logFile.writeAsString(jsonString, mode: FileMode.append);
   //}
 
-  // Build the detailed recipe view
-  Widget _buildRecipeDetail(Map<String, dynamic> recipeData) {
-    String imageUrl = recipeData['imageUrl'] ?? '';
-    String title = recipeData['title'] ?? '';
-    String authorId = recipeData['authorId'] ?? '';
+  List<Widget> _buildRecipeDetail(Map<String, dynamic> recipeData) {
     String description = recipeData['description'] ?? '';
-    int cookingTime = recipeData['totalTime'] ?? '';
     List<dynamic> ingredientsData = recipeData['ingredients'] ?? [];
     List<dynamic> cookingSteps = recipeData['cookingSteps'] ?? [];
     List<dynamic> tags = recipeData['tags'] ?? [];
@@ -517,88 +626,68 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final ratingCounts = Map<int, int>.from(
         recipeData['ratingCounts'] ?? {1: 0, 2: 0, 3: 0, 4: 0, 5: 0});
 
-    // _printOutJSONObject(recipeData);
-
-    int ingredientsCount = ingredientsData.length;
-    int stepsCount = cookingSteps.length;
-
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          // Image Section with Overlay
-          _buildImageSection(
-            imageUrl,
-            title,
-            authorId,
-            ingredientsCount,
-            stepsCount,
-            cookingTime,
-          ),
-          // Rating Section
-          Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.center,
-              children: [
-                _buildRatingSection(averageRating, ratingsCount),
-                const SizedBox(height: 16),
-                // Description
-                Text(
-                  description,
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ],
+    return [
+      // Rating Section
+      Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            _buildRatingSection(averageRating, ratingsCount),
+            const SizedBox(height: 16),
+            // Description
+            Text(
+              description,
+              style: Theme.of(context).textTheme.bodyMedium,
             ),
-          ),
-          // Tags Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildTagsSection(tags, createdByAI),
-          ),
-          // Ingredients Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildIngredientsSection(ingredientsData),
-          ),
-          const SizedBox(height: 16),
-          // Instructions Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildInstructionsSection(cookingSteps),
-          ),
-          const SizedBox(height: 16),
-          // Comments and Reviews Section
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: _buildRatingAndCommentsSection(),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildRatingBreakdown(
-                averageRating, ratingsCount, ratingCounts),
-          ),
-          const SizedBox(height: 16),
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
-            child: _buildCommentsList(),
-          ),
-          const SizedBox(height: 16),
-        ],
+          ],
+        ),
       ),
-    );
+      // Tags Section
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: _buildTagsSection(tags, createdByAI),
+      ),
+      // Ingredients Section
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: _buildIngredientsSection(ingredientsData),
+      ),
+      const SizedBox(height: 16),
+      // Instructions Section
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: _buildInstructionsSection(cookingSteps),
+      ),
+      const SizedBox(height: 16),
+      // Comments and Reviews Section
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: _buildRatingAndCommentsSection(),
+      ),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: _buildRatingBreakdown(averageRating, ratingsCount, ratingCounts),
+      ),
+      const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8.0),
+        child: _buildCommentsList(),
+      ),
+      const SizedBox(height: 16),
+    ];
   }
 
   // Image Section with Overlay
-  Widget _buildImageSection(
-    String imageUrl,
-    String title,
-    String authorId,
-    int ingredientsCount,
-    int stepsCount,
-    int cookingTime,
-  ) {
+  Widget _buildImageSection(recipeData) {
+    String imageUrl = recipeData['imageUrl'] ?? '';
+    String title = recipeData['title'] ?? '';
+    String authorId = recipeData['authorId'] ?? '';
+    int ingredientsCount = recipeData['ingredients']?.length ?? 0;
+    int stepsCount = recipeData['cookingSteps']?.length ?? 0;
+    int cookingTime = recipeData['totalTime'] ?? 0;
+
     return Stack(
       children: [
         // Recipe Image
@@ -615,13 +704,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ? Image.network(
                   imageUrl,
                   width: double.infinity,
-                  height: 250,
+                  height: 350,
                   fit: BoxFit.cover,
                 )
               : Image.asset(
                   imageUrl,
                   width: double.infinity,
-                  height: 250,
+                  height: 350,
                   fit: BoxFit.cover,
                 ),
         ),
