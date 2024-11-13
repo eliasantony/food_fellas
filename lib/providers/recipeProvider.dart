@@ -41,6 +41,28 @@ class RecipeProvider extends ChangeNotifier {
           data['authorName'] = 'Unknown author';
         }
 
+        data['averageRating'] = (data['averageRating'] is String)
+            ? double.tryParse(data['averageRating']) ?? 0.0
+            : data['averageRating']?.toDouble() ?? 0.0;
+
+        data['ratingsCount'] = (data['ratingsCount'] is String)
+            ? int.tryParse(data['ratingsCount']) ?? 0
+            : data['ratingsCount'] ?? 0;
+
+        // Safe parsing for ratingCounts map
+        if (data['ratingCounts'] is Map) {
+          Map<String, dynamic> rawCounts =
+              Map<String, dynamic>.from(data['ratingCounts']);
+          data['ratingCounts'] = rawCounts.map((key, value) {
+            int parsedKey = int.tryParse(key) ?? 0;
+            int parsedValue =
+                (value is String) ? int.tryParse(value) ?? 0 : value ?? 0;
+            return MapEntry(parsedKey, parsedValue);
+          });
+        } else {
+          data['ratingCounts'] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+        }
+
         _recipesCache[recipeId] = data;
         notifyListeners();
         return data;

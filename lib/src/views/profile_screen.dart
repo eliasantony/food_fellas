@@ -525,8 +525,6 @@ class ProfileScreen extends StatelessWidget {
           data['recipeId'] = doc.id; // Add recipeId to the data
           return data;
         }).toList();
-
-        print(recipeDataList);
         return HorizontalRecipeRow(recipes: recipeDataList);
       },
     );

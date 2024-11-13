@@ -36,7 +36,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   int totalRatings = 0;
   bool _hasRatingChanged = false;
   final TextEditingController _commentController = TextEditingController();
-  Set<String> _shoppingListItems = Set();
+  ValueNotifier<Set<String>> shoppingListItemsNotifier =
+      ValueNotifier<Set<String>>({});
   late ValueNotifier<int> servingsNotifier;
 
   @override
@@ -47,7 +48,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         .doc(widget.recipeId)
         .get();
     servingsNotifier = ValueNotifier<int>(initialServings ?? 2);
-    _fetchUserRating();
+    shoppingListItemsNotifier.value = Set<String>();
     _fetchShoppingListItems();
     _checkIfRecipeIsSaved();
   }
@@ -87,38 +88,24 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         .collection('shoppingList')
         .get();
 
-    setState(() {
-      _shoppingListItems =
-          snapshot.docs.map((doc) => doc['item'] as String).toSet();
-    });
+    Set<String> items =
+        snapshot.docs.map((doc) => doc['item'] as String).toSet();
+
+    shoppingListItemsNotifier.value = items;
   }
 
-  void _fetchRatingBreakdown() async {
-    final ratingsSnapshot = await FirebaseFirestore.instance
-        .collection('recipes')
-        .doc(widget.recipeId)
-        .collection('ratings')
-        .get();
-
-    Map<int, int> counts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
-    int total = 0;
-    double sum = 0.0;
-
-    for (var doc in ratingsSnapshot.docs) {
-      int rating = doc['rating']?.toInt() ?? 0;
-      if (rating >= 1 && rating <= 5) {
-        counts[rating] = counts[rating]! + 1;
-        total += 1;
-        sum += rating;
-      }
-    }
-
-    double averageRating = total > 0 ? sum / total : 0.0;
-
+  void _fetchRatingBreakdown(Map<String, dynamic> recipeData) {
     setState(() {
-      ratingCounts = counts;
-      totalRatings = total;
-      userRating = averageRating;
+      ratingCounts = Map<int, int>.from(recipeData['ratingCounts'] ??
+          {
+            1: 0,
+            2: 0,
+            3: 0,
+            4: 0,
+            5: 0,
+          });
+      totalRatings = recipeData['ratingsCount'] ?? 0;
+      userRating = recipeData['averageRating']?.toDouble() ?? 0.0;
     });
   }
 
@@ -129,27 +116,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
     _commentController.dispose();
     super.dispose();
-  }
-
-  // Fetch user's rating
-  Future<void> _fetchUserRating() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      return;
-    }
-
-    final userRatingDoc = await FirebaseFirestore.instance
-        .collection('recipes')
-        .doc(widget.recipeId)
-        .collection('ratings')
-        .doc(user.uid)
-        .get();
-
-    if (userRatingDoc.exists) {
-      setState(() {
-        userRating = userRatingDoc.data()?['rating']?.toDouble() ?? 0.0;
-      });
-    }
   }
 
   // Submit user's rating
@@ -243,20 +209,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
   }
 
-  // Add ingredient to shopping list
   void _addIngredientToShoppingList(
       String ingredientName, double amount, String unit) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
+        SnackBar(
             content:
                 Text('You must be logged in to add to the shopping list.')),
       );
       return;
     }
 
-    // Check if item already exists
     QuerySnapshot snapshot = await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
@@ -265,14 +229,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         .get();
 
     if (snapshot.docs.isNotEmpty) {
-      // Update the amount
       var docRef = snapshot.docs.first.reference;
       double existingAmount = snapshot.docs.first['amount'] ?? 0.0;
-      await docRef.update({
-        'amount': existingAmount + amount,
-      });
+      await docRef.update({'amount': existingAmount + amount});
     } else {
-      // Add new item
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -286,10 +246,22 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       });
     }
 
-    _shoppingListItems.add(ingredientName);
+    // Update the ValueNotifier
+    shoppingListItemsNotifier.value = {
+      ...shoppingListItemsNotifier.value,
+      ingredientName
+    };
 
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('$ingredientName added to your shopping list.')),
+      SnackBar(
+        content: Row(
+          children: [
+            Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
+            SizedBox(width: 8),
+            Text('$ingredientName added to your shopping list.'),
+          ],
+        ),
+      ),
     );
   }
 
@@ -310,19 +282,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       double existingAmount = snapshot.docs.first['amount'] ?? 0.0;
       double newAmount = existingAmount - amount;
       if (newAmount <= 0) {
-        // Remove the item
         await docRef.delete();
-        _shoppingListItems.remove(ingredientName);
+        shoppingListItemsNotifier.value = {
+          ...shoppingListItemsNotifier.value..remove(ingredientName)
+        };
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content:
-                  Text('$ingredientName removed from your shopping list.')),
+            content: Row(
+              children: [
+                Icon(Icons.remove_shopping_cart_outlined, color: Colors.red),
+                SizedBox(width: 8),
+                Text('$ingredientName removed from your shopping list.'),
+              ],
+            ),
+          ),
         );
       } else {
-        // Update the amount
-        await docRef.update({
-          'amount': newAmount,
-        });
+        await docRef.update({'amount': newAmount});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
               content: Text('Updated $ingredientName in your shopping list.')),
@@ -516,14 +492,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  void _printOutJSONObject(Map<String, dynamic> recipeData) async {
-    Recipe recipe = Recipe.fromJson(recipeData!);
-    String jsonString = recipe.toJsonString();
-    log(jsonString);
-    //final directory = await getApplicationDocumentsDirectory();
-    //final logFile = File('${directory.path}/logFile.txt');
-    //await logFile.writeAsString(jsonString, mode: FileMode.append);
-  }
+  //void _printOutJSONObject(Map<String, dynamic> recipeData) async {
+  //Recipe recipe = Recipe.fromJson(recipeData!);
+  //String jsonString = recipe.toJsonString();
+  //log(jsonString);
+  //final directory = await getApplicationDocumentsDirectory();
+  //final logFile = File('${directory.path}/logFile.txt');
+  //await logFile.writeAsString(jsonString, mode: FileMode.append);
+  //}
 
   // Build the detailed recipe view
   Widget _buildRecipeDetail(Map<String, dynamic> recipeData) {
@@ -536,7 +512,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     List<dynamic> cookingSteps = recipeData['cookingSteps'] ?? [];
     List<dynamic> tags = recipeData['tags'] ?? [];
     bool createdByAI = recipeData['createdByAI'] ?? false;
-    Map<String, dynamic>? nutrition = recipeData['nutrition'];
+    final averageRating = recipeData['averageRating']?.toDouble() ?? 0.0;
+    final ratingsCount = recipeData['ratingsCount'] ?? 0;
+    final ratingCounts = Map<int, int>.from(
+        recipeData['ratingCounts'] ?? {1: 0, 2: 0, 3: 0, 4: 0, 5: 0});
 
     // _printOutJSONObject(recipeData);
 
@@ -562,7 +541,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                _buildRatingSection(recipeData),
+                _buildRatingSection(averageRating, ratingsCount),
                 const SizedBox(height: 16),
                 // Description
                 Text(
@@ -597,7 +576,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           const SizedBox(height: 16),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: _buildRatingBreakdown(),
+            child: _buildRatingBreakdown(
+                averageRating, ratingsCount, ratingCounts),
           ),
           const SizedBox(height: 16),
           Padding(
@@ -765,10 +745,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   // Rating Section
-  Widget _buildRatingSection(Map<String, dynamic> recipeData) {
-    double averageRating = recipeData['averageRating']?.toDouble() ?? 0.0;
-    int ratingsCount = recipeData['ratingsCount'] ?? 0;
-
+  Widget _buildRatingSection(averageRating, ratingsCount) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -795,68 +772,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
             ),
           ],
-        ),
-      ],
-    );
-  }
-
-  Widget _buildRatingBreakdown() {
-    double averageRating = userRating;
-
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Average Rating Section
-        Column(
-          children: [
-            Text(
-              averageRating.toStringAsFixed(1),
-              style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w600),
-            ),
-            // SizedBox(height: 8),
-            RatingBarIndicator(
-              rating: averageRating,
-              itemBuilder: (context, index) => const Icon(
-                Icons.star,
-                color: Colors.amber,
-              ),
-              itemCount: 5,
-              itemSize: 14.0,
-            ),
-            //SizedBox(height: 8),
-            Text('$totalRatings'),
-          ],
-        ),
-        const SizedBox(width: 24),
-        // Rating Breakdown Section
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 5; i >= 1; i--)
-                Row(
-                  children: [
-                    Text('$i'),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SizedBox(
-                        height: 6,
-                        child: LinearProgressIndicator(
-                          value: totalRatings > 0
-                              ? (ratingCounts[i]! / totalRatings)
-                              : 0,
-                          backgroundColor: Colors.grey[300],
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${ratingCounts[i]}'),
-                  ],
-                ),
-            ],
-          ),
         ),
       ],
     );
@@ -964,7 +879,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
               ),
               Expanded(
-                flex: 5,
+                flex: 4,
                 child: Text(
                   'Ingredient',
                   style: TextStyle(fontWeight: FontWeight.bold),
@@ -979,69 +894,87 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ),
         ),
         // Ingredients List
-        ListView.builder(
-          shrinkWrap: true,
-          physics: const NeverScrollableScrollPhysics(),
-          itemCount: ingredients.length,
-          itemBuilder: (context, index) {
-            final ingredient = ingredients[index];
-            final ingredientName =
-                ingredient['ingredient']['ingredientName'] ?? 'Unknown';
-            final baseAmount = ingredient['baseAmount'] is num
-                ? ingredient['baseAmount'].toDouble()
-                : 1;
-            final unit = ingredient['unit'] ?? '';
-            final initialIngredientServings =
-                ingredient['servings'] ?? initialServings;
-            final totalAmount =
-                (baseAmount * servings!) / initialIngredientServings;
+        ValueListenableBuilder<int>(
+          valueListenable: servingsNotifier,
+          builder: (context, currentServings, _) {
+            return ListView.builder(
+              shrinkWrap: true,
+              physics: NeverScrollableScrollPhysics(),
+              itemCount: ingredients.length,
+              itemBuilder: (context, index) {
+                final ingredient = ingredients[index];
+                final ingredientName =
+                    ingredient['ingredient']['ingredientName'] ?? 'Unknown';
+                final baseAmount = ingredient['baseAmount'] is num
+                    ? ingredient['baseAmount'].toDouble()
+                    : 1;
+                final unit = ingredient['unit'] ?? '';
+                final initialIngredientServings =
+                    ingredient['servings'] ?? initialServings;
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(vertical: 4.0),
-              child: Row(
-                children: [
-                  const SizedBox(width: 8),
-                  // Amount and unit
-                  Expanded(
-                    flex: 3,
-                    child: Text(
-                      '${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount.toStringAsFixed(1)} $unit',
-                      textAlign: TextAlign.left,
-                    ),
-                  ),
-                  // Ingredient name
-                  Expanded(
-                    flex: 5,
-                    child: Text(ingredientName),
-                  ),
-                  // Plus button
-                  // Plus/check button
-                  Expanded(
-                    flex: 1,
-                    child: AnimatedSwitcher(
-                      duration: const Duration(milliseconds: 300),
-                      child: IconButton(
-                        icon: Icon(
-                          _shoppingListItems.contains(ingredientName)
-                              ? Icons.check
-                              : Icons.add,
+                // Calculate the total amount based on the current servings
+                final totalAmount =
+                    (baseAmount * currentServings) / initialIngredientServings;
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 4.0),
+                  child: Row(
+                    children: [
+                      // Amount and unit
+                      Expanded(
+                        flex: 3,
+                        child: Text(
+                          '${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount.toStringAsFixed(1)} $unit',
+                          textAlign: TextAlign.center,
                         ),
-                        onPressed: () {
-                          if (_shoppingListItems.contains(ingredientName)) {
-                            // Remove from shopping list
-                            _removeIngredientFromShoppingList(
-                                ingredientName, totalAmount, unit);
-                          } else {
-                            // Add to shopping list
-                            _addIngredientToShoppingList(
-                                ingredientName, totalAmount, unit);
-                          }
-                        },
                       ),
-                    ),
+                      // Ingredient name
+                      Expanded(
+                        flex: 4,
+                        child: Text(ingredientName),
+                      ),
+                      // Shopping list button
+                      Expanded(
+                        flex: 1,
+                        child: ValueListenableBuilder<Set<String>>(
+                          valueListenable: shoppingListItemsNotifier,
+                          builder: (context, shoppingListItems, _) {
+                            bool isInShoppingList =
+                                shoppingListItems.contains(ingredientName);
+
+                            return AnimatedSwitcher(
+                              duration: Duration(milliseconds: 300),
+                              transitionBuilder:
+                                  (Widget child, Animation<double> animation) {
+                                return ScaleTransition(
+                                    scale: animation, child: child);
+                              },
+                              child: IconButton(
+                                key: ValueKey<bool>(isInShoppingList),
+                                icon: Icon(
+                                  isInShoppingList
+                                      ? Icons.check
+                                      : Icons.add_shopping_cart_rounded,
+                                  color: isInShoppingList ? Colors.green : null,
+                                ),
+                                onPressed: () {
+                                  if (isInShoppingList) {
+                                    _removeIngredientFromShoppingList(
+                                        ingredientName, totalAmount, unit);
+                                  } else {
+                                    _addIngredientToShoppingList(
+                                        ingredientName, totalAmount, unit);
+                                  }
+                                },
+                              ),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
                   ),
-                ],
-              ),
+                );
+              },
             );
           },
         ),
@@ -1123,6 +1056,66 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildRatingBreakdown(averageRating, totalRatings, ratingCounts) {
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // Average Rating Section
+        Column(
+          children: [
+            Text(
+              averageRating.toStringAsFixed(1),
+              style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w600),
+            ),
+            // SizedBox(height: 8),
+            RatingBarIndicator(
+              rating: averageRating,
+              itemBuilder: (context, index) => const Icon(
+                Icons.star,
+                color: Colors.amber,
+              ),
+              itemCount: 5,
+              itemSize: 14.0,
+            ),
+            //SizedBox(height: 8),
+            Text('$totalRatings'),
+          ],
+        ),
+        const SizedBox(width: 24),
+        // Rating Breakdown Section
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              for (int i = 5; i >= 1; i--)
+                Row(
+                  children: [
+                    Text('$i'),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: SizedBox(
+                        height: 6,
+                        child: LinearProgressIndicator(
+                          value: totalRatings > 0
+                              ? (ratingCounts[i]! / totalRatings)
+                              : 0,
+                          backgroundColor: Colors.grey[300],
+                          color: Colors.amber,
+                          borderRadius: BorderRadius.circular(8.0),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Text('${ratingCounts[i]}'),
+                  ],
+                ),
+            ],
+          ),
+        ),
+      ],
     );
   }
 
