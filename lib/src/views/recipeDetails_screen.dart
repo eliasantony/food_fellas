@@ -52,6 +52,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _checkIfRecipeIsSaved();
   }
 
+  @override
+  void dispose() {
+    if (_hasRatingChanged) {
+      _submitRating(userRating);
+    }
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    _commentController.dispose();
+    super.dispose();
+  }
+
   void _handleScroll() {
     if (!mounted) return;
     double offset = _scrollController.offset;
@@ -82,6 +93,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       }
     }
 
+    if (!mounted) return;
     setState(() {
       isRecipeSaved = saved;
     });
@@ -103,18 +115,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     shoppingListItemsNotifier.value = items;
   }
 
-  @override
-  void dispose() {
-    if (_hasRatingChanged) {
-      _submitRating(userRating);
-    }
-    _scrollController.removeListener(_handleScroll);
-    _scrollController.dispose();
-    _commentController.dispose();
-    super.dispose();
-  }
-
-  // Submit user's rating
   Future<void> _submitRating(double rating) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -156,6 +156,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   void _updateRating(double rating) {
+    if (!mounted) return;
     setState(() {
       userRating = rating;
       _hasRatingChanged = true;
@@ -165,7 +166,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     Future.microtask(() => _submitRating(rating));
   }
 
-  // Submit user's comment
   void _submitComment() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -374,6 +374,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                 ],
                               ),
                               onChanged: (bool? value) {
+                                if (!mounted) return;
                                 setState(() {
                                   collectionSelection[collection.id] =
                                       value ?? false;
@@ -679,7 +680,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     ];
   }
 
-  // Image Section with Overlay
   Widget _buildImageSection(recipeData) {
     String imageUrl = recipeData['imageUrl'] ?? '';
     String title = recipeData['title'] ?? '';
@@ -833,7 +833,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  // Rating Section
   Widget _buildRatingSection(averageRating, ratingsCount) {
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -936,7 +935,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  // Ingredients Section
   Widget _buildIngredientsSection(List<dynamic> ingredientsData) {
     List<Map<String, dynamic>> ingredients =
         ingredientsData.cast<Map<String, dynamic>>();
@@ -1005,69 +1003,72 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 final totalAmount =
                     (baseAmount * currentServings) / initialIngredientServings;
 
-                return Padding(
-                  padding: const EdgeInsets.symmetric(vertical: 4.0),
-                  child: Row(
-                    children: [
-                      // Amount and unit
-                      Expanded(
-                        flex: 3,
-                        child: Text(
-                          '${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount.toStringAsFixed(1)} $unit',
-                          textAlign: TextAlign.center,
-                        ),
-                      ),
-                      // Ingredient name
-                      Expanded(
-                        flex: 4,
-                        child: Text(ingredientName),
-                      ),
-                      // Shopping list button
-                      Expanded(
-                        flex: 1,
-                        child: ValueListenableBuilder<Set<String>>(
-                          valueListenable: shoppingListItemsNotifier,
-                          builder: (context, shoppingListItems, _) {
-                            bool isInShoppingList =
-                                shoppingListItems.contains(ingredientName);
-
-                            return AnimatedSwitcher(
-                              duration: Duration(milliseconds: 300),
-                              transitionBuilder:
-                                  (Widget child, Animation<double> animation) {
-                                return ScaleTransition(
-                                    scale: animation, child: child);
-                              },
-                              child: IconButton(
-                                key: ValueKey<bool>(isInShoppingList),
-                                icon: Icon(
-                                  isInShoppingList
-                                      ? Icons.check
-                                      : Icons.add_shopping_cart_rounded,
-                                  color: isInShoppingList ? Colors.green : null,
-                                ),
-                                onPressed: () {
-                                  if (isInShoppingList) {
-                                    _removeIngredientFromShoppingList(
-                                        ingredientName, totalAmount, unit);
-                                  } else {
-                                    _addIngredientToShoppingList(
-                                        ingredientName, totalAmount, unit);
-                                  }
-                                },
-                              ),
-                            );
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                );
+                return _buildIngredientItem(totalAmount, unit, ingredientName);
               },
             );
           },
         ),
       ],
+    );
+  }
+
+  Padding _buildIngredientItem(totalAmount, unit, ingredientName) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4.0),
+      child: Row(
+        children: [
+          // Amount and unit
+          Expanded(
+            flex: 3,
+            child: Text(
+              '${totalAmount % 1 == 0 ? totalAmount.toInt() : totalAmount.toStringAsFixed(1)} $unit',
+              textAlign: TextAlign.center,
+            ),
+          ),
+          // Ingredient name
+          Expanded(
+            flex: 4,
+            child: Text(ingredientName),
+          ),
+          // Shopping list button
+          Expanded(
+            flex: 1,
+            child: ValueListenableBuilder<Set<String>>(
+              valueListenable: shoppingListItemsNotifier,
+              builder: (context, shoppingListItems, _) {
+                bool isInShoppingList =
+                    shoppingListItems.contains(ingredientName);
+
+                return AnimatedSwitcher(
+                  duration: Duration(milliseconds: 300),
+                  transitionBuilder:
+                      (Widget child, Animation<double> animation) {
+                    return ScaleTransition(scale: animation, child: child);
+                  },
+                  child: IconButton(
+                    key: ValueKey<bool>(isInShoppingList),
+                    icon: Icon(
+                      isInShoppingList
+                          ? Icons.check
+                          : Icons.add_shopping_cart_rounded,
+                      color: isInShoppingList ? Colors.green : null,
+                    ),
+                    onPressed: () {
+                      if (isInShoppingList) {
+                        _removeIngredientFromShoppingList(
+                            ingredientName, totalAmount, unit);
+                      } else {
+                        _addIngredientToShoppingList(
+                            ingredientName, totalAmount, unit);
+                      }
+                    },
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1248,39 +1249,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     final commentData = snapshot.data!.docs[index].data()
                         as Map<String, dynamic>;
                     double rating = commentData['rating']?.toDouble() ?? 0.0;
-                    return ListTile(
-                      title: Text(commentData['userName'] ?? 'Anonymous'),
-                      subtitle: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          if (rating > 0)
-                            RatingBarIndicator(
-                              rating: rating,
-                              itemBuilder: (context, index) => const Icon(
-                                Icons.star,
-                                color: Colors.amber,
-                              ),
-                              itemCount: 5,
-                              itemSize: 16.0,
-                            ),
-                          Text(commentData['comment'] ?? ''),
-                        ],
-                      ),
-                      trailing: Text(
-                        commentData['timestamp'] != null
-                            ? (commentData['timestamp'] as Timestamp)
-                                .toDate()
-                                .toLocal()
-                                .toString()
-                                .split(' ')[0]
-                                .split('-')
-                                .reversed
-                                .join('.')
-                            : '',
-                        style:
-                            const TextStyle(fontSize: 12, color: Colors.grey),
-                      ),
-                    );
+                    return BuildComment(
+                        commentData: commentData, rating: rating);
                   },
                 ),
               ],
@@ -1288,6 +1258,53 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           );
         }
       },
+    );
+  }
+}
+
+class BuildComment extends StatelessWidget {
+  const BuildComment({
+    super.key,
+    required this.commentData,
+    required this.rating,
+  });
+
+  final Map<String, dynamic> commentData;
+  final double rating;
+
+  @override
+  Widget build(BuildContext context) {
+    return ListTile(
+      title: Text(commentData['userName'] ?? 'Anonymous'),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (rating > 0)
+            RatingBarIndicator(
+              rating: rating,
+              itemBuilder: (context, index) => const Icon(
+                Icons.star,
+                color: Colors.amber,
+              ),
+              itemCount: 5,
+              itemSize: 16.0,
+            ),
+          Text(commentData['comment'] ?? ''),
+        ],
+      ),
+      trailing: Text(
+        commentData['timestamp'] != null
+            ? (commentData['timestamp'] as Timestamp)
+                .toDate()
+                .toLocal()
+                .toString()
+                .split(' ')[0]
+                .split('-')
+                .reversed
+                .join('.')
+            : '',
+        style: const TextStyle(fontSize: 12, color: Colors.grey),
+      ),
     );
   }
 }
