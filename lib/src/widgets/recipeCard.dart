@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -190,13 +191,19 @@ class _RecipeCardState extends State<RecipeCard> {
 
   Widget _buildRecipeImage(String thumbnailUrl) {
     if (thumbnailUrl.isEmpty) {
-      return Image.network(
-        'https://via.placeholder.com/400x225',
+      return CachedNetworkImage(
+        imageUrl: 'https://via.placeholder.com/400x225',
+        progressIndicatorBuilder: (context, url, downloadProgress) =>
+            CircularProgressIndicator(value: downloadProgress.progress),
+        errorWidget: (context, url, error) => Icon(Icons.error),
         fit: BoxFit.cover,
       );
     } else if (thumbnailUrl.startsWith('http')) {
-      return Image.network(
-        thumbnailUrl,
+      return CachedNetworkImage(
+        imageUrl: thumbnailUrl,
+        progressIndicatorBuilder: (context, url, downloadProgress) =>
+            CircularProgressIndicator(value: downloadProgress.progress),
+        errorWidget: (context, url, error) => Icon(Icons.error),
         fit: BoxFit.cover,
       );
     } else {

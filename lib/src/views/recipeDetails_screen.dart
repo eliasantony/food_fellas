@@ -2,7 +2,9 @@
 
 import 'dart:developer';
 import 'dart:io';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
+import 'package:marquee/marquee.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
@@ -27,6 +29,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool isRecipeSaved = false;
   String _recipeTitle = 'Recipe Details';
   bool _isTitleSet = false;
+  String? _authorName;
+  Future<DocumentSnapshot>? _authorFuture;
   int? servings;
   int? initialServings;
   double userRating = 0.0;
@@ -38,16 +42,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       ValueNotifier<Set<String>>({});
   late ValueNotifier<int> servingsNotifier;
   ScrollController _scrollController = ScrollController();
-  double _opacity = 0.0;
+  ValueNotifier<double> _opacityNotifier = ValueNotifier<double>(0.0);
+
+  bool _isMarquee = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
-    _recipeFuture = recipeProvider.getRecipeById(widget.recipeId);
+    _recipeFuture = _fetchRecipeData();
     servingsNotifier = ValueNotifier<int>(initialServings ?? 2);
     shoppingListItemsNotifier.value = Set<String>();
+    _fetchUserRating();
     _fetchShoppingListItems();
     _checkIfRecipeIsSaved();
   }
@@ -68,8 +74,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     double offset = _scrollController.offset;
     double newOpacity = offset / (250.0 - kToolbarHeight); // Adjust as needed
     newOpacity = newOpacity.clamp(0.0, 1.0);
+    _opacityNotifier.value = newOpacity;
+  }
+
+  Future<Map<String, dynamic>?> _fetchRecipeData() async {
+    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+    return await recipeProvider.getRecipeById(widget.recipeId);
+  }
+
+  Future<void> _refreshRecipeData() async {
+    // Re-fetch the recipe data
     setState(() {
-      _opacity = newOpacity;
+      _recipeFuture = _fetchRecipeData();
     });
   }
 
@@ -115,6 +131,25 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     shoppingListItemsNotifier.value = items;
   }
 
+  Future<void> _fetchUserRating() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final recipeRef =
+        FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
+    final ratingsCollection = recipeRef.collection('ratings');
+    final userRatingDoc = await ratingsCollection.doc(user.uid).get();
+
+    if (userRatingDoc.exists) {
+      final data = userRatingDoc.data();
+      if (data != null && data['rating'] != null) {
+        setState(() {
+          userRating = data['rating'].toDouble();
+        });
+      }
+    }
+  }
+
   Future<void> _submitRating(double rating) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -129,7 +164,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       final recipeRef =
           FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
       final ratingsCollection = recipeRef.collection('ratings');
-      final userRatingDoc = await ratingsCollection.doc(user.uid).get();
 
       await ratingsCollection.doc(user.uid).set({
         'rating': rating,
@@ -142,9 +176,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         userRating = rating;
       });
 
-      final recipeProvider =
-          Provider.of<RecipeProvider>(context, listen: false);
-      // recipeProvider.refreshRecipe(widget.recipeId);
+      // Wait a moment for the cloud function to process
+      await Future.delayed(Duration(seconds: 1));
+
+      // Re-fetch the recipe data
+      setState(() {
+        _recipeFuture = _fetchRecipeData();
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -210,7 +248,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
+        const SnackBar(
             content:
                 Text('You must be logged in to add to the shopping list.')),
       );
@@ -252,8 +290,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       SnackBar(
         content: Row(
           children: [
-            Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
-            SizedBox(width: 8),
+            const Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
+            const SizedBox(width: 8),
             Text('$ingredientName added to your shopping list.'),
           ],
         ),
@@ -286,8 +324,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           SnackBar(
             content: Row(
               children: [
-                Icon(Icons.remove_shopping_cart_outlined, color: Colors.red),
-                SizedBox(width: 8),
+                const Icon(Icons.remove_shopping_cart_outlined,
+                    color: Colors.red),
+                const SizedBox(width: 8),
                 Text('$ingredientName removed from your shopping list.'),
               ],
             ),
@@ -400,8 +439,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.pop(context),
-                  child: const Text('Done'),
+                  child: const Text('Cancel'),
                 ),
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).primaryColor,
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text(
+                      'Done',
+                      style: TextStyle(color: Colors.white),
+                    )),
               ],
             );
           },
@@ -435,174 +483,246 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipeProvider = Provider.of<RecipeProvider>(context);
 
     return Scaffold(
-      body: FutureBuilder<Map<String, dynamic>?>(
-        future: _recipeFuture,
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          } else if (snapshot.hasError) {
-            return const Center(
-              child: Text('Error fetching recipe'),
-            );
-          } else if (!snapshot.hasData || snapshot.data == null) {
-            return const Center(
-              child: Text('Recipe not found'),
-            );
-          } else {
-            final recipeData = snapshot.data!;
-            final recipeTitle = recipeData['title'] ?? 'Recipe Details';
-            // Set initialServings and servings only if they are null
-            if (initialServings == null) {
-              initialServings = recipeData['initialServings'] ?? 1;
-              servings = initialServings;
-            }
+      body: RefreshIndicator(
+        onRefresh: _refreshRecipeData,
+        child: FutureBuilder<Map<String, dynamic>?>(
+          future: _recipeFuture,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            } else if (snapshot.hasError) {
+              return const Center(
+                child: Text('Error fetching recipe'),
+              );
+            } else if (!snapshot.hasData || snapshot.data == null) {
+              return const Center(
+                child: Text('Recipe not found'),
+              );
+            } else {
+              final recipeData = snapshot.data!;
+              final recipeTitle = recipeData['title'] ?? 'Recipe Details';
 
-            return NestedScrollView(
-              controller: _scrollController,
-              headerSliverBuilder:
-                  (BuildContext context, bool innerBoxIsScrolled) {
-                return <Widget>[
-                  SliverAppBar(
-                    expandedHeight: 250.0,
-                    floating: false,
-                    pinned: true,
-                    automaticallyImplyLeading: false,
-                    flexibleSpace: LayoutBuilder(
-                      builder:
-                          (BuildContext context, BoxConstraints constraints) {
-                        double appBarHeight = constraints.biggest.height;
-                        double opacity = (_scrollController.offset) /
-                            (250.0 - kToolbarHeight);
-                        opacity = opacity.clamp(0.0, 1.0);
+              String authorId = recipeData['authorId'] ?? '';
+              if (_authorFuture == null && authorId.isNotEmpty) {
+                _authorFuture = FirebaseFirestore.instance
+                    .collection('users')
+                    .doc(authorId)
+                    .get()
+                    .then((doc) {
+                  if (doc.exists) {
+                    _authorName = doc['display_name'] ?? 'Unknown author';
+                  } else {
+                    _authorName = 'Unknown author';
+                  }
+                  return doc;
+                });
+              }
 
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Image Section
-                            _buildImageSection(recipeData),
-                            // Overlay Back and Save buttons over the image
-                            Positioned(
-                              top: MediaQuery.of(context).padding.top,
-                              left: 4.0,
-                              right: 4.0,
-                              child: Container(
-                                height: kToolbarHeight,
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    // Back button
-                                    CircleAvatar(
-                                      backgroundColor: Colors.white70,
-                                      child: IconButton(
-                                        icon: Icon(Icons.arrow_back),
-                                        color: Colors.black
-                                            .withOpacity(1.0 - opacity),
-                                        onPressed: () => Navigator.pop(context),
-                                      ),
-                                    ),
-                                    // Save button
-                                    CircleAvatar(
-                                      backgroundColor: Colors.white70,
-                                      child: IconButton(
-                                        icon: Icon(
-                                          isRecipeSaved
-                                              ? Icons.bookmark
-                                              : Icons.bookmark_border,
-                                        ),
-                                        color: isRecipeSaved
-                                            ? Colors.green
-                                                .withOpacity(1.0 - opacity)
-                                            : Colors.white
-                                                .withOpacity(1.0 - opacity),
-                                        onPressed: _showSaveDialog,
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                            // AppBar Title and Buttons when scrolled
-                            Positioned(
-                              top: 0.0,
-                              left: 0.0,
-                              right: 0.0,
-                              child: Opacity(
-                                opacity: opacity,
+              if (initialServings == null) {
+                initialServings = recipeData['initialServings'] ?? 1;
+                servings = initialServings;
+              }
+
+              return NestedScrollView(
+                controller: _scrollController,
+                headerSliverBuilder:
+                    (BuildContext context, bool innerBoxIsScrolled) {
+                  return <Widget>[
+                    SliverAppBar(
+                      expandedHeight: 250.0,
+                      floating: false,
+                      pinned: true,
+                      automaticallyImplyLeading: false,
+                      flexibleSpace: LayoutBuilder(
+                        builder:
+                            (BuildContext context, BoxConstraints constraints) {
+                          double appBarHeight = constraints.biggest.height;
+                          double opacity = (_scrollController.offset) /
+                              (250.0 - kToolbarHeight);
+                          opacity = opacity.clamp(0.0, 1.0);
+
+                          return Stack(
+                            fit: StackFit.expand,
+                            children: [
+                              // Image Section
+                              _buildImageSection(recipeData),
+                              // Overlay Back and Save buttons over the image
+                              Positioned(
+                                top: MediaQuery.of(context).padding.top,
+                                left: 4.0,
+                                right: 4.0,
                                 child: Container(
-                                  color:
-                                      Theme.of(context).scaffoldBackgroundColor,
-                                  height: MediaQuery.of(context).padding.top +
-                                      kToolbarHeight,
-                                  child: Column(
+                                  height: kToolbarHeight,
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
                                     children: [
-                                      SizedBox(
-                                          height: MediaQuery.of(context)
-                                              .padding
-                                              .top),
-                                      Container(
-                                        height: kToolbarHeight,
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
-                                          children: [
-                                            // Back button
-                                            IconButton(
-                                              icon: Icon(Icons.arrow_back),
-                                              color: Colors.black,
-                                              onPressed: () =>
-                                                  Navigator.pop(context),
-                                            ),
-                                            // Title
-                                            Expanded(
-                                              child: Text(
-                                                recipeTitle,
-                                                style: TextStyle(
-                                                  color: Colors.black,
-                                                  fontSize: 20.0,
-                                                  fontWeight: FontWeight.bold,
-                                                ),
-                                                maxLines: 1,
-                                                overflow: TextOverflow.ellipsis,
-                                                textAlign: TextAlign.center,
-                                              ),
-                                            ),
-                                            // Save button
-                                            IconButton(
-                                              icon: Icon(
-                                                isRecipeSaved
-                                                    ? Icons.bookmark
-                                                    : Icons.bookmark_border,
-                                              ),
-                                              color: isRecipeSaved
-                                                  ? Colors.green
-                                                  : Colors.black,
-                                              onPressed: _showSaveDialog,
-                                            ),
-                                          ],
+                                      // Back button
+                                      CircleAvatar(
+                                        backgroundColor: Colors.white70,
+                                        child: IconButton(
+                                          icon: const Icon(Icons.arrow_back),
+                                          color: Colors.black
+                                              .withOpacity(1.0 - opacity),
+                                          onPressed: () =>
+                                              Navigator.pop(context),
+                                        ),
+                                      ),
+                                      // Save button
+                                      CircleAvatar(
+                                        backgroundColor: Colors.white70,
+                                        child: IconButton(
+                                          icon: Icon(
+                                            isRecipeSaved
+                                                ? Icons.bookmark
+                                                : Icons.bookmark_border,
+                                          ),
+                                          color: isRecipeSaved
+                                              ? Colors.green
+                                                  .withOpacity(1.0 - opacity)
+                                              : Colors.white
+                                                  .withOpacity(1.0 - opacity),
+                                          onPressed: _showSaveDialog,
                                         ),
                                       ),
                                     ],
                                   ),
                                 ),
                               ),
-                            ),
-                          ],
-                        );
-                      },
+                              // AppBar Title and Buttons when scrolled
+                              Positioned(
+                                top: 0.0,
+                                left: 0.0,
+                                right: 0.0,
+                                child: ValueListenableBuilder<double>(
+                                    valueListenable: _opacityNotifier,
+                                    builder: (context, opacity, child) {
+                                      return AnimatedOpacity(
+                                        duration:
+                                            const Duration(milliseconds: 0),
+                                        opacity: opacity,
+                                        child: Container(
+                                          color: Theme.of(context)
+                                              .scaffoldBackgroundColor,
+                                          height: MediaQuery.of(context)
+                                                  .padding
+                                                  .top +
+                                              kToolbarHeight,
+                                          child: Column(
+                                            children: [
+                                              SizedBox(
+                                                  height: MediaQuery.of(context)
+                                                      .padding
+                                                      .top),
+                                              Container(
+                                                height: kToolbarHeight,
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceBetween,
+                                                  children: [
+                                                    // Back button
+                                                    IconButton(
+                                                      icon: const Icon(
+                                                          Icons.arrow_back),
+                                                      color: Colors.black,
+                                                      onPressed: () =>
+                                                          Navigator.pop(
+                                                              context),
+                                                    ),
+                                                    // Title
+                                                    Expanded(
+                                                      child: GestureDetector(
+                                                        onLongPress: () {
+                                                          setState(() {
+                                                            _isMarquee = true;
+                                                          });
+                                                        },
+                                                        onLongPressUp: () {
+                                                          setState(() {
+                                                            _isMarquee = false;
+                                                          });
+                                                        },
+                                                        child: _isMarquee
+                                                            ? Marquee(
+                                                                text:
+                                                                    recipeTitle,
+                                                                style:
+                                                                    const TextStyle(
+                                                                  color: Colors
+                                                                      .black,
+                                                                  fontSize:
+                                                                      20.0,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                                blankSpace:
+                                                                    20.0,
+                                                                velocity: 30.0,
+                                                              )
+                                                            : Text(
+                                                                recipeTitle,
+                                                                style:
+                                                                    const TextStyle(
+                                                                  color: Colors
+                                                                      .black,
+                                                                  fontSize:
+                                                                      20.0,
+                                                                  fontWeight:
+                                                                      FontWeight
+                                                                          .bold,
+                                                                ),
+                                                                maxLines: 1,
+                                                                overflow:
+                                                                    TextOverflow
+                                                                        .ellipsis,
+                                                                textAlign:
+                                                                    TextAlign
+                                                                        .center,
+                                                              ),
+                                                      ),
+                                                    ),
+                                                    // Save button
+                                                    IconButton(
+                                                      icon: Icon(
+                                                        isRecipeSaved
+                                                            ? Icons.bookmark
+                                                            : Icons
+                                                                .bookmark_border,
+                                                      ),
+                                                      color: isRecipeSaved
+                                                          ? Colors.green
+                                                          : Colors.black,
+                                                      onPressed:
+                                                          _showSaveDialog,
+                                                    ),
+                                                  ],
+                                                ),
+                                              ),
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    }),
+                              ),
+                            ],
+                          );
+                        },
+                      ),
                     ),
-                  ),
-                ];
-              },
-              body: ListView(
-                padding: EdgeInsets.zero,
-                children: _buildRecipeDetail(recipeData),
-              ),
-            );
-          }
-        },
+                  ];
+                },
+                body: ListView(
+                  padding: EdgeInsets.zero,
+                  children: _buildRecipeDetail(recipeData),
+                ),
+              );
+            }
+          },
+        ),
       ),
     );
   }
@@ -684,6 +804,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     String imageUrl = recipeData['imageUrl'] ?? '';
     String title = recipeData['title'] ?? '';
     String authorId = recipeData['authorId'] ?? '';
+    String authorName = _authorName ?? 'Loading author...';
     int ingredientsCount = recipeData['ingredients']?.length ?? 0;
     int stepsCount = recipeData['cookingSteps']?.length ?? 0;
     int cookingTime = recipeData['totalTime'] ?? 0;
@@ -701,8 +822,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             );
           },
           child: imageUrl.startsWith('http')
-              ? Image.network(
-                  imageUrl,
+              ? CachedNetworkImage(
+                  imageUrl: imageUrl,
+                  progressIndicatorBuilder: (context, url, downloadProgress) =>
+                      CircularProgressIndicator(
+                          value: downloadProgress.progress),
+                  errorWidget: (context, url, error) => Icon(Icons.error),
                   width: double.infinity,
                   height: 350,
                   fit: BoxFit.cover,
@@ -747,39 +872,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                       ),
                     );
                   },
-                  child: FutureBuilder<DocumentSnapshot>(
-                    future: FirebaseFirestore.instance
-                        .collection('users')
-                        .doc(authorId)
-                        .get(),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                        return const Text(
-                          'Loading author...',
-                          style: TextStyle(color: Colors.white),
-                        );
-                      } else if (snapshot.hasError ||
-                          !snapshot.hasData ||
-                          !snapshot.data!.exists) {
-                        return const Text(
-                          'Unknown author',
-                          style: TextStyle(color: Colors.white),
-                        );
-                      } else {
-                        final authorData =
-                            snapshot.data!.data() as Map<String, dynamic>;
-                        String authorName =
-                            authorData['display_name'] ?? 'Unknown author';
-                        return Text(
-                          'by $authorName',
-                          style: const TextStyle(
-                            color: Colors.white,
-                            decoration: TextDecoration.underline,
-                            decorationColor: Colors.white,
-                          ),
-                        );
-                      }
-                    },
+                  child: Text(
+                    'by $authorName',
+                    style: const TextStyle(
+                      color: Colors.white,
+                      decoration: TextDecoration.underline,
+                      decorationColor: Colors.white,
+                    ),
                   ),
                 ),
                 const SizedBox(height: 4),
@@ -985,8 +1084,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           valueListenable: servingsNotifier,
           builder: (context, currentServings, _) {
             return ListView.builder(
+              padding: EdgeInsets.zero,
               shrinkWrap: true,
-              physics: NeverScrollableScrollPhysics(),
+              physics: const NeverScrollableScrollPhysics(),
               itemCount: ingredients.length,
               itemBuilder: (context, index) {
                 final ingredient = ingredients[index];
@@ -1040,7 +1140,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     shoppingListItems.contains(ingredientName);
 
                 return AnimatedSwitcher(
-                  duration: Duration(milliseconds: 300),
+                  duration: const Duration(milliseconds: 300),
                   transitionBuilder:
                       (Widget child, Animation<double> animation) {
                     return ScaleTransition(scale: animation, child: child);
@@ -1242,6 +1342,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   ),
                 ),
                 ListView.builder(
+                  padding: EdgeInsets.zero,
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
                   itemCount: snapshot.data!.docs.length,
@@ -1321,7 +1422,7 @@ class PhotoViewScreen extends StatelessWidget {
       body: Center(
         child: PhotoView(
           imageProvider: imageUrl.startsWith('http')
-              ? NetworkImage(imageUrl)
+              ? CachedNetworkImageProvider(imageUrl)
               : AssetImage(imageUrl) as ImageProvider,
           minScale: PhotoViewComputedScale.contained,
           maxScale: PhotoViewComputedScale.covered * 2,

@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -214,8 +215,8 @@ class _MockupRecipeCardState extends State<MockupRecipeCard> {
                         // Title with max 2 lines
                         Text(
                           widget.title,
-                          style:
-                              theme.textTheme.titleLarge?.copyWith(fontSize: 16),
+                          style: theme.textTheme.titleLarge
+                              ?.copyWith(fontSize: 16),
                           maxLines: 2,
                           overflow: TextOverflow.ellipsis,
                         ),
@@ -295,13 +296,13 @@ class _MockupRecipeCardState extends State<MockupRecipeCard> {
 
   Widget _buildRecipeImage() {
     if (widget.thumbnailUrl == null || widget.thumbnailUrl.isEmpty) {
-      return Image.network(
-        'https://via.placeholder.com/400x225',
+      return CachedNetworkImage(
+        imageUrl: 'https://via.placeholder.com/400x225',
         fit: BoxFit.cover,
       );
     } else if (widget.thumbnailUrl.startsWith('http')) {
-      return Image.network(
-        widget.thumbnailUrl,
+      return CachedNetworkImage(
+        imageUrl: widget.thumbnailUrl,
         fit: BoxFit.cover,
       );
     } else {
