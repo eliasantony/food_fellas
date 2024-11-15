@@ -10,6 +10,7 @@ import 'package:food_fellas/src/models/aiPhotoRecognitionModel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
@@ -71,7 +72,24 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Image to Recipe AI'),
+        title: Text(
+          "Image to Recipe AI",
+          style: GoogleFonts.poppins(
+            color: Color(0xFF116131),
+            fontWeight: FontWeight.w600,
+          ),
+        ),
+        leading: Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+          child: SizedBox(
+            width: 8,
+            height: 8,
+            child: Image.asset(
+              'lib/assets/brand/hat.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: Stack(
         children: [
