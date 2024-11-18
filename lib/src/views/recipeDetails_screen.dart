@@ -3,6 +3,8 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:marquee/marquee.dart';
 import 'package:photo_view/photo_view.dart';
@@ -18,44 +20,40 @@ import 'package:food_fellas/src/utils/dialog_utils.dart';
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
 
-  RecipeDetailScreen({required this.recipeId});
+  const RecipeDetailScreen({required this.recipeId});
 
   @override
   _RecipeDetailScreenState createState() => _RecipeDetailScreenState();
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
-  late Future<Map<String, dynamic>?> _recipeFuture;
+  Recipe? _currentRecipe;
   bool isRecipeSaved = false;
-  String _recipeTitle = 'Recipe Details';
-  bool _isTitleSet = false;
   String? _authorName;
+  String _userRole = 'user';
   Future<DocumentSnapshot>? _authorFuture;
   int? servings;
   int? initialServings;
   double userRating = 0.0;
-  Map<int, int> ratingCounts = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
-  int totalRatings = 0;
   bool _hasRatingChanged = false;
   final TextEditingController _commentController = TextEditingController();
   ValueNotifier<Set<String>> shoppingListItemsNotifier =
       ValueNotifier<Set<String>>({});
   late ValueNotifier<int> servingsNotifier;
-  ScrollController _scrollController = ScrollController();
-  ValueNotifier<double> _opacityNotifier = ValueNotifier<double>(0.0);
-
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _opacityNotifier = ValueNotifier<double>(0.0);
   bool _isMarquee = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_handleScroll);
-    _recipeFuture = _fetchRecipeData();
     servingsNotifier = ValueNotifier<int>(initialServings ?? 2);
     shoppingListItemsNotifier.value = Set<String>();
     _fetchUserRating();
     _fetchShoppingListItems();
     _checkIfRecipeIsSaved();
+    _fetchUserRole();
   }
 
   @override
@@ -66,6 +64,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _scrollController.removeListener(_handleScroll);
     _scrollController.dispose();
     _commentController.dispose();
+    servingsNotifier.dispose();
+    shoppingListItemsNotifier.dispose();
     super.dispose();
   }
 
@@ -77,16 +77,151 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _opacityNotifier.value = newOpacity;
   }
 
-  Future<Map<String, dynamic>?> _fetchRecipeData() async {
-    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
-    return await recipeProvider.getRecipeById(widget.recipeId);
+  Stream<DocumentSnapshot> _fetchRecipeStream() {
+    return FirebaseFirestore.instance
+        .collection('recipes')
+        .doc(widget.recipeId)
+        .snapshots();
   }
 
-  Future<void> _refreshRecipeData() async {
-    // Re-fetch the recipe data
-    setState(() {
-      _recipeFuture = _fetchRecipeData();
-    });
+  void _fetchUserRole() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userDoc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .get();
+
+    if (userDoc.exists) {
+      setState(() {
+        _userRole = userDoc['role'] ?? 'user';
+      });
+    }
+  }
+
+  void _handleMenuOption(String value) {
+    switch (value) {
+      case 'save':
+        _showSaveDialog();
+        break;
+      case 'edit':
+        _editRecipe();
+        break;
+      case 'delete':
+        _confirmDeleteRecipe();
+        break;
+    }
+  }
+
+  void _confirmDeleteRecipe() async {
+    bool confirm = await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Delete Recipe?'),
+              content: const Text(
+                  'Are you sure you want to delete this recipe? \nThis action cannot be undone.'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text(
+                    'Cancel',
+                    style: TextStyle(color: Colors.black54),
+                  ),
+                ),
+                ElevatedButton(
+                    onPressed: () => Navigator.of(context).pop(true),
+                    child: const Text(
+                      'Delete',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.red[500],
+                    )),
+              ],
+            );
+          },
+        ) ??
+        false;
+
+    if (confirm) {
+      await _deleteRecipe();
+    }
+  }
+
+  Future<void> _deleteRecipe() async {
+    try {
+      // Delete the recipe document
+      await FirebaseFirestore.instance
+          .collection('recipes')
+          .doc(widget.recipeId)
+          .delete();
+
+      // Navigate back after deletion
+      Navigator.pop(context);
+
+      // Show a success message
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recipe deleted successfully.')),
+      );
+    } catch (e) {
+      // Handle any errors
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error deleting recipe: $e')),
+      );
+    }
+  }
+
+  void _editRecipe() async {
+    if (_currentRecipe != null) {
+      bool confirm = await _showEditConfirmationDialog();
+      if (confirm) {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => AddRecipeForm(initialRecipe: _currentRecipe),
+          ),
+        ).then((result) {
+          if (result == true) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(content: Text('Recipe updated successfully!')),
+            );
+          }
+        });
+      }
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Recipe data is not available yet.')),
+      );
+    }
+  }
+
+  Future<bool> _showEditConfirmationDialog() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Edit Recipe'),
+              content: const Text('Are you sure you want to edit this recipe?'),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Cancel'),
+                ),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Confirm',
+                      style: TextStyle(color: Colors.white)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                  ),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
   }
 
   void _checkIfRecipeIsSaved() async {
@@ -168,21 +303,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       await ratingsCollection.doc(user.uid).set({
         'rating': rating,
         'timestamp': FieldValue.serverTimestamp(),
-      });
+      }, SetOptions(merge: true)); // Ensure merging
 
       if (!mounted) return;
-
-      setState(() {
-        userRating = rating;
-      });
-
-      // Wait a moment for the cloud function to process
-      await Future.delayed(Duration(seconds: 1));
-
-      // Re-fetch the recipe data
-      setState(() {
-        _recipeFuture = _fetchRecipeData();
-      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -238,7 +361,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _commentController.clear();
     // Submit the rating if it has changed
     if (_hasRatingChanged) {
-      _submitRating(userRating);
+      await _submitRating(userRating);
       _hasRatingChanged = false;
     }
   }
@@ -264,7 +387,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     if (snapshot.docs.isNotEmpty) {
       var docRef = snapshot.docs.first.reference;
-      double existingAmount = snapshot.docs.first['amount'] ?? 0.0;
+      double existingAmount = snapshot.docs.first['amount']?.toDouble() ?? 0.0;
       await docRef.update({'amount': existingAmount + amount});
     } else {
       await FirebaseFirestore.instance
@@ -313,7 +436,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     if (snapshot.docs.isNotEmpty) {
       var docRef = snapshot.docs.first.reference;
-      double existingAmount = snapshot.docs.first['amount'] ?? 0.0;
+      double existingAmount = snapshot.docs.first['amount']?.toDouble() ?? 0.0;
       double newAmount = existingAmount - amount;
       if (newAmount <= 0) {
         await docRef.delete();
@@ -406,8 +529,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               value: isSelected,
                               title: Row(
                                 children: [
-                                  Text(collection['icon'] ?? '🍽',
-                                      style: const TextStyle(fontSize: 24)),
+                                  Text(
+                                    collection['icon'] ?? '🍽',
+                                    style: const TextStyle(fontSize: 24),
+                                  ),
                                   const SizedBox(width: 8),
                                   Text(collection['name'] ?? 'Unnamed'),
                                 ],
@@ -442,14 +567,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   child: const Text('Cancel'),
                 ),
                 ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(color: Colors.white),
-                    )),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).primaryColor,
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text(
+                    'Done',
+                    style: TextStyle(color: Colors.white),
+                  ),
+                ),
               ],
             );
           },
@@ -483,94 +609,143 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipeProvider = Provider.of<RecipeProvider>(context);
 
     return Scaffold(
-      body: RefreshIndicator(
-        onRefresh: _refreshRecipeData,
-        child: FutureBuilder<Map<String, dynamic>?>(
-          future: _recipeFuture,
-          builder: (context, snapshot) {
-            if (snapshot.connectionState == ConnectionState.waiting) {
-              return const Center(
-                child: CircularProgressIndicator(),
-              );
-            } else if (snapshot.hasError) {
-              return const Center(
-                child: Text('Error fetching recipe'),
-              );
-            } else if (!snapshot.hasData || snapshot.data == null) {
-              return const Center(
-                child: Text('Recipe not found'),
-              );
-            } else {
-              final recipeData = snapshot.data!;
-              final recipeTitle = recipeData['title'] ?? 'Recipe Details';
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: _fetchRecipeStream(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(
+              child: CircularProgressIndicator(),
+            );
+          } else if (snapshot.hasError) {
+            return const Center(
+              child: Text('Error fetching recipe'),
+            );
+          } else if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(
+              child: Text('Recipe not found'),
+            );
+          } else {
+            final recipeData = snapshot.data!.data() as Map<String, dynamic>;
+            _currentRecipe = Recipe.fromJson(recipeData);
 
-              String authorId = recipeData['authorId'] ?? '';
-              if (_authorFuture == null && authorId.isNotEmpty) {
-                _authorFuture = FirebaseFirestore.instance
-                    .collection('users')
-                    .doc(authorId)
-                    .get()
-                    .then((doc) {
-                  if (doc.exists) {
-                    _authorName = doc['display_name'] ?? 'Unknown author';
-                  } else {
-                    _authorName = 'Unknown author';
-                  }
-                  return doc;
-                });
-              }
+            // Determine if current user is the author or an admin
+            final userId = FirebaseAuth.instance.currentUser?.uid;
+            bool canEditOrDelete = userId != null &&
+                (recipeData['authorId'] == userId || _userRole == 'admin');
 
-              if (initialServings == null) {
-                initialServings = recipeData['initialServings'] ?? 1;
-                servings = initialServings;
-              }
+            // Initialize author data if not already done
+            if (_authorFuture == null && recipeData['authorId'] != null) {
+              _authorFuture = FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(recipeData['authorId'])
+                  .get()
+                  .then((doc) {
+                _authorName = doc.exists
+                    ? doc['display_name'] ?? 'Unknown author'
+                    : 'Unknown author';
+                return doc;
+              });
+            }
 
-              return NestedScrollView(
-                controller: _scrollController,
-                headerSliverBuilder:
-                    (BuildContext context, bool innerBoxIsScrolled) {
-                  return <Widget>[
-                    SliverAppBar(
-                      expandedHeight: 250.0,
-                      floating: false,
-                      pinned: true,
-                      automaticallyImplyLeading: false,
-                      flexibleSpace: LayoutBuilder(
-                        builder:
-                            (BuildContext context, BoxConstraints constraints) {
-                          double appBarHeight = constraints.biggest.height;
-                          double opacity = (_scrollController.offset) /
-                              (250.0 - kToolbarHeight);
-                          opacity = opacity.clamp(0.0, 1.0);
+            // Initialize servings if not already set
+            if (initialServings == null) {
+              initialServings = recipeData['initialServings'] ?? 1;
+              servings = initialServings;
+              servingsNotifier.value = initialServings!;
+            }
 
-                          return Stack(
-                            fit: StackFit.expand,
-                            children: [
-                              // Image Section
-                              _buildImageSection(recipeData),
-                              // Overlay Back and Save buttons over the image
-                              Positioned(
-                                top: MediaQuery.of(context).padding.top,
-                                left: 4.0,
-                                right: 4.0,
-                                child: Container(
-                                  height: kToolbarHeight,
-                                  child: Row(
-                                    mainAxisAlignment:
-                                        MainAxisAlignment.spaceBetween,
-                                    children: [
-                                      // Back button
-                                      CircleAvatar(
-                                        backgroundColor: Colors.white70,
-                                        child: IconButton(
-                                          icon: const Icon(Icons.arrow_back),
-                                          color: Colors.black
-                                              .withOpacity(1.0 - opacity),
-                                          onPressed: () =>
-                                              Navigator.pop(context),
-                                        ),
+            return NestedScrollView(
+              controller: _scrollController,
+              headerSliverBuilder:
+                  (BuildContext context, bool innerBoxIsScrolled) {
+                return <Widget>[
+                  SliverAppBar(
+                    expandedHeight: 250.0,
+                    floating: false,
+                    pinned: true,
+                    automaticallyImplyLeading: false,
+                    flexibleSpace: LayoutBuilder(
+                      builder:
+                          (BuildContext context, BoxConstraints constraints) {
+                        double appBarHeight = constraints.biggest.height;
+                        double opacity = (_scrollController.offset) /
+                            (250.0 - kToolbarHeight);
+                        opacity = opacity.clamp(0.0, 1.0);
+
+                        return Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            // Image Section
+                            _buildImageSection(recipeData),
+                            // Overlay Back and Options button over the image
+                            Positioned(
+                              top: MediaQuery.of(context).padding.top,
+                              left: 4.0,
+                              right: 4.0,
+                              child: Container(
+                                height: kToolbarHeight,
+                                child: Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceBetween,
+                                  children: [
+                                    // Back button
+                                    CircleAvatar(
+                                      backgroundColor: Colors.white70,
+                                      child: IconButton(
+                                        icon: const Icon(Icons.arrow_back),
+                                        color: Colors.black
+                                            .withOpacity(1.0 - opacity),
+                                        onPressed: () => Navigator.pop(context),
                                       ),
-                                      // Save button
+                                    ),
+                                    // Options Menu or Save Button
+                                    if (canEditOrDelete)
+                                      PopupMenuButton<String>(
+                                        icon: Icon(Icons.more_vert,
+                                            color: Colors.white
+                                                .withOpacity(1.0 - opacity)),
+                                        onSelected: _handleMenuOption,
+                                        itemBuilder: (BuildContext context) {
+                                          return [
+                                            PopupMenuItem<String>(
+                                              value: 'save',
+                                              child: ListTile(
+                                                leading: Icon(
+                                                  isRecipeSaved
+                                                      ? Icons.bookmark
+                                                      : Icons.bookmark_border,
+                                                  color: isRecipeSaved
+                                                      ? Colors.green
+                                                      : Colors.black,
+                                                ),
+                                                title: Text(isRecipeSaved
+                                                    ? 'Save Recipe'
+                                                    : 'Unsave Recipe'),
+                                              ),
+                                            ),
+                                            PopupMenuItem<String>(
+                                              value: 'edit',
+                                              child: ListTile(
+                                                leading: const Icon(Icons.edit),
+                                                title:
+                                                    const Text('Edit Recipe'),
+                                              ),
+                                            ),
+                                            const PopupMenuItem<String>(
+                                              value: 'delete',
+                                              child: ListTile(
+                                                leading: Icon(
+                                                  Icons.delete,
+                                                  color: Colors.red,
+                                                ),
+                                                title: Text('Delete Recipe'),
+                                              ),
+                                            ),
+                                          ];
+                                        },
+                                      )
+                                    else
+                                      // Save Button for regular users
                                       CircleAvatar(
                                         backgroundColor: Colors.white70,
                                         child: IconButton(
@@ -587,154 +762,197 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                           onPressed: _showSaveDialog,
                                         ),
                                       ),
-                                    ],
-                                  ),
+                                  ],
                                 ),
                               ),
-                              // AppBar Title and Buttons when scrolled
-                              Positioned(
-                                top: 0.0,
-                                left: 0.0,
-                                right: 0.0,
-                                child: ValueListenableBuilder<double>(
-                                    valueListenable: _opacityNotifier,
-                                    builder: (context, opacity, child) {
-                                      return AnimatedOpacity(
-                                        duration:
-                                            const Duration(milliseconds: 0),
-                                        opacity: opacity,
-                                        child: Container(
-                                          color: Theme.of(context)
-                                              .scaffoldBackgroundColor,
-                                          height: MediaQuery.of(context)
-                                                  .padding
-                                                  .top +
+                            ),
+
+                            // AppBar Title and Buttons when scrolled
+                            // Inside the AppBar Title and Buttons when scrolled
+                            Positioned(
+                              top: 0.0,
+                              left: 0.0,
+                              right: 0.0,
+                              child: ValueListenableBuilder<double>(
+                                valueListenable: _opacityNotifier,
+                                builder: (context, opacity, child) {
+                                  return AnimatedOpacity(
+                                    duration: const Duration(milliseconds: 0),
+                                    opacity: opacity,
+                                    child: Container(
+                                      color: Theme.of(context)
+                                          .scaffoldBackgroundColor,
+                                      height:
+                                          MediaQuery.of(context).padding.top +
                                               kToolbarHeight,
-                                          child: Column(
-                                            children: [
-                                              SizedBox(
-                                                  height: MediaQuery.of(context)
-                                                      .padding
-                                                      .top),
-                                              Container(
-                                                height: kToolbarHeight,
-                                                child: Row(
-                                                  mainAxisAlignment:
-                                                      MainAxisAlignment
-                                                          .spaceBetween,
-                                                  children: [
-                                                    // Back button
-                                                    IconButton(
-                                                      icon: const Icon(
-                                                          Icons.arrow_back),
-                                                      color: Colors.black,
-                                                      onPressed: () =>
-                                                          Navigator.pop(
-                                                              context),
-                                                    ),
-                                                    // Title
-                                                    Expanded(
-                                                      child: GestureDetector(
-                                                        onLongPress: () {
-                                                          setState(() {
-                                                            _isMarquee = true;
-                                                          });
-                                                        },
-                                                        onLongPressUp: () {
-                                                          setState(() {
-                                                            _isMarquee = false;
-                                                          });
-                                                        },
-                                                        child: _isMarquee
-                                                            ? Marquee(
-                                                                text:
-                                                                    recipeTitle,
-                                                                style:
-                                                                    const TextStyle(
-                                                                  color: Colors
-                                                                      .black,
-                                                                  fontSize:
-                                                                      20.0,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                                blankSpace:
-                                                                    20.0,
-                                                                velocity: 30.0,
-                                                              )
-                                                            : Text(
-                                                                recipeTitle,
-                                                                style:
-                                                                    const TextStyle(
-                                                                  color: Colors
-                                                                      .black,
-                                                                  fontSize:
-                                                                      20.0,
-                                                                  fontWeight:
-                                                                      FontWeight
-                                                                          .bold,
-                                                                ),
-                                                                maxLines: 1,
-                                                                overflow:
-                                                                    TextOverflow
-                                                                        .ellipsis,
-                                                                textAlign:
-                                                                    TextAlign
-                                                                        .center,
-                                                              ),
-                                                      ),
-                                                    ),
-                                                    // Save button
-                                                    IconButton(
-                                                      icon: Icon(
-                                                        isRecipeSaved
-                                                            ? Icons.bookmark
-                                                            : Icons
-                                                                .bookmark_border,
-                                                      ),
-                                                      color: isRecipeSaved
-                                                          ? Colors.green
-                                                          : Colors.black,
-                                                      onPressed:
-                                                          _showSaveDialog,
-                                                    ),
-                                                  ],
+                                      child: Column(
+                                        children: [
+                                          SizedBox(
+                                              height: MediaQuery.of(context)
+                                                  .padding
+                                                  .top),
+                                          Container(
+                                            height: kToolbarHeight,
+                                            child: Row(
+                                              mainAxisAlignment:
+                                                  MainAxisAlignment
+                                                      .spaceBetween,
+                                              children: [
+                                                // Back button
+                                                IconButton(
+                                                  icon: const Icon(
+                                                      Icons.arrow_back),
+                                                  color: Colors.black,
+                                                  onPressed: () =>
+                                                      Navigator.pop(context),
                                                 ),
-                                              ),
-                                            ],
+                                                // Title
+                                                Expanded(
+                                                  child: GestureDetector(
+                                                    onLongPress: () {
+                                                      setState(() {
+                                                        _isMarquee = true;
+                                                      });
+                                                    },
+                                                    onLongPressUp: () {
+                                                      setState(() {
+                                                        _isMarquee = false;
+                                                      });
+                                                    },
+                                                    child: _isMarquee
+                                                        ? Marquee(
+                                                            text:
+                                                                _currentRecipe!
+                                                                    .title,
+                                                            style:
+                                                                const TextStyle(
+                                                              color:
+                                                                  Colors.black,
+                                                              fontSize: 20.0,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                            blankSpace: 20.0,
+                                                            velocity: 40.0,
+                                                          )
+                                                        : Text(
+                                                            _currentRecipe!
+                                                                .title,
+                                                            style:
+                                                                const TextStyle(
+                                                              color:
+                                                                  Colors.black,
+                                                              fontSize: 20.0,
+                                                              fontWeight:
+                                                                  FontWeight
+                                                                      .bold,
+                                                            ),
+                                                            maxLines: 1,
+                                                            overflow:
+                                                                TextOverflow
+                                                                    .ellipsis,
+                                                            textAlign: TextAlign
+                                                                .center,
+                                                          ),
+                                                  ),
+                                                ),
+                                                // Options Menu or Save Button
+                                                if (canEditOrDelete)
+                                                  PopupMenuButton<String>(
+                                                    icon: const Icon(
+                                                        Icons.more_vert,
+                                                        color: Colors.black),
+                                                    onSelected:
+                                                        _handleMenuOption,
+                                                    itemBuilder:
+                                                        (BuildContext context) {
+                                                      return [
+                                                        PopupMenuItem<String>(
+                                                          value: 'save',
+                                                          child: ListTile(
+                                                            leading: Icon(
+                                                              isRecipeSaved
+                                                                  ? Icons
+                                                                      .bookmark
+                                                                  : Icons
+                                                                      .bookmark_border,
+                                                              color:
+                                                                  isRecipeSaved
+                                                                      ? Colors
+                                                                          .green
+                                                                      : Colors
+                                                                          .black,
+                                                            ),
+                                                            title: Text(isRecipeSaved
+                                                                ? 'Save Recipe'
+                                                                : 'Unsave Recipe'),
+                                                          ),
+                                                        ),
+                                                        PopupMenuItem<String>(
+                                                          value: 'edit',
+                                                          child: ListTile(
+                                                            leading: const Icon(
+                                                                Icons.edit),
+                                                            title: const Text(
+                                                                'Edit Recipe'),
+                                                          ),
+                                                        ),
+                                                        PopupMenuItem<String>(
+                                                          value: 'delete',
+                                                          child: ListTile(
+                                                            leading: const Icon(
+                                                              Icons.delete,
+                                                              color: Colors.red,
+                                                            ),
+                                                            title: const Text(
+                                                                'Delete Recipe'),
+                                                          ),
+                                                        ),
+                                                      ];
+                                                    },
+                                                  )
+                                                else
+                                                  // Save Button for regular users
+                                                  IconButton(
+                                                    icon: Icon(
+                                                      isRecipeSaved
+                                                          ? Icons.bookmark
+                                                          : Icons
+                                                              .bookmark_border,
+                                                    ),
+                                                    color: isRecipeSaved
+                                                        ? Colors.green
+                                                        : Colors.black,
+                                                    onPressed: _showSaveDialog,
+                                                  ),
+                                              ],
+                                            ),
                                           ),
-                                        ),
-                                      );
-                                    }),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
                               ),
-                            ],
-                          );
-                        },
-                      ),
+                            ),
+                          ],
+                        );
+                      },
                     ),
-                  ];
-                },
-                body: ListView(
-                  padding: EdgeInsets.zero,
-                  children: _buildRecipeDetail(recipeData),
-                ),
-              );
-            }
-          },
-        ),
+                  ),
+                ];
+              },
+              body: ListView(
+                padding: EdgeInsets.zero,
+                children: _buildRecipeDetail(recipeData),
+              ),
+            );
+          }
+        },
       ),
     );
   }
-
-  //void _printOutJSONObject(Map<String, dynamic> recipeData) async {
-  //Recipe recipe = Recipe.fromJson(recipeData!);
-  //String jsonString = recipe.toJsonString();
-  //log(jsonString);
-  //final directory = await getApplicationDocumentsDirectory();
-  //final logFile = File('${directory.path}/logFile.txt');
-  //await logFile.writeAsString(jsonString, mode: FileMode.append);
-  //}
 
   List<Widget> _buildRecipeDetail(Map<String, dynamic> recipeData) {
     String description = recipeData['description'] ?? '';
@@ -744,8 +962,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     bool createdByAI = recipeData['createdByAI'] ?? false;
     final averageRating = recipeData['averageRating']?.toDouble() ?? 0.0;
     final ratingsCount = recipeData['ratingsCount'] ?? 0;
-    final ratingCounts = Map<int, int>.from(
-        recipeData['ratingCounts'] ?? {1: 0, 2: 0, 3: 0, 4: 0, 5: 0});
+    final Map<int, int> ratingCounts =
+        (recipeData['ratingCounts'] as Map<String, dynamic>?)
+                ?.map((key, value) => MapEntry(int.parse(key), value as int)) ??
+            {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
 
     return [
       // Rating Section
@@ -800,7 +1020,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     ];
   }
 
-  Widget _buildImageSection(recipeData) {
+  Widget _buildImageSection(Map<String, dynamic> recipeData) {
     String imageUrl = recipeData['imageUrl'] ?? '';
     String title = recipeData['title'] ?? '';
     String authorId = recipeData['authorId'] ?? '';
@@ -827,7 +1047,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   progressIndicatorBuilder: (context, url, downloadProgress) =>
                       CircularProgressIndicator(
                           value: downloadProgress.progress),
-                  errorWidget: (context, url, error) => Icon(Icons.error),
+                  errorWidget: (context, url, error) => const Icon(Icons.error),
                   width: double.infinity,
                   height: 350,
                   fit: BoxFit.cover,
@@ -932,7 +1152,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  Widget _buildRatingSection(averageRating, ratingsCount) {
+  Widget _buildRatingSection(double averageRating, int ratingsCount) {
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
@@ -1093,11 +1313,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 final ingredientName =
                     ingredient['ingredient']['ingredientName'] ?? 'Unknown';
                 final baseAmount = ingredient['baseAmount'] is num
-                    ? ingredient['baseAmount'].toDouble()
-                    : 1;
+                    ? (ingredient['baseAmount'] as num).toDouble()
+                    : 1.0;
                 final unit = ingredient['unit'] ?? '';
                 final initialIngredientServings =
-                    ingredient['servings'] ?? initialServings;
+                    ingredient['servings']?.toDouble() ??
+                        initialServings!.toDouble();
 
                 // Calculate the total amount based on the current servings
                 final totalAmount =
@@ -1112,7 +1333,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  Padding _buildIngredientItem(totalAmount, unit, ingredientName) {
+  Padding _buildIngredientItem(
+      double totalAmount, String unit, String ingredientName) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -1173,6 +1395,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Widget _buildInstructionsSection(List<dynamic> cookingSteps) {
+    List<String> steps = cookingSteps.cast<String>();
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1184,14 +1408,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ListView.builder(
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
-          itemCount: cookingSteps.length,
+          itemCount: steps.length,
           itemBuilder: (context, index) {
             return ListTile(
               leading: CircleAvatar(
                 child: Text('${index + 1}'),
                 radius: 16,
               ),
-              title: Text(cookingSteps[index]),
+              title: Text(steps[index]),
             );
           },
         ),
@@ -1249,7 +1473,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  Widget _buildRatingBreakdown(averageRating, totalRatings, ratingCounts) {
+  Widget _buildRatingBreakdown(
+      double averageRating, int totalRatings, Map<int, int> ratingCounts) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1260,7 +1485,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               averageRating.toStringAsFixed(1),
               style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w600),
             ),
-            // SizedBox(height: 8),
             RatingBarIndicator(
               rating: averageRating,
               itemBuilder: (context, index) => const Icon(
@@ -1270,7 +1494,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               itemCount: 5,
               itemSize: 14.0,
             ),
-            //SizedBox(height: 8),
             Text('$totalRatings'),
           ],
         ),

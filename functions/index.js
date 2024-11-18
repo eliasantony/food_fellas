@@ -20,12 +20,16 @@
 //   response.send("Hello from Firebase!");
 // });
 
+/* eslint-disable indent */
+
 const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios = require("axios");
 const uuidv4 = require("uuid").v4;
+
 admin.initializeApp();
 
+// Function to update recipe's average rating when a rating is altered
 exports.updateRecipeRating = functions.firestore
   .document("recipes/{recipeId}/ratings/{userId}")
   .onWrite(async (change, context) => {
@@ -33,6 +37,7 @@ exports.updateRecipeRating = functions.firestore
     const recipeRef = admin.firestore().collection("recipes").doc(recipeId);
     const ratingsRef = recipeRef.collection("ratings");
 
+    // Get all ratings for the recipe
     const ratingsSnapshot = await ratingsRef.get();
 
     const ratingsCount = ratingsSnapshot.size;
@@ -47,75 +52,134 @@ exports.updateRecipeRating = functions.firestore
 
     const averageRating = ratingsCount === 0 ? 0 : totalRating / ratingsCount;
 
+    // Update the recipe document with new average rating and counts
     await recipeRef.update({
       averageRating,
       ratingsCount,
       ratingCounts,
     });
 
+    // Get the author ID from the recipe document
+    const recipeDoc = await recipeRef.get();
+    const recipeData = recipeDoc.data();
+    const authorId = recipeData.authorId;
+
+    // Update the user's average rating
+    await updateUserAverageRating(authorId);
+
     return null;
   });
 
-  exports.generateImage = functions.https.onCall(async (data, context) => {
-    const apiKey = functions.config().getimgai.apikey;
-    const prompt = data.prompt;
-    if (!prompt) {
-      throw new functions.https.HttpsError(
-        "invalid-argument",
-        "The function must be called with a prompt.",
-      );
-    }
-    try {
-      // Call getimg.ai API
-      const response = await axios.post(
-        "https://api.getimg.ai/v1/stable-diffusion-xl/text-to-image",
-        {
-          model: "stable-diffusion-xl-v1-0",
-          prompt: prompt,
-          response_format: "url",
-          width: 1024,
-          height: 1024,
-          // Include other parameters as needed, e.g., steps, guidance, etc.
-        },
-        {
-          headers: {
-            "Content-Type": "application/json",
-            "Accept": "application/json",
-            "Authorization": `Bearer ${apiKey}`,
-          },
-        },
-      );
-      if (response.status !== 200) {
-        const errorMessage = (response.data.error.message) || "Unknown error";
-        throw new Error(`getimg.ai API error: ${errorMessage}`);
-      }
-      const imageUrl = response.data.url;
-      if (!imageUrl) {
-        throw new Error("No image URL returned from getimg.ai API.");
-      }
-      // Download the image
-      const imageResponse = await axios.get(imageUrl, {
-        responseType: "arraybuffer",
-      });
-      const imageBuffer = imageResponse.data;
-      // Upload the image to Firebase Storage
-      const bucket = admin.storage().bucket();
-      const fileName = `generated_images/${uuidv4()}.png`;
-      const file = bucket.file(fileName);
-      const token = uuidv4(); // Generate a UUID for the token
-      await file.save(imageBuffer, {
-        metadata: {
-          contentType: "image/png",
-          metadata: {
-            firebaseStorageDownloadTokens: token,
-          },
-        },
-      });
-      // Construct the download URL
-      const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
-      return {url: downloadUrl};
-    } catch (error) {
-      console.error("Error generating image:", error);
-      throw new functions.https.HttpsError("internal", error.message);
-    }
+/**
+ * Function to update user's average rating based on all their recipes.
+ * @param {string} userId - The user's ID.
+ * @return {Promise<void>}
+ */
+async function updateUserAverageRating(userId) {
+  const recipesSnapshot = await admin.firestore()
+    .collection("recipes")
+    .where("authorId", "==", userId)
+    .get();
+
+  let totalRating = 0;
+  let totalReviews = 0;
+
+  recipesSnapshot.forEach((doc) => {
+    const data = doc.data();
+    const recipeAverage = data.averageRating || 0;
+    const recipeReviews = data.ratingsCount || 0;
+
+    totalRating += recipeAverage * recipeReviews;
+    totalReviews += recipeReviews;
   });
+
+  const userAverageRating = totalReviews > 0 ? totalRating / totalReviews : 0;
+
+  // Update the user's document
+  await admin.firestore().collection("users").doc(userId).update({
+    averageRating: userAverageRating,
+    totalReviews: totalReviews,
+  });
+}
+
+/**
+ * Function to generate an image using getimg.ai API.
+ * @param {object} data - The data containing the prompt.
+ * @param {functions.https.CallableContext} context - The callable context.
+ * @returns {Promise<object>}
+ */
+exports.generateImage = functions.https.onCall(async (data, context) => {
+  const apiKey = functions.config().getimgai.apikey;
+  const prompt = data.prompt;
+
+  if (!prompt) {
+    throw new functions.https.HttpsError(
+      "invalid-argument",
+      "The function must be called with a prompt.",
+    );
+  }
+
+  try {
+    // Call getimg.ai API
+    const response = await axios.post(
+      "https://api.getimg.ai/v1/stable-diffusion-xl/text-to-image",
+      {
+        model: "stable-diffusion-xl-v1-0",
+        prompt: prompt,
+        response_format: "url",
+        width: 1024,
+        height: 1024,
+        // Include other parameters as needed, e.g., steps, guidance, etc.
+      },
+      {
+        headers: {
+          "Content-Type": "application/json",
+          "Accept": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+        },
+      },
+    );
+
+    if (response.status !== 200) {
+      const errorMessage =
+        (response.data && response.data.error && response.data.error.message) ||
+        "Unknown error";
+      throw new Error(`getimg.ai API error: ${errorMessage}`);
+    }
+
+    const imageUrl = response.data.url;
+    if (!imageUrl) {
+      throw new Error("No image URL returned from getimg.ai API.");
+    }
+
+    // Download the image
+    const imageResponse = await axios.get(imageUrl, {
+      responseType: "arraybuffer",
+    });
+    const imageBuffer = imageResponse.data;
+
+    // Upload the image to Firebase Storage
+    const bucket = admin.storage().bucket();
+    const fileName = `generated_images/${uuidv4()}.png`;
+    const file = bucket.file(fileName);
+    const token = uuidv4(); // Generate a UUID for the token
+
+    await file.save(imageBuffer, {
+      metadata: {
+        contentType: "image/png",
+        metadata: {
+          firebaseStorageDownloadTokens: token,
+        },
+      },
+    });
+
+    // Construct the download URL
+    const downloadUrl = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(fileName)}?alt=media&token=${token}`;
+    return {
+      url: downloadUrl,
+    };
+  } catch (error) {
+    console.error("Error generating image:", error);
+    throw new functions.https.HttpsError("internal", error.message);
+  }
+});

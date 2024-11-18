@@ -2,68 +2,128 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:flutter/services.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
+import 'package:food_fellas/src/views/userFollowerList_screen.dart';
+import 'package:food_fellas/src/views/userRecipeList_screen.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:path/path.dart';
 import '../widgets/recipeCard.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends StatefulWidget {
   final String? userId;
 
   ProfileScreen({this.userId});
 
   @override
-  Widget build(BuildContext context) {
-    ThemeData theme = Theme.of(context);
-    final User? currentUser = FirebaseAuth.instance.currentUser;
+  _ProfileScreenState createState() => _ProfileScreenState();
+}
 
-    String? displayUserId = userId ?? currentUser?.uid;
+class _ProfileScreenState extends State<ProfileScreen> {
+  bool isFollowing = false;
+  bool isCurrentUser = false;
+  Map<String, dynamic>? userData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchUserData();
+  }
+
+  void _fetchUserData() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    String? displayUserId = widget.userId ?? currentUser?.uid;
 
     if (currentUser == null) {
       // Handle unauthenticated user
-      return Scaffold(
-        body: Center(
-          child: Text('User not logged in'),
-        ),
-      );
+      return;
     }
 
+    // Determine if viewing current user's profile
+    isCurrentUser = (displayUserId == currentUser.uid);
+
+    // Fetch user data
     final DocumentReference userDoc =
         FirebaseFirestore.instance.collection('users').doc(displayUserId);
 
-    return FutureBuilder<DocumentSnapshot>(
-      future: userDoc.get(),
-      builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          // Show a loading spinner while waiting for data
-          return Scaffold(
-            body: Center(child: CircularProgressIndicator()),
-          );
-        } else if (snapshot.hasError) {
-          // Handle errors
-          return Scaffold(
-            body: Center(child: Text('Error fetching user data')),
-          );
-        } else if (snapshot.hasData && snapshot.data != null) {
-          // Data retrieved successfully
-          final userData = snapshot.data!.data() as Map<String, dynamic>;
-          return _buildProfileScreen(context, theme, userData);
-        } else {
-          // No data available
-          return Scaffold(
-            body: Center(child: Text('No user data found')),
-          );
-        }
-      },
+    final DocumentSnapshot userSnapshot = await userDoc.get();
+    if (userSnapshot.exists) {
+      setState(() {
+        userData = userSnapshot.data() as Map<String, dynamic>;
+      });
+
+      if (!isCurrentUser) {
+        // Check if the current user is following this user
+        final followerDoc = FirebaseFirestore.instance
+            .collection('users')
+            .doc(displayUserId)
+            .collection('followers')
+            .doc(currentUser.uid);
+
+        final followerSnapshot = await followerDoc.get();
+        setState(() {
+          isFollowing = followerSnapshot.exists;
+        });
+      }
+    }
+  }
+
+  void _toggleFollow() async {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || userData == null) return;
+
+    String profileUserId = userData!['uid'];
+
+    final followerDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(profileUserId)
+        .collection('followers')
+        .doc(currentUser.uid);
+
+    if (isFollowing) {
+      // Unfollow
+      await followerDoc.delete();
+    } else {
+      // Follow
+      await followerDoc.set({
+        'uid': currentUser.uid,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+    }
+
+    setState(() {
+      isFollowing = !isFollowing;
+    });
+
+    // Haptic feedback
+    HapticFeedback.lightImpact();
+
+    // Show snackbar message
+    ScaffoldMessenger.of(this.context).showSnackBar(
+      SnackBar(
+        content: Text(isFollowing ? 'Followed user' : 'Unfollowed user'),
+        duration: Duration(seconds: 2),
+      ),
     );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ThemeData theme = Theme.of(context);
+
+    if (userData == null) {
+      // Show loading indicator
+      return Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    return _buildProfileScreen(context, theme, userData!);
   }
 
   Widget _buildProfileScreen(
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
-    final User? currentUser = FirebaseAuth.instance.currentUser;
-    bool isCurrentUser = (userData['uid'] == currentUser?.uid);
-
     return Scaffold(
       appBar: AppBar(
         title: Text('${userData['display_name']}',
@@ -95,12 +155,10 @@ class ProfileScreen extends StatelessWidget {
             _buildAverageRatingSection(theme, userData['uid']),
             // Statistics Section
             _buildStatisticsSection(context, theme, userData),
-            // Collections Section
-            _buildCollectionsSection(context, theme, userData, isCurrentUser),
             // Recipes Section
             _buildRecipesSection(context, theme, userData),
-            // Badges Section
-            _buildBadgesSection(context, theme),
+            // Collections Section
+            _buildCollectionsSection(context, theme, userData, isCurrentUser),
           ],
         ),
       ),
@@ -115,22 +173,44 @@ class ProfileScreen extends StatelessWidget {
 
     return Padding(
       padding: const EdgeInsets.all(16.0),
-      child: Column(
-        children: <Widget>[
+      child: Row(
+        children: [
           CircleAvatar(
             backgroundImage: NetworkImage(photoUrl),
-            radius: 80,
+            radius: 60, // Reduced radius
             backgroundColor: Colors.transparent,
           ),
-          Text(
-            displayName,
-            style: theme.textTheme.headlineSmall,
+          SizedBox(width: 8),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                displayName,
+                style: theme.textTheme.headlineSmall,
+              ),
+              SizedBox(height: 4),
+              Text(
+                shortDescription,
+                style: theme.textTheme.titleMedium,
+                textAlign: TextAlign.left,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ],
           ),
-          SizedBox(height: 8),
-          Text(
-            shortDescription,
-            style: theme.textTheme.titleMedium,
-            textAlign: TextAlign.center,
+          if (!isCurrentUser) Spacer(),
+          Tooltip(
+            message: isFollowing
+                ? 'Unfollow ${userData['display_name']}'
+                : 'Follow ${userData['display_name']}',
+            child: IconButton(
+              iconSize: 24,
+              icon: isFollowing
+                  ? Icon(Icons.person_add_disabled_rounded)
+                  : Icon(Icons.person_add_rounded),
+              color: isFollowing ? Colors.red[600] : Colors.green[600],
+              onPressed: _toggleFollow,
+            ),
           ),
         ],
       ),
@@ -138,40 +218,24 @@ class ProfileScreen extends StatelessWidget {
   }
 
   Widget _buildAverageRatingSection(ThemeData theme, String userId) {
-    return FutureBuilder<QuerySnapshot>(
-      future: FirebaseFirestore.instance
-          .collection('recipes')
-          .where('authorId', isEqualTo: userId)
-          .get(),
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return SizedBox(); // No recipes, so no average rating
+        if (!snapshot.hasData) {
+          return SizedBox(); // Loading
         }
 
-        double totalRating = 0.0;
-        int totalReviews = 0;
+        final userData = snapshot.data!.data() as Map<String, dynamic>;
 
-        for (var doc in snapshot.data!.docs) {
-          // Assume each recipe has an averageRating field
-          double recipeRating;
-          int recipeReviews;
-          try {
-            recipeRating = doc['averageRating']?.toDouble() ?? 0.0;
-          } catch (e) {
-            recipeRating = 0.0;
-          }
+        double averageRating = userData['averageRating']?.toDouble() ?? 0.0;
+        int totalReviews = userData['totalReviews'] ?? 0;
 
-          try {
-            recipeReviews = doc['ratingsCount'] ?? 0;
-          } catch (e) {
-            recipeReviews = 0;
-          }
-          totalRating += recipeRating * recipeReviews;
-          totalReviews += recipeReviews;
+        if (totalReviews == 0) {
+          return SizedBox(); // No reviews, so no average rating
         }
-
-        double averageRating =
-            totalReviews > 0 ? totalRating / totalReviews : 0.0;
 
         return Column(
           children: [
@@ -231,10 +295,37 @@ class ProfileScreen extends StatelessWidget {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
-                  _ProfileStatistic(title: 'Recipes', value: '$recipesCount'),
                   _ProfileStatistic(
-                      title: 'Followers', value: '$followersCount'),
-                  // Add more statistics as needed
+                    title: 'Recipes',
+                    value: '$recipesCount',
+                    onTap: () {
+                      // Navigate to Recipes List
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => UserRecipesListScreen(
+                              userId: userId,
+                              displayName: userData['display_name'],
+                              isCurrentUser: isCurrentUser),
+                        ),
+                      );
+                    },
+                  ),
+                  _ProfileStatistic(
+                    title: 'Followers',
+                    value: '$followersCount',
+                    onTap: () {
+                      // Navigate to Followers List
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => FollowersListScreen(
+                              userId: userId,
+                              displayName: userData['display_name']),
+                        ),
+                      );
+                    },
+                  ),
                 ],
               ),
             );
@@ -244,49 +335,28 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildBadgesSection(BuildContext context, ThemeData theme) {
-    // Placeholder badges
-    List<String> badges = ['Chef', 'Contributor', 'Foodie'];
-
-    return Column(
-      children: [
-        SizedBox(height: 20),
-        Container(
-          alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text(
-            'My Badges:',
-            style: theme.textTheme.titleLarge,
-          ),
-        ),
-        SizedBox(height: 10),
-        Container(
-          height: 80,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            itemCount: badges.length,
-            itemBuilder: (context, index) {
-              return Card(
-                margin: EdgeInsets.symmetric(horizontal: 8),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(8.0),
-                    child: Text(badges[index]),
-                  ),
-                ),
-              );
-            },
-          ),
-        ),
-        SizedBox(height: 20),
-      ],
-    );
-  }
-
-// Modify _buildCollectionsSection to handle public/private collections
   Widget _buildCollectionsSection(BuildContext context, ThemeData theme,
       Map<String, dynamic> userData, bool isCurrentUser) {
     String userId = userData['uid'];
+
+    // Define the collection stream with appropriate filters
+    Stream<QuerySnapshot> collectionStream;
+    if (isCurrentUser) {
+      // Current user can access all their collections
+      collectionStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('collections')
+          .snapshots();
+    } else {
+      // For other users, only fetch public collections
+      collectionStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('collections')
+          .where('isPublic', isEqualTo: true)
+          .snapshots();
+    }
 
     return Column(
       children: [
@@ -305,11 +375,7 @@ class ProfileScreen extends StatelessWidget {
         Container(
           height: 170,
           child: StreamBuilder<QuerySnapshot>(
-            stream: FirebaseFirestore.instance
-                .collection('users')
-                .doc(userId)
-                .collection('collections')
-                .snapshots(),
+            stream: collectionStream,
             builder: (context, snapshot) {
               if (snapshot.hasError) {
                 return Center(child: Text('Error fetching collections'));
@@ -327,34 +393,25 @@ class ProfileScreen extends StatelessWidget {
                     ],
                   );
                 } else {
-                  return Center(child: Text('No public collections'));
+                  return Center(
+                      child: Text('This user has no public collections.'));
                 }
               }
               final collections = snapshot.data!.docs;
-
-              // Filter collections to only public ones if not current user
-              List<DocumentSnapshot> filteredCollections = collections;
-              if (!isCurrentUser) {
-                filteredCollections = collections.where((doc) {
-                  return (doc.data() as Map<String, dynamic>)['isPublic'] ==
-                      true;
-                }).toList();
-              }
 
               return Container(
                 margin: const EdgeInsets.only(left: 8),
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: isCurrentUser
-                      ? filteredCollections.length +
-                          1 // Extra item for "Create New"
-                      : filteredCollections.length,
+                      ? collections.length + 1 // Extra item for "Create New"
+                      : collections.length,
                   itemBuilder: (context, index) {
-                    if (isCurrentUser && index == filteredCollections.length) {
+                    if (isCurrentUser && index == collections.length) {
                       // "Create New" card
                       return _buildCreateCollectionCard(context, theme);
                     } else {
-                      final collection = filteredCollections[index];
+                      final collection = collections[index];
                       final collectionData =
                           collection.data() as Map<String, dynamic>;
                       return _buildCollectionCard(
@@ -452,25 +509,32 @@ class ProfileScreen extends StatelessWidget {
     );
   }
 
-  Widget _ProfileStatistic({required String title, required String value}) {
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        Text(
-          value,
-          style: const TextStyle(
-            fontWeight: FontWeight.bold,
-            fontSize: 18,
+  Widget _ProfileStatistic({
+    required String title,
+    required String value,
+    VoidCallback? onTap,
+  }) {
+    return InkWell(
+      onTap: onTap,
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: <Widget>[
+          Text(
+            value,
+            style: const TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 18,
+            ),
           ),
-        ),
-        Text(
-          title,
-          style: const TextStyle(
-            fontSize: 16,
-            color: Colors.grey,
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 16,
+              color: Colors.grey,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 
@@ -482,8 +546,11 @@ class ProfileScreen extends StatelessWidget {
         Container(
           alignment: Alignment.centerLeft,
           padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: Text(
-            'My Recipes',
+          child: // Recipes Section Title
+              Text(
+            isCurrentUser
+                ? 'My Recipes'
+                : '${userData['display_name']}\'s Recipes',
             style: theme.textTheme.titleLarge,
           ),
         ),
@@ -525,6 +592,22 @@ class ProfileScreen extends StatelessWidget {
           data['recipeId'] = doc.id; // Add recipeId to the data
           return data;
         }).toList();
+
+        if (recipes.length > 5) {
+          recipeDataList = recipeDataList.sublist(0, 5);
+        }
+
+        // Add "View All" card if more than 5 recipes
+        if (recipes.length > 5) {
+          // Add "View All" card
+          recipeDataList.add({
+            'isViewAll': true,
+            'userId': userId,
+            'displayName': userData['display_name'],
+            'isCurrentUser': isCurrentUser,
+          });
+        }
+
         return HorizontalRecipeRow(recipes: recipeDataList);
       },
     );

@@ -23,7 +23,7 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
   @override
   void initState() {
     super.initState();
-    // Initialize controllers based on existing cooking steps
+    widget.recipe.cookingSteps = widget.recipe.cookingSteps ?? [];
     _initializeControllers();
   }
 

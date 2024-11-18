@@ -209,7 +209,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
 
       recipe.authorId = currentUser.uid;
       final now = DateTime.now();
-      recipe.createdAt = now;
       recipe.updatedAt = now;
 
       // Handle image upload if an image is provided
@@ -230,9 +229,18 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         }
       }
 
-      // Generate a new document reference
-      final docRef = FirebaseFirestore.instance.collection('recipes').doc();
-      recipe.id = docRef.id; // Set the recipe's ID before saving
+      // If recipe.id is set, update the existing document; otherwise, create a new one
+      DocumentReference docRef;
+      if (recipe.id != null && recipe.id!.isNotEmpty) {
+        // Editing an existing recipe
+        docRef =
+            FirebaseFirestore.instance.collection('recipes').doc(recipe.id);
+      } else {
+        // Adding a new recipe
+        docRef = FirebaseFirestore.instance.collection('recipes').doc();
+        recipe.id = docRef.id;
+        recipe.createdAt = now;
+      }
 
       // Save the recipe to Firestore
       try {

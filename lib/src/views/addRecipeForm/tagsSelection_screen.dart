@@ -33,7 +33,6 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
   void _initializeTags() async {
     final tagProvider = Provider.of<TagProvider>(context, listen: false);
     await tagProvider.fetchTags();
-
     List<Tag> allTags = tagProvider.tags;
 
     // Prepare a set to hold the initial selected tags

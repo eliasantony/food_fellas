@@ -71,10 +71,11 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                             Expanded(
                               flex: 2,
                               child: TextFormField(
-                                initialValue: recipeIngredient.baseAmount !=
-                                        null
-                                    ? recipeIngredient.baseAmount.toString()
-                                    : recipeIngredient.amountDescription ?? '',
+                                initialValue:
+                                    recipeIngredient.baseAmount != null
+                                        ? recipeIngredient.baseAmount.toString()
+                                        : (recipeIngredient.amountDescription ??
+                                            ''),
                                 decoration: const InputDecoration(
                                   labelText: 'Amount',
                                   contentPadding: EdgeInsets.symmetric(
@@ -170,7 +171,9 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
             child: TextFormField(
-              initialValue: widget.recipe.initialServings.toString(),
+              initialValue: widget.recipe.initialServings != null
+                  ? widget.recipe.initialServings.toString()
+                  : '',
               decoration: const InputDecoration(
                 labelText: 'Servings',
                 border: OutlineInputBorder(),

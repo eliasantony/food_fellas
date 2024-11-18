@@ -26,14 +26,36 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
   @override
   void initState() {
     super.initState();
-    _prepTimeValue = widget.recipe.prepTime != null
-        ? (widget.recipe.prepTime! ~/ (_prepTimeUnit == 'hours' ? 60 : 1))
-            .toString()
-        : '';
-    _cookTimeValue = widget.recipe.cookTime != null
-        ? (widget.recipe.cookTime! ~/ (_cookTimeUnit == 'hours' ? 60 : 1))
-            .toString()
-        : '';
+
+    // Initialize Preparation Time
+    if (widget.recipe.prepTime != null) {
+      if (widget.recipe.prepTime! >= 60 && widget.recipe.prepTime! % 60 == 0) {
+        // If prepTime is in whole hours
+        _prepTimeUnit = 'hours';
+        _prepTimeValue = (widget.recipe.prepTime! ~/ 60).toString();
+      } else {
+        _prepTimeUnit = 'minutes';
+        _prepTimeValue = widget.recipe.prepTime!.toString();
+      }
+    } else {
+      _prepTimeUnit = 'minutes';
+      _prepTimeValue = '';
+    }
+
+    // Initialize Cooking Time
+    if (widget.recipe.cookTime != null) {
+      if (widget.recipe.cookTime! >= 60 && widget.recipe.cookTime! % 60 == 0) {
+        // If cookTime is in whole hours
+        _cookTimeUnit = 'hours';
+        _cookTimeValue = (widget.recipe.cookTime! ~/ 60).toString();
+      } else {
+        _cookTimeUnit = 'minutes';
+        _cookTimeValue = widget.recipe.cookTime!.toString();
+      }
+    } else {
+      _cookTimeUnit = 'minutes';
+      _cookTimeValue = '';
+    }
   }
 
   @override
