@@ -242,6 +242,20 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         recipe.createdAt = now;
       }
 
+            // Extract tagsNames from tags
+      List<dynamic>? tags = recipe.tags;
+      List<String> tagsNames = [];
+      if (tags != null) {
+        tagsNames = tags
+            .map((tag) => tag['name'].toString())
+            .toSet()
+            .toList(); // Using Set to avoid duplicates
+      }
+
+      // Prepare the data to be saved, including tagsNames
+      Map<String, dynamic> recipeData = recipe.toJson();
+      recipeData['tagsNames'] = tagsNames;
+
       // Save the recipe to Firestore
       try {
         await docRef.set(recipe.toJson());

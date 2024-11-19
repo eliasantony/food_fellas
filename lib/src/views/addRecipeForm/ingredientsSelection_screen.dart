@@ -1,6 +1,8 @@
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:food_fellas/providers/ingredientProvider.dart';
+import 'package:provider/provider.dart';
 import '../../models/recipeIngredient.dart';
 import '../../models/ingredient.dart';
 import '../../models/recipe.dart';
@@ -24,7 +26,7 @@ class IngredientsSelectionPage extends StatefulWidget {
 
 class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   List<Ingredient> availableIngredients = [];
-  List<RecipeIngredient> selectedIngredients = []; // Now holds RecipeIngredient
+  List<RecipeIngredient> selectedIngredients = [];
   List<Ingredient> filteredIngredients = [];
   String searchQuery = '';
   bool showAddIngredientOption = false;
@@ -32,55 +34,20 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   @override
   void initState() {
     super.initState();
-    _fetchIngredients();
-  }
+    super.initState();
+    final ingredientProvider =
+        Provider.of<IngredientProvider>(context, listen: false);
 
-  Future<void> _fetchIngredients() async {
-    try {
-      // Try to fetch from cache first
-      final QuerySnapshot snapshot = await FirebaseFirestore.instance
-          .collection('ingredients')
-          .where('approved', isEqualTo: true)
-          .get(const GetOptions(source: Source.cache));
-
-      if (snapshot.docs.isEmpty) {
-        // If cache is empty, attempt to fetch from server
-        final QuerySnapshot serverSnapshot = await FirebaseFirestore.instance
-            .collection('ingredients')
-            .where('approved', isEqualTo: true)
-            .get(const GetOptions(source: Source.server));
-
-        if (serverSnapshot.docs.isNotEmpty) {
-          final ingredients = serverSnapshot.docs.map((doc) {
-            return Ingredient.fromDocumentSnapshot(doc);
-          }).toList();
-
-          setState(() {
-            availableIngredients = ingredients;
-            filteredIngredients = ingredients;
-          });
-        } else {
-          // Handle case where no data exists
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No ingredients found on server')),
-          );
-        }
-      } else {
-        // If cache has data, use it
-        final ingredients = snapshot.docs.map((doc) {
-          return Ingredient.fromDocumentSnapshot(doc);
-        }).toList();
-
+    if (!ingredientProvider.isLoaded) {
+      ingredientProvider.fetchIngredients().then((_) {
         setState(() {
-          availableIngredients = ingredients;
-          filteredIngredients = ingredients;
+          availableIngredients = ingredientProvider.ingredients;
         });
-      }
-    } catch (e) {
-      print('Error fetching ingredients: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to load ingredients')),
-      );
+      });
+    } else {
+      setState(() {
+        availableIngredients = ingredientProvider.ingredients;
+      });
     }
   }
 

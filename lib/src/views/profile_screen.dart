@@ -8,6 +8,7 @@ import 'package:food_fellas/src/views/collectionDetail_screen.dart';
 import 'package:food_fellas/src/views/userFollowerList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
+import 'package:food_fellas/src/widgets/recipeList_screen.dart';
 import 'package:path/path.dart';
 import '../widgets/recipeCard.dart';
 
@@ -290,6 +291,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
               followersCount = followerSnapshot.data!.docs.length;
             }
 
+            final String titleForRecipes;
+            if (isCurrentUser) {
+              titleForRecipes = 'My Recipes';
+            } else {
+              titleForRecipes = '${userData['display_name']}\'s Recipes';
+            }
+
             return Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16.0),
               child: Row(
@@ -303,10 +311,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       Navigator.push(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => UserRecipesListScreen(
-                              userId: userId,
-                              displayName: userData['display_name'],
-                              isCurrentUser: isCurrentUser),
+                          builder: (context) => RecipesListScreen(
+                            baseQuery: FirebaseFirestore.instance
+                                .collection('recipes')
+                                .where('authorId', isEqualTo: widget.userId),
+                            title: titleForRecipes,
+                          ),
                         ),
                       );
                     },

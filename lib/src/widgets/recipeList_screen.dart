@@ -1,24 +1,24 @@
+import 'dart:convert';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:food_fellas/src/widgets/filterModal.dart';
 
-class UserRecipesListScreen extends StatefulWidget {
-  final String userId;
-  final String displayName;
-  final bool isCurrentUser;
+class RecipesListScreen extends StatefulWidget {
+  final Query baseQuery;
+  final String title;
 
-  UserRecipesListScreen({
-    required this.userId,
-    required this.displayName,
-    required this.isCurrentUser,
+  RecipesListScreen({
+    required this.baseQuery,
+    required this.title,
   });
 
   @override
-  _UserRecipesListScreenState createState() => _UserRecipesListScreenState();
+  _RecipesListScreenState createState() => _RecipesListScreenState();
 }
 
-class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
+class _RecipesListScreenState extends State<RecipesListScreen> {
   Map<String, dynamic> selectedFilters = {};
   final int pageSize = 10;
   DocumentSnapshot? lastDocument;
@@ -89,10 +89,23 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
 
       fetchedRecipes = fetchedRecipes.where((doc) {
         Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-        List<dynamic> ingredientNames = data['ingredientNames'] ?? [];
-        // Check if recipe contains all selected ingredients
-        return selectedIngredients
+        List<dynamic> ingredientsList = data['ingredients'] ?? [];
+
+        // Extract ingredient names from the ingredientsList
+        List<String> ingredientNames =
+            ingredientsList.map((recipeIngredientMap) {
+          Map<String, dynamic> recipeIngredient =
+              Map<String, dynamic>.from(recipeIngredientMap);
+          Map<String, dynamic> ingredient =
+              Map<String, dynamic>.from(recipeIngredient['ingredient'] ?? {});
+          return ingredient['ingredientName']?.toString() ?? '';
+        }).toList();
+
+        // Check if the recipe contains all selected ingredients
+        bool containsAllIngredients = selectedIngredients
             .every((ingredient) => ingredientNames.contains(ingredient));
+
+        return containsAllIngredients;
       }).toList();
     }
 
@@ -126,13 +139,12 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
 
   // Build the Firestore query with applied filters
   Query _buildRecipesQuery() {
-    Query recipesQuery = FirebaseFirestore.instance
-        .collection('recipes')
-        .where('authorId', isEqualTo: widget.userId);
+    Query recipesQuery = widget.baseQuery;
 
     // Min rating filtering
     if (selectedFilters.containsKey('minRating')) {
       double minRating = selectedFilters['minRating'];
+      print('Min rating: $minRating');
       recipesQuery = recipesQuery.where('averageRating',
           isGreaterThanOrEqualTo: minRating);
     }
@@ -140,6 +152,7 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
     // Max cooking time filtering
     if (selectedFilters.containsKey('maxCookingTime')) {
       double maxCookingTime = selectedFilters['maxCookingTime'];
+      print('Max cooking time: $maxCookingTime');
       recipesQuery =
           recipesQuery.where('totalTime', isLessThanOrEqualTo: maxCookingTime);
     }
@@ -147,6 +160,7 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
     // AI-assisted filtering
     if (selectedFilters.containsKey('createdByAI')) {
       bool createdByAI = selectedFilters['createdByAI'];
+      print('AI-assisted: $createdByAI');
       recipesQuery = recipesQuery.where('createdByAI', isEqualTo: createdByAI);
     }
 
@@ -154,6 +168,7 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
     if (selectedFilters.containsKey('tags') &&
         selectedFilters['tags'].isNotEmpty) {
       List<String> selectedTags = selectedFilters['tags'];
+      print('Tags: $selectedTags');
       // Firestore allows 'array-contains-any' with up to 10 values
       recipesQuery =
           recipesQuery.where('tagsNames', arrayContainsAny: selectedTags);
@@ -228,9 +243,7 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
 
   @override
   Widget build(BuildContext context) {
-    String title = widget.isCurrentUser
-        ? 'My Recipes'
-        : '${widget.displayName}\'s Recipes';
+    String title = widget.title;
 
     return Scaffold(
       appBar: AppBar(
@@ -253,8 +266,6 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
                     itemCount: recipes.length + (isLoadingMore ? 1 : 0),
                     itemBuilder: (context, index) {
                       if (index < recipes.length) {
-                        final recipeData =
-                            recipes[index].data() as Map<String, dynamic>;
                         return RecipeCard(
                           big: true,
                           recipeId: recipes[index].id,
@@ -279,42 +290,82 @@ class _UserRecipesListScreenState extends State<UserRecipesListScreen> {
         List<String> selectedTags = value;
         for (String tag in selectedTags) {
           filterChips.add(
-            Chip(
-              label: Text(tag),
-              onDeleted: () => _removeFilter('tags', tag),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Chip(
+                label: Text(tag),
+                onDeleted: () => _removeFilter('tags', tag),
+                deleteIconColor: Theme.of(context).primaryColor,
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: Theme.of(context).primaryColor),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
             ),
           );
         }
       } else if (key == 'minRating') {
         filterChips.add(
-          Chip(
-            label: Text('Rating ≥ ${value.toStringAsFixed(1)} ★'),
-            onDeleted: () => _removeFilter(key, value),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Chip(
+              label: Text('Rating ≥ ${value.toStringAsFixed(1)} ⭐'),
+              onDeleted: () => _removeFilter(key, value),
+              deleteIconColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: Theme.of(context).primaryColor),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
           ),
         );
       } else if (key == 'maxCookingTime') {
         filterChips.add(
-          Chip(
-            label: Text('Time ≤ $value mins ⏱️'),
-            onDeleted: () => _removeFilter(key, value),
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Chip(
+              label: Text('Time ≤ $value mins ⏱️'),
+              onDeleted: () => _removeFilter(key, value),
+              deleteIconColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: Theme.of(context).primaryColor),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
           ),
         );
       } else if (key == 'ingredients') {
         List<String> selectedIngredients = value;
         for (String ingredient in selectedIngredients) {
           filterChips.add(
-            Chip(
-              label: Text(ingredient),
-              onDeleted: () => _removeFilter('ingredients', ingredient),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Chip(
+                label: Text(ingredient),
+                onDeleted: () => _removeFilter('ingredients', ingredient),
+                deleteIconColor: Theme.of(context).primaryColor,
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: Theme.of(context).primaryColor),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
             ),
           );
         }
       } else if (key == 'createdByAI') {
         if (value == true) {
           filterChips.add(
-            Chip(
-              label: Text('🤖 AI-assisted'),
-              onDeleted: () => _removeFilter(key, value),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 4.0),
+              child: Chip(
+                label: Text('🤖 AI-assisted'),
+                onDeleted: () => _removeFilter(key, value),
+                deleteIconColor: Theme.of(context).primaryColor,
+                shape: RoundedRectangleBorder(
+                  side: BorderSide(color: Theme.of(context).primaryColor),
+                  borderRadius: BorderRadius.circular(8.0),
+                ),
+              ),
             ),
           );
         }

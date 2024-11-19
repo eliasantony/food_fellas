@@ -5,12 +5,12 @@ import 'package:food_fellas/src/models/tag.dart';
 
 class TagProvider with ChangeNotifier {
   List<Tag> _tags = [];
-  bool _isLoaded = false;
+  bool isLoaded = false;
 
   List<Tag> get tags => _tags;
 
   Future<void> fetchTags() async {
-    if (_isLoaded) return; // Avoid re-fetching
+    if (isLoaded) return; // Avoid re-fetching
 
     QuerySnapshot snapshot =
         await FirebaseFirestore.instance.collection('tags').get();
@@ -20,7 +20,7 @@ class TagProvider with ChangeNotifier {
       return Tag.fromMap(data, doc.id);
     }).toList();
 
-    _isLoaded = true;
+    isLoaded = true;
     notifyListeners();
   }
 }

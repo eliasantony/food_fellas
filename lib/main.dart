@@ -1,11 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
+import 'package:food_fellas/providers/ingredientProvider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
@@ -14,17 +14,9 @@ import 'firebase_options.dart';
 import 'src/views/auth/login_screen.dart';
 import 'src/views/home_screen.dart';
 import 'src/views/discover_screen.dart';
-import 'src/views/community_screen.dart';
 import 'src/views/aichat_screen.dart';
 import 'src/views/profile_screen.dart';
-import 'src/views/auth/welcome_screen.dart';
 import 'src/views/auth/signup_screen.dart';
-import 'src/views/auth/user_info_screen.dart';
-import 'src/views/auth/notification_preferences_screen.dart';
-import 'src/views/auth/dietary_preferences_screen.dart';
-import 'src/views/auth/cooking_skill_level_screen.dart';
-import 'src/views/auth/favorite_cuisines_screen.dart';
-import 'src/views/auth/final_welcome_screen.dart';
 import 'src/widgets/initializer_widget.dart';
 
 final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
@@ -50,6 +42,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => RecipeProvider()),
         ChangeNotifierProvider(create: (_) => ChatProvider()),
         ChangeNotifierProvider(create: (_) => TagProvider()),
+        ChangeNotifierProvider(create: (_) => IngredientProvider()),
         ChangeNotifierProvider(create: (_) => BottomNavBarProvider()),
       ],
       child: const MainApp(),
