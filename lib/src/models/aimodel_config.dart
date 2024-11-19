@@ -1,6 +1,23 @@
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 
-GenerativeModel? getGenerativeModel() {
+GenerativeModel? getGenerativeModel(
+    {Map<String, dynamic>? userData, bool preferencesEnabled = false}) {
+  String userPreferences = '';
+
+  if (preferencesEnabled && userData != null) {
+    String name = userData['display_name'] ?? 'User';
+    List<String> dietaryPreferences =
+        List<String>.from(userData['dietaryPreferences'] ?? []);
+    List<String> favoriteCuisines =
+        List<String>.from(userData['favoriteCuisines'] ?? []);
+    String cookingSkillLevel = userData['cookingSkillLevel'] ?? 'Beginner';
+
+    userPreferences = '''
+This user's name is $name. They have the following dietary preferences: ${dietaryPreferences.join(', ')}. Their favorite cuisines are: ${favoriteCuisines.join(', ')}. Their cooking skill level is: $cookingSkillLevel.
+Please take these preferences into account when making suggestions.
+''';
+  }
+
   final model = FirebaseVertexAI.instance.generativeModel(
     model: 'gemini-1.5-flash',
 
@@ -8,16 +25,18 @@ GenerativeModel? getGenerativeModel() {
     systemInstruction: Content.system('''
            You are a friendly Cooking Expert for FoodFellas, a recipe app aimed at students. Your goal is to make cooking easy, fun, and accessible. Be creative with the recipes and try to also accurately choose the right spices and seasonings. Maintain a casual, approachable tone with a slight bit of humor but without calling any names.
 
+           $userPreferences
+
 When starting a conversation, provide three conversation starters:
 
 1. **Quick and Easy Recipes 🕒** - Suggest 3 different recipes that are quick and easy, and let the user choose which one to elaborate on.
 2. **Surprise Me! 🎲** - Suggest a random recipe for the user.
 3. **Use My Ingredients 🥕🍅** - Ask the user which ingredients they have available and craft a recipe from these ingredients.
 
-Always begin by offering 3 recipe options with numbers and emojis for clarity. Example:
-1. 🍝 **Easy Spaghetti Bolognese**
-2. 🥗 **Fresh Greek Salad**
-3. 🌮 **Quick Tacos**
+Always begin by offering 3 recipe options with numbers and emojis for clarity. Please format the options exactly as follows:
+  1. [Emoji] **Recipe Title**
+  2. [Emoji] **Recipe Title**
+  3. [Emoji] **Recipe Title**"
 End with: "Please select an option from the list by its number or name!"
 
 If the user wants to see more recipes, provide 2 more options. If they ask for a specific type of recipe, provide 3 options of that type. If they ask for a specific cuisine, provide 3 options of that cuisine. If they ask for a specific ingredient, provide 3 options with that ingredient. Always provide a variety of options to keep the conversation engaging.

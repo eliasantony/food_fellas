@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
@@ -72,18 +73,18 @@ String removeJsonCodeBlock(String text) {
 }
 
 List<String> extractOptions(String text) {
-  // Updated regex to match only lines that start with a number, emoji, and bold title
-  final regex = RegExp(r'^\s*\d+\.\s*(\p{Emoji})\s+\*\*(.*?)\*\*',
-      multiLine: true, unicode: true);
+  final regex = RegExp(
+    r'^\s*\d+\.\s*(?:([^\s]+)\s+)?\*\*(.*?)\*\*',
+    multiLine: true,
+  );
   final matches = regex.allMatches(text);
 
   List<String> options = [];
   for (var match in matches) {
     final emoji = match.group(1)?.trim() ?? '';
     final title = match.group(2)?.trim() ?? '';
-    final option = '$emoji $title';
+    final option = '${emoji.isNotEmpty ? emoji + ' ' : ''}$title';
     options.add(option);
-    print('Extracted option: $option');
   }
 
   return options;
@@ -98,6 +99,8 @@ class AIChatScreen extends StatefulWidget {
 
 class _AIChatScreenState extends State<AIChatScreen> {
   bool isLoading = false;
+  bool preferencesEnabled = false;
+
   @override
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
@@ -112,6 +115,41 @@ class _AIChatScreenState extends State<AIChatScreen> {
             fontWeight: FontWeight.w600,
           ),
         ),
+        actions: [
+          PopupMenuButton<String>(
+            onSelected: (value) {
+              if (value == 'preferences') {
+                _togglePreferences();
+              } else if (value == 'feedback') {
+                _openFeedbackForm();
+              }
+            },
+            itemBuilder: (BuildContext context) {
+              return [
+                PopupMenuItem<String>(
+                  value: 'preferences',
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Text('Enable Preferences'),
+                      Checkbox(
+                        value: preferencesEnabled,
+                        onChanged: (bool? newValue) {
+                          Navigator.pop(context); // Close the menu
+                          _togglePreferences();
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'feedback',
+                  child: Text('Provide Feedback'),
+                ),
+              ];
+            },
+          ),
+        ],
         leading: Padding(
           padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
           child: SizedBox(
@@ -225,7 +263,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 ),
                 currentUser: currentUser,
                 onSend: _sendMessage,
-                messages: chatProvider.messages,
+                messages: chatProvider.messages.reversed.toList(),
               ),
             ),
           ],
@@ -238,6 +276,53 @@ class _AIChatScreenState extends State<AIChatScreen> {
             ),
           ),
       ]),
+    );
+  }
+
+  void _togglePreferences() {
+    setState(() {
+      preferencesEnabled = !preferencesEnabled;
+    });
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    chatProvider.reinitializeModel(preferencesEnabled);
+  }
+
+  void _openFeedbackForm() {
+    showDialog(
+      context: context,
+      builder: (context) {
+        String feedback = '';
+        return AlertDialog(
+          title: Text('Provide Feedback'),
+          content: TextField(
+            onChanged: (value) {
+              feedback = value;
+            },
+            decoration: InputDecoration(hintText: 'Enter your feedback here'),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                _submitFeedback(feedback);
+              },
+              child: Text('Submit'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _submitFeedback(String feedback) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    FirebaseFirestore.instance.collection('feedback').add({
+      'userId': userId,
+      'feedback': feedback,
+      'timestamp': Timestamp.now(),
+    });
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Thank you for your feedback!')),
     );
   }
 
@@ -269,7 +354,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       final chat = model?.startChat();
 
       final response = await chat?.sendMessage(prompt.first);
-      final responseText = response?.text ?? '';
+      final responseText = await chatProvider.sendMessageToAI(chatMessage.text);
 
       // print('AI Response: $responseText');
 
