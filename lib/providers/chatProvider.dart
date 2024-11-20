@@ -11,16 +11,46 @@ class ChatProvider with ChangeNotifier {
   late GenerativeModel? model;
   late ChatSession? chatInstance;
   Map<String, dynamic>? userData;
+  String? conversationId;
 
   ChatProvider() {
+    _startNewConversation();
     model = getGenerativeModel();
     chatInstance = model?.startChat();
     _fetchUserData();
   }
 
+  void _startNewConversation() {
+    conversationId = _generateConversationId();
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null) {
+      final conversationRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('conversations')
+          .doc(conversationId);
+
+      conversationRef.set({
+        'createdAt': FieldValue.serverTimestamp(),
+      });
+    }
+  }
+
+  void resetConversation() {
+    conversationId = null;
+    messages.clear();
+    notifyListeners();
+    _startNewConversation();
+  }
+
+  String _generateConversationId() {
+    return DateTime.now().millisecondsSinceEpoch.toString();
+  }
+
   void addMessage(ChatMessage message) {
     messages.add(message);
     notifyListeners();
+    _saveMessageToFirestore(message);
   }
 
   Future<String> sendMessageToAI(String userMessage) async {
@@ -47,5 +77,32 @@ class ChatProvider with ChangeNotifier {
     model = getGenerativeModel(
         userData: userData, preferencesEnabled: preferencesEnabled);
     chatInstance = model?.startChat();
+  }
+
+  void _saveMessageToFirestore(ChatMessage message) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && conversationId != null) {
+      final messageId = DateTime.now().millisecondsSinceEpoch.toString();
+      final messageRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .collection('conversations')
+          .doc(conversationId)
+          .collection('messages')
+          .doc(messageId);
+
+      messageRef.set(_messageToMap(message, messageId));
+    }
+  }
+
+  Map<String, dynamic> _messageToMap(ChatMessage message, String messageId) {
+    return {
+      'id': messageId,
+      'user': message.user.toJson(),
+      'text': message.text,
+      'createdAt': message.createdAt,
+      'customProperties': message.customProperties,
+      'medias': message.medias?.map((media) => media.toJson()).toList(),
+    };
   }
 }
