@@ -240,9 +240,14 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         docRef = FirebaseFirestore.instance.collection('recipes').doc();
         recipe.id = docRef.id;
         recipe.createdAt = now;
+
+        // Increment the user's recipeCount
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+        userRef.update({'recipeCount': FieldValue.increment(1)});
       }
 
-            // Extract tagsNames from tags
+      // Extract tagsNames from tags
       List<dynamic>? tags = recipe.tags;
       List<String> tagsNames = [];
       if (tags != null) {

@@ -158,6 +158,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           .doc(widget.recipeId)
           .delete();
 
+      // Decrease the recipe count for the author
+      if (_currentRecipe != null) {
+        print('Decreasing recipe count for author');
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(_currentRecipe!.authorId)
+            .update({'recipeCount': FieldValue.increment(-1)});
+      }
+
       // Navigate back after deletion
       Navigator.pop(context);
 

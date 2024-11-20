@@ -4,11 +4,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 
-class FollowersListScreen extends StatelessWidget {
+class FollowingListScreen extends StatelessWidget {
   final String userId;
   final String displayName;
 
-  FollowersListScreen({required this.userId, required this.displayName});
+  FollowingListScreen({required this.userId, required this.displayName});
 
   @override
   Widget build(BuildContext context) {
@@ -16,34 +16,34 @@ class FollowersListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('$displayName\'s Followers'),
+        title: Text('$displayName\'s Following'),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: FirebaseFirestore.instance
             .collection('users')
             .doc(userId)
-            .collection('followers')
+            .collection('following')
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
-            return Center(child: Text('Error fetching followers'));
+            return Center(child: Text('Error fetching following list'));
           }
           if (snapshot.connectionState == ConnectionState.waiting) {
             return Center(child: CircularProgressIndicator());
           }
 
-          final followers = snapshot.data!.docs;
+          final following = snapshot.data!.docs;
 
-          if (followers.isEmpty) {
-            return Center(child: Text('No followers yet.'));
+          if (following.isEmpty) {
+            return Center(child: Text('Not following anyone yet.'));
           }
 
-          // Rearrange the list to put the current user on top if they are a follower
-          List<DocumentSnapshot> sortedFollowers = followers;
+          // Rearrange the list to put the current user on top if applicable
+          List<DocumentSnapshot> sortedFollowing = following;
 
           if (currentUser != null) {
-            sortedFollowers = List<DocumentSnapshot>.from(followers);
-            sortedFollowers.sort((a, b) {
+            sortedFollowing = List<DocumentSnapshot>.from(following);
+            sortedFollowing.sort((a, b) {
               String aUid = (a.data() as Map<String, dynamic>)['uid'];
               String bUid = (b.data() as Map<String, dynamic>)['uid'];
 
@@ -58,16 +58,16 @@ class FollowersListScreen extends StatelessWidget {
           }
 
           return ListView.builder(
-            itemCount: sortedFollowers.length,
+            itemCount: sortedFollowing.length,
             itemBuilder: (context, index) {
-              final followerData =
-                  sortedFollowers[index].data() as Map<String, dynamic>;
-              String followerId = followerData['uid'];
+              final followingData =
+                  sortedFollowing[index].data() as Map<String, dynamic>;
+              String followingId = followingData['uid'];
 
               return FutureBuilder<DocumentSnapshot>(
                 future: FirebaseFirestore.instance
                     .collection('users')
-                    .doc(followerId)
+                    .doc(followingId)
                     .get(),
                 builder: (context, userSnapshot) {
                   if (userSnapshot.hasError) {
@@ -79,7 +79,7 @@ class FollowersListScreen extends StatelessWidget {
                   final userData =
                       userSnapshot.data!.data() as Map<String, dynamic>;
 
-                  return UserFollowerListItem(userData: userData);
+                  return UserFollowingListItem(userData: userData);
                 },
               );
             },
@@ -90,41 +90,17 @@ class FollowersListScreen extends StatelessWidget {
   }
 }
 
-class UserFollowerListItem extends StatefulWidget {
+class UserFollowingListItem extends StatefulWidget {
   final Map<String, dynamic> userData;
 
-  UserFollowerListItem({required this.userData});
+  UserFollowingListItem({required this.userData});
 
   @override
-  _UserFollowerListItemState createState() => _UserFollowerListItemState();
+  _UserFollowingListItemState createState() => _UserFollowingListItemState();
 }
 
-class _UserFollowerListItemState extends State<UserFollowerListItem> {
-  bool isFollowing = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _checkIfFollowing();
-  }
-
-  void _checkIfFollowing() async {
-    final currentUser = FirebaseAuth.instance.currentUser;
-    if (currentUser == null) return;
-
-    String profileUserId = widget.userData['uid'];
-
-    final followerDoc = FirebaseFirestore.instance
-        .collection('users')
-        .doc(profileUserId)
-        .collection('followers')
-        .doc(currentUser.uid);
-
-    final followerSnapshot = await followerDoc.get();
-    setState(() {
-      isFollowing = followerSnapshot.exists;
-    });
-  }
+class _UserFollowingListItemState extends State<UserFollowingListItem> {
+  bool isFollowing = true;
 
   void _toggleFollow() async {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -146,8 +122,8 @@ class _UserFollowerListItemState extends State<UserFollowerListItem> {
 
     if (isFollowing) {
       // Unfollow
-      await followerDoc.delete();
       await followingDoc.delete();
+      await followerDoc.delete();
     } else {
       // Follow
       await followerDoc.set({
@@ -204,7 +180,7 @@ class _UserFollowerListItemState extends State<UserFollowerListItem> {
               child: IconButton(
                 iconSize: 24,
                 icon: isFollowing
-                    ? Icon(Icons.person_add_disabled_rounded)
+                    ? Icon(Icons.person_remove_rounded)
                     : Icon(Icons.person_add_rounded),
                 color: isFollowing ? Colors.red[600] : Colors.green[600],
                 onPressed: _toggleFollow,

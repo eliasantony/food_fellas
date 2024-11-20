@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
 import 'package:food_fellas/src/views/userFollowerList_screen.dart';
+import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:food_fellas/src/widgets/recipeList_screen.dart';
@@ -49,6 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         FirebaseFirestore.instance.collection('users').doc(displayUserId);
 
     final DocumentSnapshot userSnapshot = await userDoc.get();
+    if (!mounted) return;
     if (userSnapshot.exists) {
       setState(() {
         userData = userSnapshot.data() as Map<String, dynamic>;
@@ -82,13 +84,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
         .collection('followers')
         .doc(currentUser.uid);
 
+    final followingDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('following')
+        .doc(profileUserId);
+
     if (isFollowing) {
       // Unfollow
       await followerDoc.delete();
+      await followingDoc.delete();
     } else {
       // Follow
       await followerDoc.set({
         'uid': currentUser.uid,
+        'timestamp': FieldValue.serverTimestamp(),
+      });
+      await followingDoc.set({
+        'uid': profileUserId,
         'timestamp': FieldValue.serverTimestamp(),
       });
     }
@@ -200,19 +213,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ],
           ),
           if (!isCurrentUser) Spacer(),
-          Tooltip(
-            message: isFollowing
-                ? 'Unfollow ${userData['display_name']}'
-                : 'Follow ${userData['display_name']}',
-            child: IconButton(
-              iconSize: 24,
-              icon: isFollowing
-                  ? Icon(Icons.person_add_disabled_rounded)
-                  : Icon(Icons.person_add_rounded),
-              color: isFollowing ? Colors.red[600] : Colors.green[600],
-              onPressed: _toggleFollow,
+          if (!isCurrentUser)
+            Tooltip(
+              message: isFollowing
+                  ? 'Unfollow ${userData['display_name']}'
+                  : 'Follow ${userData['display_name']}',
+              child: IconButton(
+                iconSize: 24,
+                icon: isFollowing
+                    ? Icon(Icons.person_add_disabled_rounded)
+                    : Icon(Icons.person_add_rounded),
+                color: isFollowing ? Colors.red[600] : Colors.green[600],
+                onPressed: _toggleFollow,
+              ),
             ),
-          ),
         ],
       ),
     );
@@ -278,7 +292,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           recipesCount = snapshot.data!.docs.length;
         }
 
-        // Assume you have a 'followers' collection under each user
         return FutureBuilder<QuerySnapshot>(
           future: FirebaseFirestore.instance
               .collection('users')
@@ -291,53 +304,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
               followersCount = followerSnapshot.data!.docs.length;
             }
 
-            final String titleForRecipes;
-            if (isCurrentUser) {
-              titleForRecipes = 'My Recipes';
-            } else {
-              titleForRecipes = '${userData['display_name']}\'s Recipes';
-            }
+            return FutureBuilder<QuerySnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(FirebaseAuth.instance.currentUser!.uid)
+                  .collection('following')
+                  .get(),
+              builder: (context, followingSnapshot) {
+                int followingCount = 0;
+                if (followingSnapshot.hasData &&
+                    followingSnapshot.data != null) {
+                  followingCount = followingSnapshot.data!.docs.length;
+                }
 
-            return Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16.0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: <Widget>[
-                  _ProfileStatistic(
-                    title: 'Recipes',
-                    value: '$recipesCount',
-                    onTap: () {
-                      // Navigate to Recipes List
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => RecipesListScreen(
-                            baseQuery: FirebaseFirestore.instance
-                                .collection('recipes')
-                                .where('authorId', isEqualTo: widget.userId),
-                            title: titleForRecipes,
-                          ),
-                        ),
-                      );
-                    },
+                final String titleForRecipes;
+                if (isCurrentUser) {
+                  titleForRecipes = 'My Recipes';
+                } else {
+                  titleForRecipes = '${userData['display_name']}\'s Recipes';
+                }
+
+                return Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                    children: <Widget>[
+                      _ProfileStatistic(
+                        title: 'Recipes',
+                        value: '$recipesCount',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => RecipesListScreen(
+                                baseQuery: FirebaseFirestore.instance
+                                    .collection('recipes')
+                                    .where('authorId',
+                                        isEqualTo: widget.userId),
+                                title: titleForRecipes,
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+                      _ProfileStatistic(
+                        title: 'Followers',
+                        value: '$followersCount',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => FollowersListScreen(
+                                  userId: userId,
+                                  displayName: userData['display_name']),
+                            ),
+                          );
+                        },
+                      ),
+                      _ProfileStatistic(
+                        title: 'Following',
+                        value: '$followingCount',
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => FollowingListScreen(
+                                  userId: userId,
+                                  displayName: userData['display_name']),
+                            ),
+                          );
+                        },
+                      ),
+                    ],
                   ),
-                  _ProfileStatistic(
-                    title: 'Followers',
-                    value: '$followersCount',
-                    onTap: () {
-                      // Navigate to Followers List
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => FollowersListScreen(
-                              userId: userId,
-                              displayName: userData['display_name']),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
+                );
+              },
             );
           },
         );
