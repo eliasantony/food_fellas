@@ -8,6 +8,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
@@ -99,7 +100,7 @@ class AIChatScreen extends StatefulWidget {
 
 class _AIChatScreenState extends State<AIChatScreen> {
   bool isLoading = false;
-  bool preferencesEnabled = false;
+  bool preferencesEnabled = true;
 
   @override
   Widget build(BuildContext context) {
@@ -292,19 +293,104 @@ class _AIChatScreenState extends State<AIChatScreen> {
       context: context,
       builder: (context) {
         String feedback = '';
+        String selectedCategory = 'Suggestion';
+        int rating = 5;
+        final _formKey = GlobalKey<FormState>();
+
         return AlertDialog(
           title: Text('Provide Feedback'),
-          content: TextField(
-            onChanged: (value) {
-              feedback = value;
-            },
-            decoration: InputDecoration(hintText: 'Enter your feedback here'),
+          content: SingleChildScrollView(
+            child: Form(
+              key: _formKey,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  // Feedback Categories Dropdown
+                  DropdownButtonFormField<String>(
+                    value: selectedCategory,
+                    decoration: InputDecoration(
+                      labelText: 'Category',
+                      border: OutlineInputBorder(),
+                    ),
+                    items: [
+                      'Urgent',
+                      'Bug Report',
+                      'Suggestion',
+                      'Praise',
+                      'Other',
+                    ].map((category) {
+                      return DropdownMenuItem(
+                        value: category,
+                        child: Text(category),
+                      );
+                    }).toList(),
+                    onChanged: (value) {
+                      if (value != null) {
+                        selectedCategory = value;
+                      }
+                    },
+                  ),
+                  SizedBox(height: 8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: Text('Rate your experience:'),
+                  ),
+                  SizedBox(height: 8),
+                  // Rating System
+                  RatingBar.builder(
+                    initialRating: rating.toDouble(),
+                    minRating: 1,
+                    direction: Axis.horizontal,
+                    allowHalfRating: false,
+                    itemCount: 5,
+                    itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
+                    itemBuilder: (context, _) => const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                    ),
+                    onRatingUpdate: (newRating) {
+                      setState(() {
+                        rating = newRating.toInt();
+                      });
+                    },
+                  ),
+                  SizedBox(height: 8),
+                  // Multi-line Feedback TextField
+                  TextFormField(
+                    maxLines: 5,
+                    minLines: 3,
+                    onChanged: (value) {
+                      feedback = value;
+                    },
+                    decoration: InputDecoration(
+                      labelText: 'Your Feedback',
+                      hintText: 'Enter detailed feedback here...',
+                      border: OutlineInputBorder(),
+                    ),
+                    validator: (value) {
+                      if (value == null || value.trim().isEmpty) {
+                        return 'Please enter your feedback.';
+                      }
+                      return null;
+                    },
+                  ),
+                ],
+              ),
+            ),
           ),
           actions: [
             TextButton(
               onPressed: () {
                 Navigator.of(context).pop();
-                _submitFeedback(feedback);
+              },
+              child: Text('Cancel'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                if (_formKey.currentState!.validate()) {
+                  Navigator.of(context).pop();
+                  _submitFeedback(feedback, selectedCategory, rating);
+                }
               },
               child: Text('Submit'),
             ),
@@ -314,15 +400,21 @@ class _AIChatScreenState extends State<AIChatScreen> {
     );
   }
 
-  void _submitFeedback(String feedback) {
-    final userId = FirebaseAuth.instance.currentUser?.uid;
+  void _submitFeedback(String feedback, String category, int rating) {
     FirebaseFirestore.instance.collection('feedback').add({
-      'userId': userId,
       'feedback': feedback,
-      'timestamp': Timestamp.now(),
+      'category': category,
+      'rating': rating,
+      'timestamp': FieldValue.serverTimestamp(),
+      'userId': FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
     });
+
+    // For demonstration, we'll show a success message.
     ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text('Thank you for your feedback!')),
+      SnackBar(
+        content: Text('Thank you for your feedback!'),
+        duration: Duration(seconds: 2),
+      ),
     );
   }
 

@@ -17,6 +17,7 @@ class UserInfoScreen extends StatefulWidget {
 class _UserInfoScreenState extends State<UserInfoScreen> {
   final _displayNameController = TextEditingController();
   final _shortDescriptionController = TextEditingController();
+  final _preferredServingsController = TextEditingController();
   Uint8List? _profileImage;
 
   final ImagePicker _picker = ImagePicker();
@@ -37,6 +38,8 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     UserData userData = UserData();
     userData.displayName = _displayNameController.text.trim();
     userData.shortDescription = _shortDescriptionController.text.trim();
+    userData.preferredServings =
+        int.tryParse(_preferredServingsController.text);
     userData.profileImage = _profileImage;
 
     Navigator.push(
@@ -66,6 +69,7 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
   void dispose() {
     _displayNameController.dispose();
     _shortDescriptionController.dispose();
+    _preferredServingsController.dispose();
     super.dispose();
   }
 
@@ -146,6 +150,21 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                 ),
               ),
               maxLines: 3,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'For how many people do you usually cook?',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            TextField(
+              controller: _preferredServingsController,
+              keyboardType: TextInputType.number,
+              decoration: InputDecoration(
+                labelText: 'Preferred Servings',
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
             ),
             const Spacer(),
             SizedBox(

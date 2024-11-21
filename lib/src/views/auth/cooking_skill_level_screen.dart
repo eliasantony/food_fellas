@@ -28,7 +28,7 @@ class _CookingSkillLevelScreenState extends State<CookingSkillLevelScreen> {
       'description': 'I\'ve got some experience',
       'icon': '🥘'
     },
-    {'label': 'Expert', 'description': 'I\'m a pro chef!', 'icon': '👨‍🍳'},
+    {'label': 'Expert', 'description': 'I\'m a pro chef!', 'icon': '👨🏻‍🍳'},
   ];
 
   void _navigateToNext() {

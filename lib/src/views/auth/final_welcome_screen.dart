@@ -46,6 +46,7 @@ class FinalWelcomeScreen extends StatelessWidget {
         'dietaryPreferences': userData.dietaryPreferences,
         'favoriteCuisines': userData.favoriteCuisines,
         'cookingSkillLevel': userData.cookingSkillLevel,
+        'preferredServings': userData.preferredServings,
         'notificationsEnabled': userData.notificationsEnabled,
         'onboardingComplete': true,
         'role': 'user',

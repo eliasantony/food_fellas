@@ -14,7 +14,7 @@ class ChatProvider with ChangeNotifier {
   String? conversationId;
 
   ChatProvider() {
-    _startNewConversation();
+    //_startNewConversation();
     model = getGenerativeModel();
     chatInstance = model?.startChat();
     _fetchUserData();
@@ -50,7 +50,7 @@ class ChatProvider with ChangeNotifier {
   void addMessage(ChatMessage message) {
     messages.add(message);
     notifyListeners();
-    _saveMessageToFirestore(message);
+    //_saveMessageToFirestore(message);
   }
 
   Future<String> sendMessageToAI(String userMessage) async {

@@ -5,6 +5,8 @@ import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
+import 'package:food_fellas/src/views/editProfile_screen.dart';
+import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/userFollowerList_screen.dart';
 import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
@@ -147,14 +149,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
             ? [
                 IconButton(
                   icon: Icon(Icons.edit, color: theme.iconTheme.color),
-                  onPressed: () {
+                  onPressed: () async {
                     // Navigate to edit profile screen
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            EditProfileScreen(userData: userData!),
+                      ),
+                    );
+                    // Refresh the profile data after returning
+                    _fetchUserData();
                   },
                 ),
                 IconButton(
                   icon: Icon(Icons.settings, color: theme.iconTheme.color),
-                  onPressed: () {
-                    // Navigate to settings screen or perform other actions
+                  onPressed: () async {
+                    // Navigate to settings screen
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            SettingsScreen(userData: userData!),
+                      ),
+                    );
+                    // Refresh the profile data if necessary
+                    _fetchUserData();
                   },
                 ),
               ]
