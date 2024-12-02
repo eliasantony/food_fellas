@@ -26,8 +26,32 @@ const functions = require("firebase-functions");
 const admin = require("firebase-admin");
 const axios = require("axios");
 const uuidv4 = require("uuid").v4;
+const Sentiment = require("sentiment");
 
 admin.initializeApp();
+const sentiment = new Sentiment();
+
+
+// Analyze sentiment of a comment when it is added
+exports.analyzeCommentSentiment = functions.firestore
+  .document("recipes/{recipeId}/comments/{commentId}")
+  .onCreate(async (snap, context) => {
+    const commentData = snap.data();
+    const commentText = commentData.comment;
+
+    if (commentText) {
+      const result = sentiment.analyze(commentText);
+      const sentimentScore = result.score;
+
+      // Update the comment document with the sentiment score
+      await snap.ref.set(
+        {
+          sentimentScore: sentimentScore,
+        },
+        {merge: true},
+      );
+    }
+  });
 
 // Function to update recipe's average rating when a rating is altered
 exports.updateRecipeRating = functions.firestore

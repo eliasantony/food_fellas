@@ -52,6 +52,8 @@ dependencies:
   photo_view: ^0.15.0
   marquee: ^2.3.0
   cached_network_image: ^3.4.1
+  flutter_launcher_icons: ^0.14.1
+  flutter_native_splash: ^2.4.3
 
 dev_dependencies:
   flutter_test:
@@ -65,3 +67,16 @@ flutter:
     - lib/assets/lottie/
     - lib/assets/brand/
     - .env
+
+flutter_icons:
+  android: true
+  ios: true
+  image_path: "lib/assets/icon/foodfellas_app_logo.png"
+
+flutter_native_splash:
+  color: "#116131"
+  image: lib/assets/splash/foodfellas_app_splash.png
+  logo_width: 200
+  android: true
+  ios: true
+  web: false

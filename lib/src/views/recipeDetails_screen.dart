@@ -54,6 +54,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _fetchShoppingListItems();
     _checkIfRecipeIsSaved();
     _fetchUserRole();
+    _logRecipeView();
   }
 
   @override
@@ -75,6 +76,28 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     double newOpacity = offset / (250.0 - kToolbarHeight); // Adjust as needed
     newOpacity = newOpacity.clamp(0.0, 1.0);
     _opacityNotifier.value = newOpacity;
+  }
+
+    void _logRecipeView() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+
+    // Create or update the interaction document
+    await userRef.collection('interactionHistory').doc(widget.recipeId).set({
+      'recipeId': widget.recipeId,
+      'viewedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+
+    // Optionally, you can also log this under the recipe document
+    final recipeRef =
+        FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
+
+    await recipeRef.collection('views').doc(user.uid).set({
+      'userId': user.uid,
+      'viewedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   Stream<DocumentSnapshot> _fetchRecipeStream() {
