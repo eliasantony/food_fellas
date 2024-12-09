@@ -49,6 +49,12 @@
 		<string>We need access to the microphone for speech recognition.</string>
 		<key>NSSpeechRecognitionUsageDescription</key>
 		<string>We need access to perform speech recognition.</string>
+		<key>NSCameraUsageDescription</key>
+		<string>We need access to the camera to take pictures.</string>
+		<key>NSPhotoLibraryUsageDescription</key>
+		<string>We need access to the photo library to display pictures to pick from.</string>
+		<key>NSPhotoLibraryAddUsageDescription</key>
+		<string>We need access to the photo library to save pictures.</string>
 		<key>UIStatusBarHidden</key>
 		<false/>
 	</dict>
