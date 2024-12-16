@@ -218,7 +218,6 @@ void _showEmojiPicker(
             height: 300, // Adjust the height of the Emoji Picker
             emojiTextStyle: const TextStyle(
                 fontSize: 24), // Define text style for better readability
-            swapCategoryAndBottomBar: false,
             emojiViewConfig: EmojiViewConfig(
               columns: 8, // More emojis per row for better use of space
               emojiSizeMax: 28, // Control the size of the displayed emojis

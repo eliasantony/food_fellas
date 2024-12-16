@@ -20,7 +20,7 @@ class ChatProvider with ChangeNotifier {
     _fetchUserData();
   }
 
-  void _startNewConversation() {
+  Future<void> _startNewConversation() async {
     conversationId = _generateConversationId();
     final currentUser = FirebaseAuth.instance.currentUser;
     if (currentUser != null) {
@@ -30,9 +30,12 @@ class ChatProvider with ChangeNotifier {
           .collection('conversations')
           .doc(conversationId);
 
-      conversationRef.set({
-        'createdAt': FieldValue.serverTimestamp(),
-      });
+      final docSnapshot = await conversationRef.get();
+      if (!docSnapshot.exists) {
+        conversationRef.set({
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+      }
     }
   }
 

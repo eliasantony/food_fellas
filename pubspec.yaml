@@ -12,7 +12,7 @@ dependencies:
     
   chat_gpt_sdk: ^3.1.0
   dash_chat_2: ^0.0.21
-  flutter_gemini: ^2.0.5
+  flutter_gemini: ^3.0.0
   easy_stepper: ^0.8.3
   flutter_chat_ui: ^1.6.12
   flutter_dotenv: ^5.1.0
@@ -22,7 +22,7 @@ dependencies:
   path: ^1.8.0
   win32: ^5.5.4
   archive: ^3.6.1
-  firebase_vertexai: ^0.2.2+4
+  firebase_vertexai: ^1.0.4
   firebase_core: ^3.3.0
   firebase_storage: ^12.3.1
   flutter_markdown: ^0.7.3+1
@@ -33,14 +33,14 @@ dependencies:
   sign_in_with_apple: ^6.1.2
   # For animations and illustrations
   flare_flutter: ^3.0.0
-  lottie: ^2.3.2
+  lottie: ^3.2.0
   flutter_signin_button: ^2.0.0
   screenshot: ^3.0.0
   flutter_colorpicker: ^1.1.0
   flutter_svg: ^2.0.10+1
   open_peeps:
     path: ../open-peeps-main/packages/open_peeps
-  image_gallery_saver: ^2.0.3
+  #image_gallery_saver: ^2.0.3
   flutter_rating_bar: ^4.0.1
   emoji_picker_flutter: ^3.0.0
   http: ^1.2.2
@@ -60,7 +60,13 @@ dependencies:
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^3.0.0
+  flutter_lints: ^5.0.0
+
+dependency_overrides:
+  image_gallery_saver:
+    git:
+      url: https://github.com/eliasantony/image_gallery_saver
+      ref: master
 
 flutter:
   uses-material-design: true

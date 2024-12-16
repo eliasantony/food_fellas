@@ -215,7 +215,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: Colors.transparent,
           ),
           SizedBox(width: 8),
-          Column(
+                  Expanded(
+          child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -232,6 +233,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
             ],
           ),
+        ),
           if (!isCurrentUser) Spacer(),
           if (!isCurrentUser)
             Tooltip(

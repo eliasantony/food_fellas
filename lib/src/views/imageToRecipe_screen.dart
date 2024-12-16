@@ -360,17 +360,10 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
 
       final _imageBytes = await image.readAsBytes();
       // Prepare the prompt with the description and image URL
-      final prompt = [
-        Content.multi([
-          TextPart(description),
-          // The only accepted mime types are image/*.
-          DataPart('image/${image.path.split('.').last}', _imageBytes),
-          // DataPart('image/jpeg', sconeBytes.buffer.asUint8List()),
-        ])
-      ];
-      // final response = await chat?.sendMessage(prompt);
+      final prompt = TextPart(description);
+      final imagePart = InlineDataPart('image/jpeg', _imageBytes);
 
-      final response = await model?.generateContent(prompt);
+      final response = await model?.generateContent([Content.multi([prompt, imagePart])]);
       final responseText = response?.text ?? '';
       print('Response: $responseText');
       // Extract the JSON recipe from the AI response

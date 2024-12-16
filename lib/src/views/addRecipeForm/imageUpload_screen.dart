@@ -95,7 +95,8 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
     } else if (widget.recipe.imageUrl != null) {
       return _displayNetworkImage(widget.recipe.imageUrl!);
     } else {
-      return _displayPlaceholderImage();
+      widget.recipe.imageUrl = 'https://via.placeholder.com/150';
+      return _displayNetworkImage(widget.recipe.imageUrl!);
     }
   }
 
@@ -122,17 +123,6 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         ),
         borderRadius: BorderRadius.circular(8),
       ),
-    );
-  }
-
-  Widget _displayPlaceholderImage() {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        color: Colors.grey[200],
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Icon(Icons.image, size: 100, color: Colors.grey[400]),
     );
   }
 

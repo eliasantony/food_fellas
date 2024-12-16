@@ -252,7 +252,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       List<String> tagsNames = [];
       if (tags != null) {
         tagsNames = tags
-            .map((tag) => tag['name'].toString())
+            .map((tag) => tag.name.toString())
             .toSet()
             .toList(); // Using Set to avoid duplicates
       }
