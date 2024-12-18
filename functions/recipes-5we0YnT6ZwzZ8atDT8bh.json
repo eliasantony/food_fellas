@@ -1,0 +1,189 @@
+{
+  "aiTagNames": [],
+  "authorId": "r8zp6y3A05N4GRtH19q4efLipR93",
+  "cookTime": 20,
+  "cookingSteps": [
+    "Cook the penne pasta according to package instructions.",
+    "In a pan, heat olive oil and sauté the onion and garlic until softened.",
+    "Add the red pesto and red wine to the pan and simmer for a few minutes.",
+    "Stir in the cherry tomatoes and season with salt and pepper.",
+    "Combine the cooked pasta with the pesto sauce.",
+    "Serve the pasta on plates and top with a ball of burrata cheese.",
+    "Garnish with fresh basil leaves and enjoy."
+  ],
+  "createdAt": 1733866189477,
+  "createdByAI": true,
+  "description": "A delicious and flavorful pasta dish with a creamy red pesto sauce, topped with fresh burrata cheese.",
+  "id": "5we0YnT6ZwzZ8atDT8bh",
+  "imageUrl": "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/recipes%2F1733866165664.jpg?alt=media&token=f4cd1624-d2c6-4680-a830-af1ea6052104",
+  "ingredients": [
+    {
+      "baseAmount": 250,
+      "ingredient": {
+        "approved": false,
+        "category": "Pasta",
+        "ingredientName": "Penne Pasta"
+      },
+      "servings": 2,
+      "unit": "g"
+    },
+    {
+      "baseAmount": 100,
+      "ingredient": {
+        "approved": false,
+        "category": "Sauce",
+        "ingredientName": "Red Pesto"
+      },
+      "servings": 2,
+      "unit": "ml"
+    },
+    {
+      "baseAmount": 1,
+      "ingredient": {
+        "approved": false,
+        "category": "Vegetable",
+        "ingredientName": "Onion"
+      },
+      "servings": 2,
+      "unit": "medium"
+    },
+    {
+      "baseAmount": 2,
+      "ingredient": {
+        "approved": false,
+        "category": "Vegetable",
+        "ingredientName": "Garlic"
+      },
+      "servings": 2,
+      "unit": "cloves"
+    },
+    {
+      "baseAmount": 50,
+      "ingredient": {
+        "approved": false,
+        "category": "Beverage",
+        "ingredientName": "Red Wine"
+      },
+      "servings": 2,
+      "unit": "ml"
+    },
+    {
+      "baseAmount": 10,
+      "ingredient": {
+        "approved": false,
+        "category": "Vegetable",
+        "ingredientName": "Cherry Tomatoes"
+      },
+      "servings": 2,
+      "unit": "pieces"
+    },
+    {
+      "baseAmount": 1,
+      "ingredient": {
+        "approved": false,
+        "category": "Cheese",
+        "ingredientName": "Burrata"
+      },
+      "servings": 2,
+      "unit": "ball"
+    },
+    {
+      "baseAmount": 2,
+      "ingredient": {
+        "approved": false,
+        "category": "Oil",
+        "ingredientName": "Olive Oil"
+      },
+      "servings": 2,
+      "unit": "tbsp"
+    },
+    {
+      "baseAmount": 1,
+      "ingredient": {
+        "approved": false,
+        "category": "Spice",
+        "ingredientName": "Salt"
+      },
+      "servings": 2,
+      "unit": "tsp"
+    },
+    {
+      "baseAmount": 0.5,
+      "ingredient": {
+        "approved": false,
+        "category": "Spice",
+        "ingredientName": "Black Pepper"
+      },
+      "servings": 2,
+      "unit": "tsp"
+    },
+    {
+      "baseAmount": 2,
+      "ingredient": {
+        "approved": false,
+        "category": "Herb",
+        "ingredientName": "Fresh Basil"
+      },
+      "servings": 2,
+      "unit": "leaves"
+    }
+  ],
+  "initialServings": 2,
+  "prepTime": 20,
+  "tags": [
+    {
+      "category": "Meal Type",
+      "icon": "🍽️",
+      "id": "tag1",
+      "name": "Dinner"
+    },
+    {
+      "category": "Cuisines",
+      "icon": "🍕",
+      "id": "tag2",
+      "name": "Italian"
+    },
+    {
+      "category": "Time",
+      "icon": "⏱️",
+      "id": "tag3",
+      "name": "Under 30 minutes"
+    },
+    {
+      "category": "Difficulty",
+      "icon": "✅",
+      "id": "tag4",
+      "name": "Easy"
+    },
+    {
+      "category": "Dietary Preferences",
+      "icon": "🥕",
+      "id": "tag5",
+      "name": "Vegetarian"
+    }
+  ],
+  "title": "Creamy Red Pesto Pasta with Burrata 🍝",
+  "totalTime": 40,
+  "updatedAt": 1734468337229,
+  "averageRating": 0,
+  "ingredientNames": [
+    "Penne Pasta",
+    "Red Pesto",
+    "Onion",
+    "Garlic",
+    "Red Wine",
+    "Cherry Tomatoes",
+    "Burrata",
+    "Olive Oil",
+    "Salt",
+    "Black Pepper",
+    "Fresh Basil"
+  ],
+  "tagNames": [
+    "Dinner",
+    "Italian",
+    "Under 30 minutes",
+    "Easy",
+    "Vegetarian"
+  ]
+}

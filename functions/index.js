@@ -31,11 +31,83 @@ const Sentiment = require("sentiment");
 admin.initializeApp();
 const sentiment = new Sentiment();
 
+exports.preprocessRecipe = functions.firestore
+  .document("recipes/{recipeId}")
+  .onWrite(async (change) => {
+    const data = change.after.data();
+
+    if (!data) return; // Exit if document is deleted
+
+    // Extract ingredient names
+    const ingredients = data.ingredients || [];
+    const ingredientNames = ingredients.map(
+      (ing) => ing.ingredient?.ingredientName || ""
+    ).filter(name => name.trim() !== ""); // Remove empty strings
+
+    // Extract tag names
+    const tags = data.tags || [];
+    const tagNames = tags.map((tag) => tag.name || "").filter((name) => name.trim() !== "");
+
+    // Ensure averageRating has a default value
+    const averageRating = data.averageRating || 0;
+
+    await change.after.ref.set(
+      {
+        ingredientNames: ingredientNames, // Simple array of strings
+        tagNames: tagNames, // Simple array of tag names
+        averageRating: averageRating,
+      },
+      { merge: true }
+    );
+
+    // Update the author's recipeCount and averageRating
+    const authorId = data.authorId;
+    if (authorId) {
+      await updateUserRecipeStats(authorId);
+    }
+  });
+
+/**
+ * Function to update user's recipe count and average rating.
+ * @param {string} userId - The user's ID.
+ * @return {Promise<void>}
+ */
+async function updateUserRecipeStats(userId) {
+  const recipesSnapshot = await admin
+    .firestore()
+    .collection("recipes")
+    .where("authorId", "==", userId)
+    .get();
+
+  let totalRating = 0;
+  let totalReviews = 0;
+
+  recipesSnapshot.forEach((doc) => {
+    const data = doc.data();
+    const recipeAverage = data.averageRating || 0;
+    const recipeReviews = data.ratingsCount || 0;
+
+    totalRating += recipeAverage * recipeReviews;
+    totalReviews += recipeReviews;
+  });
+
+  const userRecipeCount = recipesSnapshot.size;
+  const userAverageRating = totalReviews > 0 ? totalRating / totalReviews : 0.0;
+
+  // Update the user's document
+  await admin.firestore().collection("users").doc(userId).set(
+    {
+      recipeCount: userRecipeCount,
+      averageRating: userAverageRating,
+    },
+    { merge: true }
+  );
+}
 
 // Analyze sentiment of a comment when it is added
 exports.analyzeCommentSentiment = functions.firestore
   .document("recipes/{recipeId}/comments/{commentId}")
-  .onCreate(async (snap, context) => {
+  .onCreate(async (snap) => {
     const commentData = snap.data();
     const commentText = commentData.comment;
 
@@ -132,7 +204,7 @@ async function updateUserAverageRating(userId) {
  * @param {functions.https.CallableContext} context - The callable context.
  * @returns {Promise<object>}
  */
-exports.generateImage = functions.https.onCall(async (data, context) => {
+exports.generateImage = functions.https.onCall(async (data) => {
   const apiKey = functions.config().getimgai.apikey;
   const prompt = data.prompt;
 
