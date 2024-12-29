@@ -751,8 +751,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                       : Colors.black,
                                                 ),
                                                 title: Text(isRecipeSaved
-                                                    ? 'Save Recipe'
-                                                    : 'Unsave Recipe'),
+                                                    ? 'Unsave Recipe'
+                                                    : 'Save Recipe'),
                                               ),
                                             ),
                                             PopupMenuItem<String>(
@@ -917,8 +917,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                                           .black,
                                                             ),
                                                             title: Text(isRecipeSaved
-                                                                ? 'Save Recipe'
-                                                                : 'Unsave Recipe'),
+                                                                ? 'Unsave Recipe'
+                                                                : 'Save Recipe'),
                                                           ),
                                                         ),
                                                         PopupMenuItem<String>(

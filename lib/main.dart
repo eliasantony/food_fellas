@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
@@ -7,6 +8,7 @@ import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/ingredientProvider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:provider/provider.dart';
@@ -44,14 +46,16 @@ void main() async {
         ChangeNotifierProvider(create: (_) => TagProvider()),
         ChangeNotifierProvider(create: (_) => IngredientProvider()),
         ChangeNotifierProvider(create: (_) => BottomNavBarProvider()),
+        ChangeNotifierProvider(create: (_) => SearchProvider()),
       ],
-      child: const MainApp(),
+      child: MainApp(isDarkMode: false),
     ),
   );
 }
 
 class MainApp extends StatelessWidget {
-  const MainApp({super.key});
+  final bool isDarkMode;
+  const MainApp({super.key, required this.isDarkMode});
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +66,8 @@ class MainApp extends StatelessWidget {
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
       ),
+      darkTheme: ThemeData.dark(),
+      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: const InitializerWidget(),
       routes: {
         '/login': (context) => const LoginScreen(),

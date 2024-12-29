@@ -15,12 +15,25 @@ class SettingsScreen extends StatefulWidget {
 class _SettingsScreenState extends State<SettingsScreen> {
   bool notificationsEnabled = true;
   int preferredServings = 1;
+  bool isDarkMode = false;
 
   @override
   void initState() {
     super.initState();
     notificationsEnabled = widget.userData['notificationsEnabled'] ?? true;
     preferredServings = widget.userData['preferredServings'] ?? 1;
+    isDarkMode = widget.userData['isDarkMode'] ?? false;
+  }
+
+  void _toggleDarkMode(bool value) {
+    setState(() {
+      isDarkMode = value;
+      // Update in Firestore
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.userData['uid'])
+          .update({'isDarkMode': isDarkMode});
+    });
   }
 
   void _changePreferredServings() {
@@ -123,6 +136,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: Text('Preferred Servings'),
             subtitle: Text('$preferredServings'),
             onTap: _changePreferredServings,
+          ),
+          ListTile(
+            title: Text('Dark Mode'),
+            trailing: Switch(
+              value: isDarkMode,
+              onChanged: _toggleDarkMode,
+            ),
           ),
           Divider(),
           ListTile(

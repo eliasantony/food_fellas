@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
-import 'package:food_fellas/src/models/tag.dart';
-import 'package:food_fellas/src/views/addRecipeForm/ingredientsSelection_screen.dart';
 import 'package:food_fellas/src/views/ingredientsFilter_screen.dart';
 import 'package:provider/provider.dart';
 
@@ -40,9 +38,8 @@ class _FilterModalState extends State<FilterModal> {
     // Limit the number of tags shown when showAllTags is false
     Map<String, List<Map<String, dynamic>>> tagsToShow = showAllTags
         ? categorizedTags
-        : _limitTags(categorizedTags, 12); // Limit to 10 tags total
+        : _limitTags(categorizedTags, 12);
 
-    // Build the UI for selecting filters
     return Padding(
       padding: EdgeInsets.only(
         bottom: MediaQuery.of(context).viewInsets.bottom,
@@ -60,6 +57,7 @@ class _FilterModalState extends State<FilterModal> {
             SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: () {
+                // Call the onApply with the updated filters
                 widget.onApply(filters);
               },
               icon: Icon(
@@ -70,7 +68,7 @@ class _FilterModalState extends State<FilterModal> {
                   style: TextStyle(color: Theme.of(context).canvasColor)),
               style: ButtonStyle(
                 backgroundColor:
-                    WidgetStateProperty.all(Theme.of(context).primaryColor),
+                    MaterialStateProperty.all(Theme.of(context).primaryColor),
               ),
             ),
           ],
@@ -80,16 +78,14 @@ class _FilterModalState extends State<FilterModal> {
   }
 
   Widget _buildRatingFilter() {
-    double minRating = filters['minRating'] ?? 0.0;
+    double minRating = filters['averageRating'] ?? 0.0;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text('Minimum Rating:'),
-            Expanded(
-              child: Spacer(),
-            ),
+            Expanded(child: SizedBox()),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.0),
               child: Row(
@@ -114,7 +110,7 @@ class _FilterModalState extends State<FilterModal> {
                 label: minRating.toStringAsFixed(1),
                 onChanged: (value) {
                   setState(() {
-                    filters['minRating'] = value;
+                    filters['averageRating'] = value;
                   });
                 },
               ),
@@ -126,14 +122,14 @@ class _FilterModalState extends State<FilterModal> {
   }
 
   Widget _buildCookingTimeFilter() {
-    double maxCookingTime = filters['maxCookingTime'] ?? 120;
+    double maxCookingTime = filters['cookingTimeInMinutes'] ?? 120;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Row(
           children: [
             Text('Maximum Cooking Time:'),
-            Expanded(child: Spacer()),
+            Expanded(child: SizedBox()),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 8.0),
               child: Row(
@@ -154,11 +150,11 @@ class _FilterModalState extends State<FilterModal> {
                 value: maxCookingTime.toDouble(),
                 min: 0,
                 max: 120,
-                divisions: 10,
+                divisions: 12,
                 label: maxCookingTime.toStringAsFixed(1),
                 onChanged: (value) {
                   setState(() {
-                    filters['maxCookingTime'] = value;
+                    filters['cookingTimeInMinutes'] = value;
                   });
                 },
               ),
@@ -169,7 +165,6 @@ class _FilterModalState extends State<FilterModal> {
     );
   }
 
-  // Function to categorize tags by their category
   Map<String, List<Map<String, dynamic>>> _categorizeTags(
       List<Map<String, dynamic>> allTags) {
     Map<String, List<Map<String, dynamic>>> tempCategorizedTags = {};
@@ -183,7 +178,6 @@ class _FilterModalState extends State<FilterModal> {
     return tempCategorizedTags;
   }
 
-  // Function to limit the number of tags displayed when showAllTags is false
   Map<String, List<Map<String, dynamic>>> _limitTags(
       Map<String, List<Map<String, dynamic>>> categorizedTags, int limit) {
     Map<String, List<Map<String, dynamic>>> limitedTags = {};
@@ -208,7 +202,7 @@ class _FilterModalState extends State<FilterModal> {
   }
 
   Widget _buildTagsFilter(Map<String, List<Map<String, dynamic>>> tagsToShow) {
-    List<String> selectedTags = List<String>.from(filters['tags'] ?? []);
+    List<String> selectedTags = List<String>.from(filters['tagNames'] ?? []);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,7 +239,7 @@ class _FilterModalState extends State<FilterModal> {
                               } else {
                                 selectedTags.remove(tagName);
                               }
-                              filters['tags'] = selectedTags;
+                              filters['tagNames'] = selectedTags;
                             });
                           }
                         : null,
@@ -274,7 +268,7 @@ class _FilterModalState extends State<FilterModal> {
                   )),
             ),
           ),
-        if (selectedTags.length >= 12)
+        if (selectedTags.length >= 10)
           Padding(
             padding: const EdgeInsets.only(top: 8.0),
             child: Text(
@@ -288,14 +282,8 @@ class _FilterModalState extends State<FilterModal> {
     );
   }
 
-  // Helper function to calculate total number of tags
-  int _totalTags(Map<String, List<Map<String, dynamic>>> categorizedTags) {
-    return categorizedTags.values.fold(0, (sum, list) => sum + list.length);
-  }
-
-// filterModal.dart
   Widget _buildIngredientFilter() {
-    List<String> selectedIngredients = filters['ingredients'] ?? [];
+    List<String> selectedIngredients = filters['ingredientNames'] ?? [];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -317,7 +305,7 @@ class _FilterModalState extends State<FilterModal> {
             );
             if (result != null) {
               setState(() {
-                filters['ingredients'] = result;
+                filters['ingredientNames'] = result;
               });
             }
           },
@@ -333,11 +321,7 @@ class _FilterModalState extends State<FilterModal> {
       value: createdByAI,
       onChanged: (value) {
         setState(() {
-          if (value == false) {
-            filters['createdByAI'] = false;
-          } else {
-            filters['createdByAI'] = true;
-          }
+          filters['createdByAI'] = value;
         });
       },
     );

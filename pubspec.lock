@@ -1309,6 +1309,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.0"
+  typesense:
+    dependency: "direct main"
+    description:
+      name: typesense
+      sha256: "16c550701068cc54cdf251b867e50941accc7fa0d27439af9e47a2ee34898944"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.5.1"
   universal_io:
     dependency: transitive
     description:

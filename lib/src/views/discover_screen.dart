@@ -2,6 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/src/widgets/filterModal.dart';
+import 'package:food_fellas/src/widgets/recipeCard.dart';
+import 'package:food_fellas/src/widgets/searchFilterModal.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../widgets/categoryCard.dart';
 import '../widgets/verticalRecipeColumn.dart';
@@ -13,12 +17,38 @@ class DiscoverScreen extends StatefulWidget {
 }
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
-  String _searchQuery = '';
-  List<String> _selectedCategories = [];
+  final ScrollController _scrollController = ScrollController();
+  int _currentOffset = 0;
+  final int _limit = 10;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchInitialRecipes();
+
+    _scrollController.addListener(() {
+      if (_scrollController.position.pixels ==
+          _scrollController.position.maxScrollExtent) {
+        _loadMoreRecipes();
+      }
+    });
+  }
+
+  Future<void> _fetchInitialRecipes() async {
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    _currentOffset = 0;
+    await searchProvider.fetchRecipes(offset: _currentOffset, limit: _limit);
+  }
+
+  Future<void> _loadMoreRecipes() async {
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    _currentOffset += _limit;
+    await searchProvider.fetchRecipes(offset: _currentOffset, limit: _limit);
+  }
 
   @override
   Widget build(BuildContext context) {
-    final recipeProvider = Provider.of<RecipeProvider>(context);
+    final searchProvider = Provider.of<SearchProvider>(context);
 
     return Scaffold(
       appBar: AppBar(
@@ -51,91 +81,196 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                 labelText: 'Search Recipes',
                 border: OutlineInputBorder(),
                 prefixIcon: Icon(Icons.search),
+                suffixIcon: IconButton(
+                  icon: Icon(Icons.filter_list),
+                  onPressed: () => _openFilterModal(context),
+                ),
               ),
-              onChanged: (value) {
-                setState(() {
-                  _searchQuery = value.trim();
-                });
+              onChanged: (query) {
+                searchProvider.updateQuery(query);
               },
             ),
           ),
-          // Category Filters
-          Container(
-            height: 80,
-            child: ListView(
-              scrollDirection: Axis.horizontal,
-              children: [
-                _buildCategoryChip('Desserts', '🍰'),
-                _buildCategoryChip('Main Course', '🍝'),
-                _buildCategoryChip('Appetizers', '🥗'),
-                _buildCategoryChip('Drinks', '🍹'),
-                // Add more categories as needed
-              ],
-            ),
-          ),
-          // Recipe List
+          // Active Filters Bar
+          _buildActiveFilters(context, searchProvider.filters),
+          // Search Results
           Expanded(
-            child: _buildRecipeList(recipeProvider),
+            child: searchProvider.isLoading
+                ? Center(child: CircularProgressIndicator())
+                : ListView.builder(
+                  controller: _scrollController,
+                    itemCount: searchProvider.recipes.length,
+                    itemBuilder: (context, index) {
+                      final recipe = searchProvider.recipes[index];
+                      final recipeId = recipe['id'];
+                      return RecipeCard(recipeId: recipeId);
+                    },
+                  ),
           ),
         ],
       ),
     );
   }
 
-  Widget _buildCategoryChip(String categoryName, String emoji) {
-    bool isSelected = _selectedCategories.contains(categoryName);
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 4.0),
-      child: FilterChip(
-        label: Text('$emoji $categoryName'),
-        selected: isSelected,
-        onSelected: (selected) {
-          setState(() {
-            if (selected) {
-              _selectedCategories.add(categoryName);
-            } else {
-              _selectedCategories.remove(categoryName);
-            }
-          });
-        },
-      ),
-    );
-  }
+  // In discover_screen.dart, replace _openFilterModal if needed:
+  void _openFilterModal(BuildContext context) {
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
 
-  Widget _buildRecipeList(RecipeProvider recipeProvider) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: _getRecipeQuery().snapshots(),
-      builder: (context, snapshot) {
-        if (snapshot.hasError) {
-          return Center(child: Text('Error fetching recipes'));
-        }
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
-        }
-        final recipes = snapshot.data!.docs;
-        final recipeIds = recipes.map((doc) => doc.id).toList();
-
-        return VerticalRecipeColumn(recipeIds: recipeIds);
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.8,
+          child: FilterModal(
+            initialFilters: searchProvider.filters,
+            onApply: (filters) {
+              searchProvider.updateFilters(filters);
+              Navigator.pop(context);
+            },
+          ),
+        );
       },
     );
   }
 
-  Query _getRecipeQuery() {
-    CollectionReference recipesRef =
-        FirebaseFirestore.instance.collection('recipes');
+  Widget _buildActiveFilters(
+      BuildContext context, Map<String, dynamic> filters) {
+    List<Widget> filterChips = [];
 
-    Query query = recipesRef;
-
-    if (_searchQuery.isNotEmpty) {
-      query = query.where('title', isGreaterThanOrEqualTo: _searchQuery);
-      query =
-          query.where('title', isLessThanOrEqualTo: _searchQuery + '\uf8ff');
+    // tagNames
+    if (filters.containsKey('tagNames') && filters['tagNames'].isNotEmpty) {
+      List<String> selectedTags = filters['tagNames'];
+      for (String tag in selectedTags) {
+        filterChips.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Chip(
+              label: Text(tag),
+              onDeleted: () => _removeFilter(context, 'tagNames', tag),
+              deleteIconColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: Theme.of(context).primaryColor),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+          ),
+        );
+      }
     }
 
-    if (_selectedCategories.isNotEmpty) {
-      query = query.where('tags', arrayContainsAny: _selectedCategories);
+    // averageRating
+    if (filters.containsKey('averageRating') && filters['averageRating'] > 0) {
+      double rating = filters['averageRating'];
+      filterChips.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Chip(
+            label: Text('Rating ≥ ${rating.toStringAsFixed(1)} ⭐'),
+            onDeleted: () => _removeFilter(context, 'averageRating', null),
+            deleteIconColor: Theme.of(context).primaryColor,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: Theme.of(context).primaryColor),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+        ),
+      );
     }
 
-    return query;
+    // cookingTimeInMinutes
+    if (filters.containsKey('cookingTimeInMinutes')) {
+      int time = filters['cookingTimeInMinutes'].toInt();
+      filterChips.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Chip(
+            label: Text('Time ≤ $time mins ⏱️'),
+            onDeleted: () =>
+                _removeFilter(context, 'cookingTimeInMinutes', null),
+            deleteIconColor: Theme.of(context).primaryColor,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: Theme.of(context).primaryColor),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+        ),
+      );
+    }
+
+    // ingredientNames
+    if (filters.containsKey('ingredientNames') &&
+        filters['ingredientNames'].isNotEmpty) {
+      List<String> selectedIngredients = filters['ingredientNames'];
+      for (String ingredient in selectedIngredients) {
+        filterChips.add(
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 4.0),
+            child: Chip(
+              label: Text(ingredient),
+              onDeleted: () =>
+                  _removeFilter(context, 'ingredientNames', ingredient),
+              deleteIconColor: Theme.of(context).primaryColor,
+              shape: RoundedRectangleBorder(
+                side: BorderSide(color: Theme.of(context).primaryColor),
+                borderRadius: BorderRadius.circular(8.0),
+              ),
+            ),
+          ),
+        );
+      }
+    }
+
+    // createdByAI
+    if (filters.containsKey('createdByAI') && filters['createdByAI'] == true) {
+      filterChips.add(
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 4.0),
+          child: Chip(
+            label: Text('🤖 AI-assisted'),
+            onDeleted: () => _removeFilter(context, 'createdByAI', null),
+            deleteIconColor: Theme.of(context).primaryColor,
+            shape: RoundedRectangleBorder(
+              side: BorderSide(color: Theme.of(context).primaryColor),
+              borderRadius: BorderRadius.circular(8.0),
+            ),
+          ),
+        ),
+      );
+    }
+
+    if (filterChips.isEmpty) {
+      return SizedBox.shrink(); // If no active filters, no bar
+    }
+
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 8.0),
+      height: 50,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        children: filterChips,
+      ),
+    );
+  }
+
+  void _removeFilter(BuildContext context, String key, dynamic value) {
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    Map<String, dynamic> currentFilters = Map.from(searchProvider.filters);
+
+    if (key == 'tagNames' || key == 'ingredientNames') {
+      // For array filters, remove the specific value
+      List<dynamic> list = List.from(currentFilters[key] ?? []);
+      list.remove(value);
+      if (list.isEmpty) {
+        currentFilters.remove(key);
+      } else {
+        currentFilters[key] = list;
+      }
+    } else {
+      // For single-value filters, just remove the key
+      currentFilters.remove(key);
+    }
+
+    searchProvider.updateFilters(currentFilters);
   }
 }

@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:food_fellas/main.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/views/aichat_screen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/widgets/expandableFAB.dart';
+import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:food_fellas/src/widgets/mockupHorizontalRecipeRow.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -28,6 +30,14 @@ class _HomeScreenState extends State<HomeScreen> {
     super.initState();
     _fetchCurrentUser();
     _fetchMealTypeTags();
+
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    // Fetch Recommended Recipes
+    searchProvider.fetchRowRecipes('recommended', sortBy: 'averageRating:desc');
+    // Fetch New Recipes
+    searchProvider.fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
+    // Fetch Top Rated Recipes
+    searchProvider.fetchRowRecipes('topRated', sortBy: 'averageRating:desc');
   }
 
   Future<void> _fetchCurrentUser() async {
@@ -275,7 +285,14 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverToBoxAdapter(
           child: Container(
             margin: const EdgeInsets.only(left: 8),
-            child: MockupHorizontalRecipeRow(),
+            child: Consumer<SearchProvider>(
+              builder: (context, provider, child) {
+                final recipes = provider.rowRecipes['recommended'] ?? [];
+                return recipes.isEmpty
+                    ? Center(child: CircularProgressIndicator())
+                    : HorizontalRecipeRow(recipes: recipes);
+              },
+            ),
           ),
         ),
         SliverToBoxAdapter(
@@ -284,7 +301,14 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverToBoxAdapter(
           child: Container(
             margin: const EdgeInsets.only(left: 8),
-            child: MockupHorizontalRecipeRow(),
+            child: Consumer<SearchProvider>(
+              builder: (context, provider, child) {
+                final recipes = provider.rowRecipes['newRecipes'] ?? [];
+                return recipes.isEmpty
+                    ? Center(child: CircularProgressIndicator())
+                    : HorizontalRecipeRow(recipes: recipes);
+              },
+            ),
           ),
         ),
         SliverToBoxAdapter(
@@ -293,7 +317,14 @@ class _HomeScreenState extends State<HomeScreen> {
         SliverToBoxAdapter(
           child: Container(
             margin: const EdgeInsets.only(left: 8),
-            child: MockupHorizontalRecipeRow(),
+            child: Consumer<SearchProvider>(
+              builder: (context, provider, child) {
+                final recipes = provider.rowRecipes['topRated'] ?? [];
+                return recipes.isEmpty
+                    ? Center(child: CircularProgressIndicator())
+                    : HorizontalRecipeRow(recipes: recipes);
+              },
+            ),
           ),
         ),
         // Add more sections as needed
@@ -381,7 +412,12 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
           GestureDetector(
             onTap: () {
-              // Implement navigation to the full list of items
+              final searchProvider =
+                  Provider.of<SearchProvider>(context, listen: false);
+              searchProvider
+                  .updateFilters({'averageRating': 4.0}); // Beispiel-Filter
+              Provider.of<BottomNavBarProvider>(context, listen: false)
+                  .setIndex(1);
             },
             child: Text(
               'See All',

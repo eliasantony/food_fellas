@@ -1,10 +1,10 @@
 {
     "logs": [
         {
-            "outputFile": "com.example.food_fellas.app-mergeDebugResources-70:/values-ldltr-v21/values-ldltr-v21.xml",
+            "outputFile": "com.example.food_fellas.app-mergeDebugResources-71:/values-ldltr-v21/values-ldltr-v21.xml",
             "map": [
                 {
-                    "source": "/Users/EliasAntony/.gradle/caches/transforms-3/25af447da3ce2db81abce3457daddacd/transformed/appcompat-1.6.1/res/values-ldltr-v21/values-ldltr-v21.xml",
+                    "source": "/Users/EliasAntony/.gradle/caches/transforms-3/a6240e7efa2eb88fc2df2cfb5f2371c5/transformed/appcompat-1.6.1/res/values-ldltr-v21/values-ldltr-v21.xml",
                     "from": {
                         "startLines": "2",
                         "startColumns": "4",
