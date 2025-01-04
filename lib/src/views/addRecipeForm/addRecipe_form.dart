@@ -3,7 +3,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:food_fellas/src/models/tag.dart';
+import 'package:food_fellas/src/models/textEmbedding_model.dart';
 import 'package:food_fellas/src/views/addRecipeForm/tagsSelection_screen.dart';
+import 'package:food_fellas/src/views/addRecipeForm/thankyou_screen.dart';
 import '../../models/recipe.dart';
 import 'recipeBasics_screen.dart';
 import 'ingredientsSelection_screen.dart';
@@ -69,6 +71,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                 lineThickness: 3,
               ),
               steps: _buildEasySteps(),
+              activeStepIconColor:
+                  Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Colors.black,
               onStepReached: (index) {
                 if (_getCurrentFormKey().currentState!.validate()) {
                   _getCurrentFormKey().currentState!.save();
@@ -229,6 +235,30 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         }
       }
 
+      // Generate embedding
+      try {
+        TextEmbeddingModel embeddingModel = TextEmbeddingModel();
+        String ingredientNames = recipe.ingredients
+            .map((ri) => ri.ingredient.ingredientName)
+            .join(", ");
+        String tagNames = recipe.tags.map((tag) => tag.name).join(", ");
+        String combinedText = [
+          recipe.title, // Recipe title
+          ingredientNames, // List of ingredient names
+          tagNames // List of tag names
+        ].join(" ");
+        recipe.embedding = await embeddingModel.generateEmbedding(combinedText);
+      } catch (e) {
+        print('Error generating embedding: $e');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating embedding: $e')),
+        );
+        setState(() {
+          _isSubmitting = false;
+        });
+        return;
+      }
+
       // If recipe.id is set, update the existing document; otherwise, create a new one
       DocumentReference docRef;
       if (recipe.id != null && recipe.id!.isNotEmpty) {
@@ -274,7 +304,11 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         });
 
         // Navigate to the recipe detail page or back to the previous screen
-        Navigator.pop(context);
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(
+              builder: (context) => ThankYouScreen(recipeId: recipe.id!)),
+        );
       } catch (e) {
         print('Error submitting recipe: $e');
         ScaffoldMessenger.of(context).showSnackBar(

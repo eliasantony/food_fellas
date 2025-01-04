@@ -10,8 +10,12 @@ import 'package:food_fellas/providers/ingredientProvider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
+import 'package:food_fellas/providers/themeProvider.dart';
+import 'package:food_fellas/providers/userProvider.dart';
+import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
 import 'src/views/auth/login_screen.dart';
 import 'src/views/home_screen.dart';
@@ -47,33 +51,54 @@ void main() async {
         ChangeNotifierProvider(create: (_) => IngredientProvider()),
         ChangeNotifierProvider(create: (_) => BottomNavBarProvider()),
         ChangeNotifierProvider(create: (_) => SearchProvider()),
+        ChangeNotifierProvider(create: (_) => UserDataProvider()),
+        ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
-      child: MainApp(isDarkMode: false),
+      child: MainApp(),
     ),
   );
 }
 
-class MainApp extends StatelessWidget {
-  final bool isDarkMode;
-  const MainApp({super.key, required this.isDarkMode});
+class MainApp extends StatefulWidget {
+  @override
+  State<MainApp> createState() => _MainAppState();
+}
+
+class _MainAppState extends State<MainApp> {
+  bool isDarkMode = false;
+  late final SharedPreferences prefs;
+
+  @override
+  void initState() {
+    super.initState();
+  }
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+
     return MaterialApp(
       title: 'FoodFellas',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.green),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1A8100),
+          brightness: Brightness.light,
+        ),
       ),
-      darkTheme: ThemeData.dark(),
-      themeMode: isDarkMode ? ThemeMode.dark : ThemeMode.light,
-      home: const InitializerWidget(),
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/signup': (context) => const SignUpScreen(),
-        '/mainPage': (context) => MainPage(key: mainPageKey),
-      },
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF1A8100),
+          brightness: Brightness.dark,
+        ).copyWith(
+          primary: const Color(0xFF1A8100),
+          secondary: const Color(0xFFFEB47B),
+        ),
+      ),
+      themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
+      home: InitializerWidget(),
     );
   }
 }

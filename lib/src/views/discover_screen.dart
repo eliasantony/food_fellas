@@ -98,7 +98,8 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             child: searchProvider.isLoading
                 ? Center(child: CircularProgressIndicator())
                 : ListView.builder(
-                  controller: _scrollController,
+                    key: PageStorageKey('discover_screen'),
+                    controller: _scrollController,
                     itemCount: searchProvider.recipes.length,
                     itemBuilder: (context, index) {
                       final recipe = searchProvider.recipes[index];
@@ -148,9 +149,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             child: Chip(
               label: Text(tag),
               onDeleted: () => _removeFilter(context, 'tagNames', tag),
-              deleteIconColor: Theme.of(context).primaryColor,
+              deleteIconColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Theme.of(context).primaryColor,
               shape: RoundedRectangleBorder(
-                side: BorderSide(color: Theme.of(context).primaryColor),
+                side: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Theme.of(context).primaryColor,
+                ),
                 borderRadius: BorderRadius.circular(8.0),
               ),
             ),
@@ -168,9 +175,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           child: Chip(
             label: Text('Rating ≥ ${rating.toStringAsFixed(1)} ⭐'),
             onDeleted: () => _removeFilter(context, 'averageRating', null),
-            deleteIconColor: Theme.of(context).primaryColor,
+            deleteIconColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Theme.of(context).primaryColor,
             shape: RoundedRectangleBorder(
-              side: BorderSide(color: Theme.of(context).primaryColor),
+              side: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Theme.of(context).primaryColor,
+              ),
               borderRadius: BorderRadius.circular(8.0),
             ),
           ),
@@ -188,9 +201,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             label: Text('Time ≤ $time mins ⏱️'),
             onDeleted: () =>
                 _removeFilter(context, 'cookingTimeInMinutes', null),
-            deleteIconColor: Theme.of(context).primaryColor,
+            deleteIconColor: Theme.of(context).brightness == Brightness.dark
+                ? Colors.white
+                : Theme.of(context).primaryColor,
             shape: RoundedRectangleBorder(
-              side: BorderSide(color: Theme.of(context).primaryColor),
+              side: BorderSide(
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.white
+                    : Theme.of(context).primaryColor,
+              ),
               borderRadius: BorderRadius.circular(8.0),
             ),
           ),
@@ -210,9 +229,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               label: Text(ingredient),
               onDeleted: () =>
                   _removeFilter(context, 'ingredientNames', ingredient),
-              deleteIconColor: Theme.of(context).primaryColor,
+              deleteIconColor: Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Theme.of(context).primaryColor,
               shape: RoundedRectangleBorder(
-                side: BorderSide(color: Theme.of(context).primaryColor),
+                side: BorderSide(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.white
+                      : Theme.of(context).primaryColor,
+                ),
                 borderRadius: BorderRadius.circular(8.0),
               ),
             ),

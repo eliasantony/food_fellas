@@ -36,9 +36,8 @@ class _FilterModalState extends State<FilterModal> {
         _categorizeTags(tagsProvider.tags.map((tag) => tag.toMap()).toList());
 
     // Limit the number of tags shown when showAllTags is false
-    Map<String, List<Map<String, dynamic>>> tagsToShow = showAllTags
-        ? categorizedTags
-        : _limitTags(categorizedTags, 12);
+    Map<String, List<Map<String, dynamic>>> tagsToShow =
+        showAllTags ? categorizedTags : _limitTags(categorizedTags, 12);
 
     return Padding(
       padding: EdgeInsets.only(
@@ -66,10 +65,6 @@ class _FilterModalState extends State<FilterModal> {
               ),
               label: Text('Apply Filters',
                   style: TextStyle(color: Theme.of(context).canvasColor)),
-              style: ButtonStyle(
-                backgroundColor:
-                    MaterialStateProperty.all(Theme.of(context).primaryColor),
-              ),
             ),
           ],
         ),

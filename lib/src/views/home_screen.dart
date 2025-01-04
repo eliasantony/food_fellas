@@ -209,7 +209,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           gradient: LinearGradient(
                             colors: [
                               Theme.of(context).colorScheme.primary,
-                              Theme.of(context).colorScheme.inversePrimary,
+                              Theme.of(context).colorScheme.secondary,
                             ],
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
@@ -353,8 +353,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Widget _buildMealTypeCategories() {
     return Container(
-      height: 100.0, // Increased height to prevent overflow
-      padding: EdgeInsets.symmetric(vertical: 8.0),
+      height: 100.0,
       child: _mealTypeTags.isEmpty
           ? Center(child: CircularProgressIndicator())
           : ListView.builder(
@@ -364,7 +363,14 @@ class _HomeScreenState extends State<HomeScreen> {
                 Tag tag = _mealTypeTags[index];
                 return GestureDetector(
                   onTap: () {
-                    // Implement category selection
+                    final searchProvider =
+                        Provider.of<SearchProvider>(context, listen: false);
+                    searchProvider.updateFilters({
+                      'tagNames': [tag.name]
+                    });
+                    searchProvider.setSortOrder('averageRating:desc');
+                    Provider.of<BottomNavBarProvider>(context, listen: false)
+                        .setIndex(1);
                   },
                   child: Container(
                     width: 80.0,
@@ -414,15 +420,22 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               final searchProvider =
                   Provider.of<SearchProvider>(context, listen: false);
-              searchProvider
-                  .updateFilters({'averageRating': 4.0}); // Beispiel-Filter
+              // clear filters or keep them
+              searchProvider.updateFilters({});
+              // set the new sort order
+              if (title == 'Recommended') {
+                searchProvider.setSortOrder('averageRating:desc');
+              } else if (title == 'New Recipes') {
+                searchProvider.setSortOrder('createdAt:desc');
+              } else if (title == 'Top Rated') {
+                searchProvider.setSortOrder('averageRating:desc');
+              }
               Provider.of<BottomNavBarProvider>(context, listen: false)
                   .setIndex(1);
             },
             child: Text(
               'See All',
               style: TextStyle(
-                color: Theme.of(context).primaryColor,
                 fontSize: 16.0,
                 fontWeight: FontWeight.w500,
                 decoration: TextDecoration.underline,

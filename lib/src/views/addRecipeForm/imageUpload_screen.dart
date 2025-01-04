@@ -133,6 +133,11 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           onPressed: _pickImage,
           icon: Icon(Icons.upload_file),
           label: Text('Upload Image'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+          ),
         ),
         SizedBox(height: 8),
         _buildCustomizationOptions(),
@@ -141,6 +146,11 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           onPressed: _generateImageWithAI,
           icon: Icon(Icons.auto_awesome),
           label: Text('Generate Image with AI'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: Theme.of(context).colorScheme.primary,
+            foregroundColor: Theme.of(context).colorScheme.onPrimary,
+            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+          ),
         ),
       ],
     );

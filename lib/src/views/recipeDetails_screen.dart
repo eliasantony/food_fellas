@@ -3,9 +3,11 @@
 import 'dart:developer';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
+import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:marquee/marquee.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
@@ -43,6 +45,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _opacityNotifier = ValueNotifier<double>(0.0);
   bool _isMarquee = false;
+  bool _didFetchSimilar = false;
+  String? _lastFetchedRecipeId;
 
   @override
   void initState() {
@@ -55,6 +59,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _checkIfRecipeIsSaved();
     _fetchUserRole();
     _logRecipeView();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      context.read<SearchProvider>().fetchSimilarRecipesById(widget.recipeId);
+    });
   }
 
   @override
@@ -78,11 +85,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _opacityNotifier.value = newOpacity;
   }
 
-    void _logRecipeView() async {
+  void _logRecipeView() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    final userRef = FirebaseFirestore.instance.collection('users').doc(user.uid);
+    final userRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
     // Create or update the interaction document
     await userRef.collection('interactionHistory').doc(widget.recipeId).set({
@@ -834,7 +842,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                 IconButton(
                                                   icon: const Icon(
                                                       Icons.arrow_back),
-                                                  color: Colors.black,
+                                                  color: Theme.of(context)
+                                                              .brightness ==
+                                                          Brightness.dark
+                                                      ? Colors.white
+                                                      : Colors.black,
                                                   onPressed: () =>
                                                       Navigator.pop(context),
                                                 ),
@@ -856,10 +868,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                             text:
                                                                 _currentRecipe!
                                                                     .title,
-                                                            style:
-                                                                const TextStyle(
-                                                              color:
-                                                                  Colors.black,
+                                                            style: TextStyle(
+                                                              color: Theme.of(context)
+                                                                          .brightness ==
+                                                                      Brightness
+                                                                          .dark
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black,
                                                               fontSize: 20.0,
                                                               fontWeight:
                                                                   FontWeight
@@ -871,10 +887,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                         : Text(
                                                             _currentRecipe!
                                                                 .title,
-                                                            style:
-                                                                const TextStyle(
-                                                              color:
-                                                                  Colors.black,
+                                                            style: TextStyle(
+                                                              color: Theme.of(context)
+                                                                          .brightness ==
+                                                                      Brightness
+                                                                          .dark
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black,
                                                               fontSize: 20.0,
                                                               fontWeight:
                                                                   FontWeight
@@ -892,9 +912,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                 // Options Menu or Save Button
                                                 if (canEditOrDelete)
                                                   PopupMenuButton<String>(
-                                                    icon: const Icon(
-                                                        Icons.more_vert,
-                                                        color: Colors.black),
+                                                    icon: Icon(
+                                                      Icons.more_vert,
+                                                      color: Theme.of(context)
+                                                                  .brightness ==
+                                                              Brightness.dark
+                                                          ? Colors.white
+                                                          : Colors.black,
+                                                    ),
                                                     onSelected:
                                                         _handleMenuOption,
                                                     itemBuilder:
@@ -909,12 +934,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                                       .bookmark
                                                                   : Icons
                                                                       .bookmark_border,
-                                                              color:
-                                                                  isRecipeSaved
-                                                                      ? Colors
-                                                                          .green
-                                                                      : Colors
-                                                                          .black,
+                                                              color: isRecipeSaved
+                                                                  ? Colors.green
+                                                                  : Theme.of(context).brightness == Brightness.dark
+                                                                      ? Colors.white
+                                                                      : Colors.black,
                                                             ),
                                                             title: Text(isRecipeSaved
                                                                 ? 'Unsave Recipe'
@@ -976,6 +1000,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ];
               },
               body: ListView(
+                key: PageStorageKey('recipe-detail-${widget.recipeId}'),
                 padding: EdgeInsets.zero,
                 children: _buildRecipeDetail(recipeData),
               ),
@@ -1049,6 +1074,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         child: _buildCommentsList(),
       ),
       const SizedBox(height: 16),
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0),
+        child: SimilarRecipesSection(),
+      ),
+      const SizedBox(height: 32),
     ];
   }
 
@@ -1303,7 +1333,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         const SizedBox(height: 8),
         // Ingredients List Header
         Container(
-          color: Colors.grey[200],
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[900]
+              : Colors.grey[200],
           padding: const EdgeInsets.symmetric(vertical: 8),
           child: const Row(
             children: [
@@ -1438,6 +1470,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ),
         const SizedBox(height: 8),
         ListView.builder(
+          padding: EdgeInsets.zero,
           shrinkWrap: true,
           physics: const NeverScrollableScrollPhysics(),
           itemCount: steps.length,
@@ -1576,9 +1609,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const CircularProgressIndicator();
         } else if (snapshot.hasError) {
-          return const Text('Error loading comments');
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: const Text('Error loading comments'),
+          );
         } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return const Text('No comments yet. Be the first to comment!');
+          return Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: const Text('No comments yet. Be the first to comment!'),
+          );
         } else {
           return Card(
             shape: RoundedRectangleBorder(
@@ -1683,6 +1722,36 @@ class PhotoViewScreen extends StatelessWidget {
           maxScale: PhotoViewComputedScale.covered * 2,
         ),
       ),
+    );
+  }
+}
+
+// Example: separate widget that only depends on the SearchProvider
+class SimilarRecipesSection extends StatelessWidget {
+  const SimilarRecipesSection({Key? key}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final searchProvider = context.watch<SearchProvider>();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('Similar Recipes', style: Theme.of(context).textTheme.titleLarge),
+        const SizedBox(height: 10),
+        Consumer<SearchProvider>(
+          builder: (context, searchProvider, child) {
+            if (searchProvider.isLoadingSimilarRecipes) {
+              return const Center(child: CircularProgressIndicator());
+            } else if (searchProvider.similarRecipes.isNotEmpty) {
+              return HorizontalRecipeRow(
+                  recipes: searchProvider.similarRecipes);
+            } else {
+              return const Text('No similar recipes found.');
+            }
+          },
+        )
+      ],
     );
   }
 }

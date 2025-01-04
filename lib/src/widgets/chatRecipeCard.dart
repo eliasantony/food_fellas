@@ -38,7 +38,7 @@ class ChatRecipeCard extends StatelessWidget {
             ),
             ...ingredients.map((ingredient) {
               final name = ingredient['ingredient']['ingredientName'] ?? '';
-              final amount = ingredient['baseAmount'] ?? '';
+              final amount = ingredient['baseAmount']?.toString() ?? '';
               final unit = ingredient['unit'] ?? '';
               return Text('- $amount $unit $name');
             }).toList(),
@@ -50,7 +50,8 @@ class ChatRecipeCard extends StatelessWidget {
             ),
             ...steps.asMap().entries.map((entry) {
               int idx = entry.key + 1;
-              String step = entry.value;
+              String step =
+                  entry.value is String ? entry.value : entry.value.toString();
               return Text('$idx. $step');
             }).toList(),
             SizedBox(height: 12.0),
@@ -75,7 +76,17 @@ class ChatRecipeCard extends StatelessWidget {
             // Add Recipe Button
             ElevatedButton(
               onPressed: onAddRecipe,
-              child: Text('Add to Recipes'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+              ),
+              child: Text(
+                'Add Recipe',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+              ),
             ),
           ],
         ),

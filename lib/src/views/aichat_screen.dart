@@ -54,7 +54,8 @@ Map<String, dynamic>? extractJsonRecipe(String text) {
         if (decoded.containsKey('title') &&
             decoded.containsKey('description') &&
             decoded.containsKey('ingredients') &&
-            decoded.containsKey('cookingSteps')) {
+            decoded.containsKey('cookingSteps') &&
+            decoded.containsKey('tags')) {
           return decoded;
         }
       }
@@ -62,6 +63,28 @@ Map<String, dynamic>? extractJsonRecipe(String text) {
   } catch (e) {
     print('Error parsing JSON: $e');
     // Ignore parsing errors, just return null
+  }
+  return null;
+}
+
+Map<String, dynamic>? extractPreviewJson(String text) {
+  try {
+    final codeBlockRegExp =
+        RegExp(r'```json\s*(\{[\s\S]*?\})\s*```', multiLine: true);
+    final match = codeBlockRegExp.firstMatch(text);
+    if (match != null) {
+      String? jsonString = match.group(1);
+      if (jsonString != null) {
+        final decoded = json.decode(jsonString);
+        if (decoded.containsKey('title') &&
+            decoded.containsKey('shortDescription') &&
+            decoded.containsKey('mainIngredients')) {
+          return decoded;
+        }
+      }
+    }
+  } catch (e) {
+    print('Error parsing preview JSON: $e');
   }
   return null;
 }
@@ -174,7 +197,14 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   //spacing: 8,
                   children: _getQuickReplies().map((quickReply) {
                     return ChoiceChip(
-                      label: Text(quickReply.title ?? ''),
+                      label: Text(
+                        quickReply.title ?? '',
+                        style: TextStyle(
+                          color: Theme.of(context).brightness == Brightness.dark
+                              ? Colors.white
+                              : Colors.black,
+                        ),
+                      ),
                       selected: false,
                       onSelected: (selected) {
                         _onQuickReply(quickReply);
@@ -185,13 +215,31 @@ class _AIChatScreenState extends State<AIChatScreen> {
               ),
             Expanded(
               child: DashChat(
-                inputOptions: InputOptions(sendOnEnter: true, trailing: [
-                  IconButton(
-                    onPressed: _sendMediaMessage,
-                    icon: const Icon(Icons.image),
-                  )
-                ]),
+                inputOptions: InputOptions(
+                    inputTextStyle: TextStyle(
+                      color: Colors.black,
+                    ),
+                    sendOnEnter: true,
+                    trailing: [
+                      IconButton(
+                        onPressed: _sendMediaMessage,
+                        icon: const Icon(Icons.image),
+                      )
+                    ]),
                 quickReplyOptions: QuickReplyOptions(
+                  quickReplyTextStyle: TextStyle(
+                    color: Theme.of(context).brightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                  ),
+                  quickReplyStyle: BoxDecoration(
+                    border: Border.all(
+                      color: Theme.of(context).brightness == Brightness.dark
+                          ? Colors.white
+                          : Colors.black,
+                    ),
+                    borderRadius: BorderRadius.circular(8.0),
+                  ),
                   onTapQuickReply: _onQuickReply,
                 ),
                 messageOptions: MessageOptions(
@@ -200,8 +248,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     return BoxDecoration(
                       color: message.customProperties?['isAIMessage'] == true
                           ? Colors.greenAccent.withOpacity(0.3)
-                          : const Color.fromARGB(255, 163, 163, 163)
-                              .withOpacity(0.1),
+                          : (Theme.of(context).brightness == Brightness.dark
+                              ? const Color.fromARGB(255, 163, 163, 163)
+                                  .withOpacity(0.6)
+                              : const Color.fromARGB(255, 163, 163, 163)
+                                  .withOpacity(0.1)),
                       borderRadius: BorderRadius.circular(8.0),
                     );
                   },
@@ -220,14 +271,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
                               data: message.text ?? '',
                               styleSheet: MarkdownStyleSheet(
                                 p: TextStyle(
-                                  color: Colors.black,
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
                                 ),
                                 strong: TextStyle(
                                   fontWeight: FontWeight.bold,
-                                  color: Colors.black,
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
                                 ),
                                 blockquote: TextStyle(
-                                  color: Colors.black,
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.white
+                                      : Colors.black,
                                   fontStyle: FontStyle.italic,
                                 ),
                               ),
@@ -247,14 +307,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
                         data: message.text ?? '',
                         styleSheet: MarkdownStyleSheet(
                           p: TextStyle(
-                            color: Colors.black,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
                           ),
                           strong: TextStyle(
                             fontWeight: FontWeight.bold,
-                            color: Colors.black,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
                           ),
                           blockquote: TextStyle(
-                            color: Colors.black,
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
                             fontStyle: FontStyle.italic,
                           ),
                         ),
@@ -496,7 +565,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
       ChatMessage chatMessage = ChatMessage(
         user: currentUser,
         createdAt: DateTime.now(),
-        text: "Try to accurately guess this recipe based on the picture!",
+        text:
+            "Try to create a recipe based on the ingredients you can see in this image!",
         medias: [
           ChatMedia(
             url: file.path,

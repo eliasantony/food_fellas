@@ -15,9 +15,9 @@ class ChatProvider with ChangeNotifier {
 
   ChatProvider() {
     _startNewConversation();
+    _fetchUserData();
     model = getGenerativeModel();
     chatInstance = model?.startChat();
-    _fetchUserData();
   }
 
   Future<void> _startNewConversation() async {

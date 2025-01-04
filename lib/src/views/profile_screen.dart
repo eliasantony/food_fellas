@@ -17,12 +17,18 @@ import '../widgets/recipeCard.dart';
 
 class ProfileScreen extends StatefulWidget {
   final String? userId;
+  final bool showSettings;
 
-  ProfileScreen({this.userId});
+  const ProfileScreen({
+    Key? key,
+    this.userId,
+    this.showSettings = false,
+  }) : super(key: key);
 
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
 }
+
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool isFollowing = false;

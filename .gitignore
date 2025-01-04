@@ -43,6 +43,7 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 /android/app/build
+android/app/
 
 node_modules
 populateTageCollection.js

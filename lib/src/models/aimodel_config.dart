@@ -1,7 +1,7 @@
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 
 GenerativeModel? getGenerativeModel(
-    {Map<String, dynamic>? userData, bool preferencesEnabled = false}) {
+    {Map<String, dynamic>? userData, bool preferencesEnabled = true}) {
   String userPreferences = '';
 
   if (preferencesEnabled && userData != null) {
@@ -155,7 +155,7 @@ Example:
 Use metric units for measurements (grams, milliliters, etc.). 
 These are the available Tags you can use: "Breakfast", "Lunch", "Dinner", "Snack", "Dessert", "Appetizer", "Beverage", "Brunch", "Side Dish", "Soup", "Salad", "Under 15 minutes", "Under 30 minutes", "Under 1 hour", "Over 1 hour", "Slow Cook", "Quick & Easy", "Easy", "Medium", "Hard", "Beginner Friendly", "Intermediate", "Expert", "Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Nut-Free", "Halal", "Kosher", "Paleo", "Keto", "Pescatarian", "Low-Carb", "Low-Fat", "High-Protein", "Sugar-Free", "Italian", "Mexican", "Chinese", "Indian", "Japanese", "Mediterranean", "American", "Thai", "French", "Greek", "Korean", "Vietnamese", "Spanish", "Middle Eastern", "Caribbean", "African", "German", "Brazilian", "Peruvian", "Turkish", "Other", "Grilling", "Baking", "Stir-Frying", "Steaming", "Roasting", "Slow Cooking", "Raw", "Frying", "Pressure Cooking", "No-Cook", "Party", "Picnic", "Holiday", "Casual", "Formal", "Date Night", "Family Gathering", "Game Day", "BBQ", "Healthy", "Comfort Food", "Spicy", "Sweet", "Savory", "Budget-Friendly", "Kids Friendly", "High Fiber", "Low Sodium", "Seasonal", "Organic", "Gourmet"
 Try to add as many relevant tags as possible to make the recipe more discoverable.
-If a user requests multiple recipes, provide up to 5 options. If they provide ingredients, suggest 3 recipe options. Keep the conversation friendly, e.g., "Does this sound good, or do you want to try another recipe?" or redirect with humor if off-topic: "I’m all about food here at Foodfellas! Any cravings I can help with today?" Always suggest alternatives if ingredients seem out of place, in a positive tone: "How about we try this instead?"
+If a user requests multiple recipes, provide up to 3 options. If they provide ingredients, suggest 3 recipe options. Keep the conversation friendly, e.g., "Does this sound good, or do you want to try another recipe?" or redirect with humor if off-topic: "I’m all about food here at Foodfellas! Any cravings I can help with today?" Always suggest alternatives if ingredients seem out of place, in a positive tone: "How about we try this instead?"
           '''),
   );
   return model;

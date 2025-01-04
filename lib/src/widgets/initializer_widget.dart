@@ -2,12 +2,17 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:food_fellas/src/views/auth/welcome_screen.dart';
 import 'package:food_fellas/main.dart';
+import 'package:provider/provider.dart';
 
 class InitializerWidget extends StatefulWidget {
-  const InitializerWidget({Key? key}) : super(key: key);
+
+  const InitializerWidget({
+    super.key,
+  });
 
   @override
   _InitializerWidgetState createState() => _InitializerWidgetState();
@@ -58,80 +63,78 @@ class _InitializerWidgetState extends State<InitializerWidget> {
     }
   }
 
-  @override
+  Future<void> _fetchUserData(String uid) async {
+    Provider.of<UserDataProvider>(context, listen: false).updateUserData(uid);
+  }
+
+@override
   Widget build(BuildContext context) {
-    print('Building InitializerWidget...');
-    // Show error message if initialization failed
     if (_error) {
-      return const Scaffold(
-        body: Center(child: Text('Error initializing Firebase')),
-      );
+      return _buildErrorScreen();
     }
 
-    // Show loading indicator while Firebase is initializing
     if (!_initialized) {
-      return const Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
+      return _buildLoadingScreen();
     }
 
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
-        // Check for errors
         if (snapshot.hasError) {
-          print('Auth state error: ${snapshot.error}');
-          return const Scaffold(
-            body: Center(child: Text('Something went wrong')),
-          );
+          return _buildErrorScreen();
         }
 
-        // Check the authentication state
         if (snapshot.connectionState == ConnectionState.active) {
-          User? user = snapshot.data;
-
+          final user = snapshot.data;
           if (user == null) {
-            // User is not signed in
-            print('User is not signed in');
             return const WelcomeScreen();
-} else {
-        // User is signed in, check onboarding status
-        return FutureBuilder<bool>(
-          future: checkOnboardingComplete(user.uid),
-          builder: (context, onboardingSnapshot) {
-            if (onboardingSnapshot.hasError) {
-              // Handle error
-              return Scaffold(
-                body: Center(child: Text('Something went wrong')),
-              );
-            }
+          } else {
+            return _checkOnboarding(user);
+          }
+        }
 
-            if (onboardingSnapshot.connectionState == ConnectionState.done) {
-              bool onboardingComplete = onboardingSnapshot.data ?? false;
+        return _buildLoadingScreen();
+      },
+    );
+  }
 
-              if (onboardingComplete) {
-                // Onboarding is complete
-                return MainPage();
-              } else {
-                // Onboarding not complete
-                return WelcomeScreen();
-              }
-            } else {
-              // Show loading indicator while checking onboarding status
-              return Scaffold(
-                body: Center(child: CircularProgressIndicator()),
-              );
-            }
-          },
-        );
-      }
-    } else {
-      // Show loading indicator while checking authentication state
-      return Scaffold(
-        body: Center(child: CircularProgressIndicator()),
-      );
-    }
-  },
-);
+  Widget _buildErrorScreen() {
+    return const Scaffold(
+      body: Center(
+        child: Text('Error initializing Firebase. Please try again later.'),
+      ),
+    );
+  }
+
+  Widget _buildLoadingScreen() {
+    return const Scaffold(
+      body: Center(
+        child: CircularProgressIndicator(),
+      ),
+    );
+  }
+
+  Widget _checkOnboarding(User user) {
+    return FutureBuilder<bool>(
+      future: checkOnboardingComplete(user.uid),
+      builder: (context, onboardingSnapshot) {
+        if (onboardingSnapshot.hasError) {
+          return _buildErrorScreen();
+        }
+
+        if (onboardingSnapshot.connectionState == ConnectionState.done) {
+          final onboardingComplete = onboardingSnapshot.data ?? false;
+          if (onboardingComplete) {
+            _fetchUserData(
+                user.uid); // Fetch user data when onboarding is complete
+            return MainPage();
+          } else {
+            return const WelcomeScreen();
+          }
+        }
+
+        return _buildLoadingScreen();
+      },
+    );
   }
 }
