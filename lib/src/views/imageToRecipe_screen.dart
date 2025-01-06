@@ -262,6 +262,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                     child: Text(
                       _currentHint,
                       key: ValueKey<String>(_currentHint),
+                      textAlign: TextAlign.center,
                       style: TextStyle(fontSize: 16, color: Colors.white),
                     ),
                   ),
@@ -363,7 +364,9 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
       final prompt = TextPart(description);
       final imagePart = InlineDataPart('image/jpeg', _imageBytes);
 
-      final response = await model?.generateContent([Content.multi([prompt, imagePart])]);
+      final response = await model?.generateContent([
+        Content.multi([prompt, imagePart])
+      ]);
       final responseText = response?.text ?? '';
       print('Response: $responseText');
       // Extract the JSON recipe from the AI response

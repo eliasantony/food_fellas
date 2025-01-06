@@ -1,0 +1,141 @@
+{
+  "cookingSkillLevel": "Intermediate",
+  "created_time": {
+    "_seconds": 1733777319,
+    "_nanoseconds": 444000000
+  },
+  "role": "user",
+  "notificationsEnabled": true,
+  "display_name": "iOS Tester",
+  "uid": "r8zp6y3A05N4GRtH19q4efLipR93",
+  "last_active_time": {
+    "_seconds": 1733777319,
+    "_nanoseconds": 444000000
+  },
+  "preferredServings": 4,
+  "onboardingComplete": true,
+  "dietaryPreferences": [
+    "High-Protein",
+    "No Preferences"
+  ],
+  "favoriteCuisines": [
+    "Italian",
+    "Mexican",
+    "Chinese",
+    "Japanese",
+    "Mediterranean",
+    "American",
+    "Thai",
+    "French",
+    "Vietnamese",
+    "Middle Eastern",
+    "German"
+  ],
+  "email": "iostest@mail.com",
+  "photo_url": "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/profile_images%2Fr8zp6y3A05N4GRtH19q4efLipR93.jpg?alt=media&token=03f433ae-bbae-4e7e-a807-9d0a6ee31994",
+  "shortDescription": "I‘m just checking if everything works in iOS! :) And the overflow too… Let‘s try that now, shall we? Should we go to more than 3 lines to see how it would react??",
+  "totalReviews": 1,
+  "recipeCount": 3,
+  "averageRating": 4,
+  "subcollections": {
+    "collections": [
+      {
+        "id": "LFSOuwMP2IgyUgUaIeuI",
+        "icon": "😛",
+        "isPublic": true,
+        "name": "Thai",
+        "createdAt": {
+          "_seconds": 1734468254,
+          "_nanoseconds": 877000000
+        },
+        "recipes": [
+          "O3dwT2fvxuAuSTfXAbrC",
+          "a3Kv4bxhRUyNQlBVIYlK"
+        ]
+      }
+    ],
+    "conversations": [
+      {
+        "id": "1733863924547",
+        "createdAt": {
+          "_seconds": 1733863924,
+          "_nanoseconds": 771000000
+        }
+      },
+      {
+        "id": "1734123254174",
+        "createdAt": {
+          "_seconds": 1734123254,
+          "_nanoseconds": 399000000
+        }
+      }
+    ],
+    "followers": [
+      {
+        "id": "QaITxzpni6bMcTdQz7sFuvU2RUz1",
+        "uid": "QaITxzpni6bMcTdQz7sFuvU2RUz1",
+        "timestamp": {
+          "_seconds": 1736095505,
+          "_nanoseconds": 829000000
+        }
+      }
+    ],
+    "following": [
+      {
+        "id": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "uid": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "timestamp": {
+          "_seconds": 1736095429,
+          "_nanoseconds": 983000000
+        }
+      }
+    ],
+    "interactionHistory": [
+      {
+        "id": "5we0YnT6ZwzZ8atDT8bh",
+        "recipeId": "5we0YnT6ZwzZ8atDT8bh",
+        "viewedAt": {
+          "_seconds": 1735851490,
+          "_nanoseconds": 712000000
+        }
+      },
+      {
+        "id": "91sewLZVo21ie0doLCu6",
+        "viewedAt": {
+          "_seconds": 1736089081,
+          "_nanoseconds": 180000000
+        },
+        "recipeId": "91sewLZVo21ie0doLCu6"
+      },
+      {
+        "id": "LFpLQrlrbNfn3HkMlmcn",
+        "recipeId": "LFpLQrlrbNfn3HkMlmcn",
+        "viewedAt": {
+          "_seconds": 1736018927,
+          "_nanoseconds": 94000000
+        }
+      },
+      {
+        "id": "O3dwT2fvxuAuSTfXAbrC",
+        "recipeId": "O3dwT2fvxuAuSTfXAbrC",
+        "viewedAt": {
+          "_seconds": 1735850691,
+          "_nanoseconds": 69000000
+        }
+      }
+    ],
+    "shoppingList": [
+      {
+        "id": "CeCgcg9CcaDvOvGmGfHk",
+        "amount": 2,
+        "item": "Ramen Noodles",
+        "status": "active",
+        "unit": "packages",
+        "timestamp": {
+          "_seconds": 1735914706,
+          "_nanoseconds": 158000000
+        }
+      }
+    ]
+  }
+}

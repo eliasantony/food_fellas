@@ -56,15 +56,23 @@ class _FilterModalState extends State<FilterModal> {
             SizedBox(height: 20),
             ElevatedButton.icon(
               onPressed: () {
-                // Call the onApply with the updated filters
                 widget.onApply(filters);
               },
               icon: Icon(
                 Icons.filter_alt,
                 color: Theme.of(context).canvasColor,
               ),
-              label: Text('Apply Filters',
-                  style: TextStyle(color: Theme.of(context).canvasColor)),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                padding: EdgeInsets.symmetric(horizontal: 30),
+              ),
+              label: Text(
+                'Apply Filters',
+                style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+              ),
             ),
           ],
         ),
@@ -257,9 +265,9 @@ class _FilterModalState extends State<FilterModal> {
               },
               child: Text(showAllTags ? 'Show Less' : 'Show All',
                   style: TextStyle(
-                    color: Theme.of(context).primaryColor,
+                    fontSize: 16.0,
+                    fontWeight: FontWeight.w500,
                     decoration: TextDecoration.underline,
-                    decorationColor: Theme.of(context).primaryColor,
                   )),
             ),
           ),

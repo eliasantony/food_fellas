@@ -50,23 +50,35 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Form(
-      key: widget.formKey,
-      child: Center(
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              if (_isLoading)
-                _buildLoadingIndicator()
-              else
-                _buildImageDisplay(),
-              SizedBox(height: 20),
-              _isLoading ? Container() : _buildButtons(),
-            ],
+    return Column(
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Text(
+            'Here you can either upload a picture of your dish...',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.left,
           ),
         ),
-      ),
+        Form(
+          key: widget.formKey,
+          child: Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (_isLoading)
+                    _buildLoadingIndicator()
+                  else
+                    _buildImageDisplay(),
+                  SizedBox(height: 20),
+                  _isLoading ? Container() : _buildButtons(),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ],
     );
   }
 
@@ -136,10 +148,18 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            padding: EdgeInsets.symmetric(horizontal: 30),
           ),
         ),
         SizedBox(height: 8),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+          child: Text(
+            'Or customize the settings to create an image of your dish with AI!',
+            style: TextStyle(fontWeight: FontWeight.bold),
+            textAlign: TextAlign.left,
+          ),
+        ),
         _buildCustomizationOptions(),
         SizedBox(height: 8),
         ElevatedButton.icon(
@@ -149,7 +169,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
             foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            padding: EdgeInsets.symmetric(horizontal: 30),
           ),
         ),
       ],

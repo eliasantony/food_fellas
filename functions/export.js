@@ -13,12 +13,22 @@ async function exportDocument(collection, documentId) {
   try {
     const doc = await db.collection(collection).doc(documentId).get();
 
+    const subcollections = await db.collection(collection).doc(documentId).listCollections();
+    const subcollectionData = {};
+
+    for (const subcollection of subcollections) {
+      const subcollectionDocs = await subcollection.get();
+      subcollectionData[subcollection.id] = subcollectionDocs.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+    }
+
+    const data = doc.data();
+    data.subcollections = subcollectionData;
+
     if (!doc.exists) {
       console.log('Document not found!');
       return;
     }
 
-    const data = doc.data();
 
     // Dokument in eine JSON-Datei speichern
     fs.writeFileSync(`${collection}-${documentId}.json`, JSON.stringify(data, null, 2));
@@ -29,5 +39,5 @@ async function exportDocument(collection, documentId) {
 }
 
 // Hier die Collection und Document ID eingeben
-exportDocument('recipes', '5we0YnT6ZwzZ8atDT8bh');
+exportDocument('recipes', 'a3Kv4bxhRUyNQlBVIYlK');
 exportDocument('users', 'r8zp6y3A05N4GRtH19q4efLipR93');

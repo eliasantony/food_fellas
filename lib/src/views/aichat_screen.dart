@@ -11,7 +11,8 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
-import 'package:food_fellas/src/models/aimodel_config.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/src/models/aimodel_config2.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
@@ -77,8 +78,9 @@ Map<String, dynamic>? extractPreviewJson(String text) {
       if (jsonString != null) {
         final decoded = json.decode(jsonString);
         if (decoded.containsKey('title') &&
-            decoded.containsKey('shortDescription') &&
-            decoded.containsKey('mainIngredients')) {
+            decoded.containsKey('description') &&
+            decoded.containsKey('ingredients')) {
+          print(decoded);
           return decoded;
         }
       }
@@ -517,7 +519,36 @@ class _AIChatScreenState extends State<AIChatScreen> {
       final response = await chat?.sendMessage(prompt.first);
       final responseText = await chatProvider.sendMessageToAI(chatMessage.text);
 
-      // print('AI Response: $responseText');
+      print('AI Response: $responseText');
+
+      // Extract the JSON preview recipe from the response
+      final previewJson = extractPreviewJson(responseText);
+      if (previewJson != null) {
+        final searchProvider =
+            Provider.of<SearchProvider>(context, listen: false);
+        final title = previewJson['title'];
+        final description = previewJson['description'];
+        final ingredients = List<String>.from(previewJson['ingredients']);
+
+        // Call SearchProvider to fetch similar recipes
+        await searchProvider.fetchFuzzyRecipes(
+          title: title,
+          description: description,
+          ingredients: ingredients,
+        );
+
+        if (searchProvider.similarRecipes.isNotEmpty) {
+          String foundRecipesText = "Here are some similar recipes I found:\n";
+          for (var recipe in searchProvider.similarRecipes) {
+            foundRecipesText +=
+                "- **${recipe['title']}**: ${recipe['description']}\n";
+          }
+          foundRecipesText +=
+              "Do you want to use one of these, or should I create a new recipe for you?";
+
+          print('Found similar recipes: $foundRecipesText');
+        }
+      }
 
       // Extract the JSON recipe from the response
       final recipeJson = extractJsonRecipe(responseText);

@@ -4,8 +4,17 @@ import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/typesense/typesenseClient.dart';
 
+// Possible toggle states
+enum SearchMode {
+  users,
+  recipes,
+  both,
+}
+
 class SearchProvider with ChangeNotifier {
   List<Map<String, dynamic>> _recipes = [];
+  List<Map<String, dynamic>> _users = [];
+  SearchMode _searchMode = SearchMode.both;
   bool _isLoading = false;
   String _query = '';
   Map<String, dynamic> _filters = {};
@@ -14,6 +23,8 @@ class SearchProvider with ChangeNotifier {
   bool _isLoadingSimilarRecipes = false;
 
   List<Map<String, dynamic>> get recipes => _recipes;
+  List<Map<String, dynamic>> get users => _users;
+  SearchMode get searchMode => _searchMode;
   bool get isLoading => _isLoading;
   Map<String, dynamic> get filters => _filters;
   String get sortBy => _sortBy;
@@ -28,6 +39,11 @@ class SearchProvider with ChangeNotifier {
   void updateFilters(Map<String, dynamic> filters) {
     _filters = filters;
     fetchRecipes();
+  }
+
+  void setSearchMode(SearchMode mode) {
+    _searchMode = mode;
+    notifyListeners();
   }
 
   void setSortOrder(String newSort) {
@@ -98,6 +114,99 @@ class SearchProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> fetchMultiSearch(String query) async {
+    _isLoading = true;
+    _users = [];
+    _recipes = [];
+    notifyListeners();
+
+    try {
+      // Prepare multi_search body
+      final requestBody = {
+        "searches": [
+          {
+            "collection": "users",
+            "q": query.isNotEmpty ? query : "*",
+            "query_by": "display_name,email",
+            "per_page": 3
+          },
+          {
+            "collection": "recipes",
+            "q": query.isNotEmpty ? query : "*",
+            "query_by": "title,tagNames,ingredientNames",
+            "sort_by": _sortBy,
+            "per_page": 10 // Or however many recipes you want
+          }
+        ]
+      };
+
+      final response = await TypesenseHttpClient.post(
+        '/multi_search',
+        requestBody,
+      );
+
+      if (response.statusCode == 200) {
+        final Map<String, dynamic> result = jsonDecode(response.body);
+
+        // results[0] => user search results
+        // results[1] => recipe search results
+        final searches = result['results'] as List<dynamic>;
+        final usersResult = searches[0] as Map<String, dynamic>;
+        final recipesResult = searches[1] as Map<String, dynamic>;
+
+        final userHits = usersResult['hits'] as List<dynamic>;
+        final recipeHits = recipesResult['hits'] as List<dynamic>;
+
+        // Populate _users
+        _users = userHits.map((hit) {
+          return hit['document'] as Map<String, dynamic>;
+        }).toList();
+
+        // Populate _recipes
+        _recipes = recipeHits.map((hit) {
+          return hit['document'] as Map<String, dynamic>;
+        }).toList();
+      } else {
+        throw Exception(
+            'HTTP POST Error ${response.statusCode}: ${response.body}');
+      }
+    } catch (e) {
+      print('Error during multiSearch: $e');
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> fetchUsers(String query) async {
+    _isLoading = true;
+    _users = [];
+    notifyListeners();
+
+    try {
+      final Map<String, String> queryParams = {
+        'q': query.isNotEmpty ? query : '*',
+        'query_by': 'display_name',
+        'page': '1',
+        'per_page': '5',
+      };
+
+      final response = await TypesenseHttpClient.get(
+        '/collections/users/documents/search',
+        queryParams,
+      );
+      final hits = response['hits'] as List<dynamic>;
+      _users =
+          hits.map((hit) => hit['document'] as Map<String, dynamic>).toList();
+    } catch (e) {
+      print('Error fetching users: $e');
+      _users = [];
+    }
+
+    _isLoading = false;
+    notifyListeners();
+  }
+
   Map<String, List<Map<String, dynamic>>> _rowRecipes = {
     'recommended': [],
     'newRecipes': [],
@@ -144,6 +253,42 @@ class SearchProvider with ChangeNotifier {
     }
 
     _isLoading = false;
+    notifyListeners();
+  }
+
+  Future<void> fetchFuzzyRecipes({
+    required String title,
+    required String description,
+    required List<String> ingredients,
+  }) async {
+    _isLoadingSimilarRecipes = true;
+    notifyListeners();
+
+    try {
+      final query = "$title $description ${ingredients.join(' ')}";
+
+      final response = await TypesenseHttpClient.get(
+        '/collections/recipes/documents/search',
+        {
+          'q': query,
+          'query_by': 'title,description,ingredients',
+          'num_typos': '4',
+          'per_page': '3',
+        },
+      );
+
+      final hits = response['hits'] as List<dynamic>;
+      _similarRecipes = hits.map((hit) {
+        return hit['document'] as Map<String, dynamic>;
+      }).toList();
+
+      print("Fuzzy Search Results: $_similarRecipes");
+    } catch (e) {
+      print('Error fetching fuzzy recipes: $e');
+      _similarRecipes = [];
+    }
+
+    _isLoadingSimilarRecipes = false;
     notifyListeners();
   }
 

@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/widgets/filterModal.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:food_fellas/src/widgets/searchFilterModal.dart';
@@ -76,39 +77,186 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
           // Search Bar
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: TextField(
-              decoration: InputDecoration(
-                labelText: 'Search Recipes',
-                border: OutlineInputBorder(),
-                prefixIcon: Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: Icon(Icons.filter_list),
-                  onPressed: () => _openFilterModal(context),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    decoration: InputDecoration(
+                      labelText: _getTooltipForMode(searchProvider.searchMode),
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.search),
+                      suffixIcon: searchProvider.searchMode != SearchMode.users
+                          ? IconButton(
+                              icon: Icon(Icons.filter_list),
+                              onPressed: () => _openFilterModal(context),
+                            )
+                          : null,
+                    ),
+                    onChanged: (query) {
+                      // Depending on the toggle, call appropriate method
+                      if (searchProvider.searchMode == SearchMode.users) {
+                        searchProvider.fetchUsers(query);
+                      } else if (searchProvider.searchMode ==
+                          SearchMode.recipes) {
+                        searchProvider.updateQuery(query);
+                      } else if (searchProvider.searchMode == SearchMode.both) {
+                        searchProvider.fetchMultiSearch(query);
+                      }
+                    },
+                  ),
                 ),
-              ),
-              onChanged: (query) {
-                searchProvider.updateQuery(query);
-              },
+                // Search Toggle
+                _buildSearchToggle(context),
+              ],
             ),
           ),
           // Active Filters Bar
           _buildActiveFilters(context, searchProvider.filters),
           // Search Results
           Expanded(
-            child: searchProvider.isLoading
-                ? Center(child: CircularProgressIndicator())
-                : ListView.builder(
-                    key: PageStorageKey('discover_screen'),
-                    controller: _scrollController,
-                    itemCount: searchProvider.recipes.length,
-                    itemBuilder: (context, index) {
-                      final recipe = searchProvider.recipes[index];
-                      final recipeId = recipe['id'];
-                      return RecipeCard(recipeId: recipeId);
-                    },
-                  ),
+            child: _buildResults(searchProvider),
           ),
         ],
+      ),
+    );
+  }
+
+  String _getTooltipForMode(SearchMode mode) {
+    switch (mode) {
+      case SearchMode.users:
+        return "Search Users";
+      case SearchMode.recipes:
+        return "Search Recipes";
+      case SearchMode.both:
+        return "Search Recipes & Users";
+      default:
+        return "Unknown Mode";
+    }
+  }
+
+  Widget _buildSearchToggle(BuildContext context) {
+    final searchProvider = Provider.of<SearchProvider>(context);
+
+    IconData _getIconForMode(SearchMode mode) {
+      switch (mode) {
+        case SearchMode.users:
+          return Icons.person;
+        case SearchMode.recipes:
+          return Icons.restaurant_menu;
+        case SearchMode.both:
+          return Icons.search;
+        default:
+          return Icons.help;
+      }
+    }
+
+    void _toggleSearchMode() {
+      switch (searchProvider.searchMode) {
+        case SearchMode.users:
+          searchProvider.setSearchMode(SearchMode.recipes);
+          break;
+        case SearchMode.recipes:
+          searchProvider.setSearchMode(SearchMode.both);
+          break;
+        case SearchMode.both:
+          searchProvider.setSearchMode(SearchMode.users);
+          break;
+      }
+    }
+
+    return Padding(
+      padding: EdgeInsets.symmetric(vertical: 8),
+      child: IconButton(
+        icon: Icon(_getIconForMode(searchProvider.searchMode)),
+        tooltip: _getTooltipForMode(searchProvider.searchMode),
+        onPressed: _toggleSearchMode,
+      ),
+    );
+  }
+
+  Widget _buildResults(SearchProvider searchProvider) {
+    if (searchProvider.isLoading) {
+      return Center(child: CircularProgressIndicator());
+    }
+
+    // If "Users" only
+    if (searchProvider.searchMode == SearchMode.users) {
+      if (searchProvider.users.isEmpty) {
+        return Center(child: Text("No users found."));
+      }
+      return ListView.builder(
+        itemCount: searchProvider.users.length,
+        itemBuilder: (context, index) {
+          final userDoc = searchProvider.users[index];
+          return _buildUserTile(context, userDoc);
+        },
+      );
+    }
+
+    // If "Recipes" only (old behavior)
+    if (searchProvider.searchMode == SearchMode.recipes) {
+      if (searchProvider.recipes.isEmpty) {
+        return Center(child: Text("No recipes found."));
+      }
+      return ListView.builder(
+        controller: _scrollController,
+        itemCount: searchProvider.recipes.length,
+        itemBuilder: (context, index) {
+          final recipe = searchProvider.recipes[index];
+          return RecipeCard(recipeId: recipe['id']);
+        },
+      );
+    }
+
+    // If "Both": show user(s) first if any, then recipes
+    if (searchProvider.searchMode == SearchMode.both) {
+      // If both sets are empty
+      if (searchProvider.users.isEmpty && searchProvider.recipes.isEmpty) {
+        return Center(child: Text("No results found."));
+      }
+      return ListView(
+        children: [
+          // 1) Possibly show a user section if _users is not empty
+          if (searchProvider.users.isNotEmpty)
+            ...searchProvider.users.map((userDoc) {
+              return _buildUserTile(context, userDoc);
+            }).toList(),
+
+          // 2) Then show the recipes
+          if (searchProvider.recipes.isNotEmpty)
+            ...searchProvider.recipes.map((recipe) {
+              return RecipeCard(recipeId: recipe['id']);
+            }).toList(),
+        ],
+      );
+    }
+
+    // Fallback
+    return Container();
+  }
+
+  Widget _buildUserTile(BuildContext context, Map<String, dynamic> userData) {
+    // This is how you might replicate your userFollowerList_screen style.
+    // For example, tapping navigates to that user’s ProfileScreen.
+    return ListTile(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => ProfileScreen(userId: userData['id']),
+          ),
+        );
+      },
+      leading: CircleAvatar(
+        radius: 25,
+        backgroundImage: NetworkImage(userData['photo_url'] ?? ''),
+        backgroundColor: Colors.transparent,
+      ),
+      title: Text(userData['display_name'] ?? 'Unknown'),
+      subtitle: Text(
+        userData['shortDescription'] ?? '',
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
       ),
     );
   }

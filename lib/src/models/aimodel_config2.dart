@@ -18,8 +18,6 @@ GenerativeModel? getGenerativeModel(
       ''';
   }
 
-  print('User preferences: $userPreferences');
-
   final model = FirebaseVertexAI.instance.generativeModel(
     model: 'gemini-1.5-flash',
     systemInstruction: Content.system('''
@@ -52,26 +50,31 @@ GenerativeModel? getGenerativeModel(
     - Continue to be friendly, casual, and encouraging.
 
     3. **When User Chooses a Recipe**  
-    **Do NOT immediately give the full recipe JSON.**  
+    Do NOT immediately give the full recipe JSON. 
     Instead, provide a short "preview" JSON with the following fields:
     ```json
     {
       "title": "String",
-      "shortDescription": "String",
+      "description": "String",
       "ingredients": ["String", "String", ...]
     }
 
+    ```
+
       •	Title: the recipe name
-      •	shortDescription: 1–2 sentences describing it
-      •	mainIngredients: a short array of the main ingredients (2–5 items)
+      •	Description: 1–2 sentences describing it
+      •	Ingredients: a short array of the main ingredients (2–5 items)
 
     For example:
 
+   ```json
     {
       "title": "Chicken Alfredo Pasta 🍲",
       "shortDescription": "A creamy pasta dish with grilled chicken in Alfredo sauce.",
       "mainIngredients": ["Chicken Breast", "Pasta", "Cream", "Parmesan Cheese"]
     }
+
+    ```
 
     Then say something like:
     “Here is a quick look at [Recipe Title]. Let me know if this is what you’re looking for or if you’d like me to generate a full recipe!”
@@ -80,6 +83,7 @@ GenerativeModel? getGenerativeModel(
       5.	Generating the Full Recipe
     If the user says “Yes, generate a brand-new recipe” (or they confirm they want your new version), then provide the complete JSON with the following structure:
 
+   ```json
     {
       "title": "String",
       "description": "String",
@@ -107,8 +111,11 @@ GenerativeModel? getGenerativeModel(
       "imageUrl": "String"
     }
 
+    ```
+
     Example of Full Recipe JSON:
 
+   ```json
     {
       "title": "Chicken Alfredo Pasta 🍲",
       "description": "A creamy and delicious pasta dish with grilled chicken and Alfredo sauce.",
@@ -147,6 +154,8 @@ GenerativeModel? getGenerativeModel(
       ],
     }
 
+    ```
+
 
     Additional Requirements
       •	Use metric units (grams, milliliters, etc.).
@@ -161,7 +170,7 @@ GenerativeModel? getGenerativeModel(
 
     Always keep the conversation fun but concise. Provide the “short preview JSON” first when a recipe is chosen, so FoodFellas can do a database check. Only provide the full recipe JSON once asked for or confirmed.
     '''),
-    );
+  );
 
   return model;
 }

@@ -148,7 +148,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                   backgroundColor: _currentStep > 0
                       ? Theme.of(context).colorScheme.primary
                       : Colors.grey,
-                  child: Icon(Icons.arrow_back),
+                  child: Icon(Icons.arrow_back, color: Colors.white),
                 ),
                 FloatingActionButton(
                   heroTag: "nextPageBtn",
@@ -157,10 +157,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                       : _submitForm,
                   backgroundColor: Theme.of(context).colorScheme.primary,
                   child: Icon(
-                    _currentStep < _totalSteps() - 1
-                        ? Icons.arrow_forward
-                        : Icons.check,
-                  ),
+                      _currentStep < _totalSteps() - 1
+                          ? Icons.arrow_forward
+                          : Icons.check,
+                      color: Colors.white),
                 ),
               ],
             ),
@@ -303,7 +303,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           _isSubmitting = false;
         });
 
-        // Navigate to the recipe detail page or back to the previous screen
+        Navigator.pop(context);
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(

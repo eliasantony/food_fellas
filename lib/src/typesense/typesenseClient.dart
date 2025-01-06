@@ -25,6 +25,20 @@ class TypesenseHttpClient {
     }
   }
 
+  // Generic POST
+  static Future<http.Response> post(String endpoint, dynamic body) async {
+    final url = Uri.parse('$_baseUrl$endpoint');
+    final response = await http.post(
+      url,
+      headers: {
+        'X-TYPESENSE-API-KEY': _apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: jsonEncode(body),
+    );
+    return response;
+  }
+
   // Vector Search for Similar Recipes
   static Future<List<Map<String, dynamic>>> fetchSimilarRecipes(
       List<double> embeddings, int numNeighbors) async {

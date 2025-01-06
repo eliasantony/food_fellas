@@ -19,7 +19,7 @@ Alright, let's get you started with a Quick Quesadilla!
 ```json
 {
   "title": "Quick Quesadilla 🌯",
-  "shortDescription": "A super easy and customizable quesadilla, perfect for a quick meal or snack. Just cheese and tortillas are required but you can add in other ingredients.",
+  "description": "A super easy and customizable quesadilla, perfect for a quick meal or snack. Just cheese and tortillas are required but you can add in other ingredients.",
   "ingredients": ["Tortillas", "Cheese"]
 }
 ```

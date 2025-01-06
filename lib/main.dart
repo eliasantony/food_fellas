@@ -85,6 +85,9 @@ class _MainAppState extends State<MainApp> {
         colorScheme: ColorScheme.fromSeed(
           seedColor: const Color(0xFF1A8100),
           brightness: Brightness.light,
+        ).copyWith(
+          primary: const Color(0xFF1A8100),
+          secondary: const Color(0xFFFEB47B),
         ),
       ),
       darkTheme: ThemeData(

@@ -65,6 +65,9 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
       child: ListView(
         padding: EdgeInsets.all(16.0),
         children: <Widget>[
+          Text('Whats this recipe about?',
+              style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 16),
           TextFormField(
             initialValue: widget.recipe.title,
             decoration: const InputDecoration(
@@ -78,7 +81,7 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
             onChanged: (value) => widget.onDataChanged('title', value.trim()),
             onSaved: (value) => widget.recipe.title = value!.trim(),
           ),
-          const SizedBox(height: 16),
+          const SizedBox(height: 8),
           TextFormField(
             initialValue: widget.recipe.description,
             decoration: const InputDecoration(
@@ -94,11 +97,10 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
                 widget.onDataChanged('description', value.trim()),
             onSaved: (value) => widget.recipe.description = value!.trim(),
           ),
-          const SizedBox(height: 16),
-          const SizedBox(height: 16),
-          Text('Preparation Time',
+          const SizedBox(height: 32),
+          Text('How long does it take to make this recipe?',
               style: TextStyle(fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           _buildTimeInput(
             label: 'Preparation Time',
             timeValue: _prepTimeValue,
@@ -112,8 +114,6 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
               _updateTotalTime();
             },
           ),
-          const SizedBox(height: 16),
-          Text('Cooking Time', style: TextStyle(fontWeight: FontWeight.bold)),
           const SizedBox(height: 8),
           _buildTimeInput(
             label: 'Cooking Time',

@@ -38,12 +38,20 @@ app.*.symbols
 # Obfuscation related
 app.*.map.json
 
+# APK files
+**/outputs/**/*.apk
+**/flutter_assets/kernel_blob.bin
+
+# Flutter- and Android-Build-Artefacts
+android/app/build/
+android/build/
+build/
+
 # Android Studio will place build artifacts here
 /android/app/debug
 /android/app/profile
 /android/app/release
 /android/app/build
-android/app/
 
 node_modules
 populateTageCollection.js
