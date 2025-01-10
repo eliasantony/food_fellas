@@ -134,11 +134,35 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "FoodFellas' AI Chef",
-          style: GoogleFonts.poppins(
-            color: Color(0xFF116131),
-            fontWeight: FontWeight.w600,
+        centerTitle: true,
+        title: ShaderMask(
+          shaderCallback: (bounds) {
+            if (Theme.of(context).brightness == Brightness.dark) {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.secondary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            } else {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            }
+          },
+          child: Text(
+            "FoodFellas' AI Chef",
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         actions: [

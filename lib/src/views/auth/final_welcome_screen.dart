@@ -100,10 +100,16 @@ class FinalWelcomeScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => _navigateToHome(context),
-                      child: Text('Explore Recipes'),
+                      child: Text(
+                        'Explore Recipes',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
                       style: ElevatedButton.styleFrom(
                         padding:
                             EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),

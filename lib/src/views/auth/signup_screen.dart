@@ -29,29 +29,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
     });
 
     try {
+      // Validate Email
       if (_emailController.text.trim().isEmpty) {
         setState(() {
           _emailError = 'Email cannot be empty';
         });
         return;
       }
+      if (!_emailController.text.trim().contains('@')) {
+        setState(() {
+          _emailError = 'Enter a valid email address';
+        });
+        return;
+      }
 
+      // Validate Password
       if (_passwordController.text.isEmpty) {
         setState(() {
           _passwordError = 'Password cannot be empty';
         });
         return;
       }
+      if (_passwordController.text.length < 6) {
+        setState(() {
+          _passwordError =
+              'Password is too short. It must be at least 6 characters long.';
+        });
+        return;
+      }
 
+      // Create User
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
         password: _passwordController.text,
       );
 
-      Navigator.push(
-        context,
-        MaterialPageRoute(builder: (context) => const UserInfoScreen()),
+      // Send Verification Email
+      await userCredential.user?.sendEmailVerification();
+
+      // Inform the user to verify email
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const Text("Verify Your Email"),
+          content: const Text(
+              "A verification email has been sent to your email address. Please verify to continue."),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => const UserInfoScreen()),
+                );
+              },
+              child: const Text("Continue"),
+            ),
+          ],
+        ),
       );
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
@@ -60,22 +96,25 @@ class _SignUpScreenState extends State<SignUpScreen> {
         });
       } else if (e.code == 'weak-password') {
         setState(() {
-          _passwordError = 'The password is too weak.';
+          _passwordError = 'Password is too weak.';
         });
       } else {
-        print('Error: $e');
+        setState(() {
+          _emailError = 'An error occurred: ${e.message}';
+        });
       }
     } catch (e) {
-      print('Error: $e');
+      setState(() {
+        _emailError = 'An unknown error occurred: $e';
+      });
     }
   }
 
   Future<void> _signInWithGoogle() async {
     try {
       final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) {
-        return;
-      }
+      if (googleUser == null) return; // User canceled the Google Sign-In
+
       final GoogleSignInAuthentication googleAuth =
           await googleUser.authentication;
 
@@ -84,35 +123,51 @@ class _SignUpScreenState extends State<SignUpScreen> {
         idToken: googleAuth.idToken,
       );
 
-      await _auth.signInWithCredential(credential);
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Navigate to InitializerWidget to decide where to go next
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      // Check if this is a new user (you can add additional onboarding logic here)
+      if (userCredential.additionalUserInfo?.isNewUser == true) {
+        print('New Google user signed up');
+      } else {
+        print('Existing Google user signed in');
+      }
     } catch (e) {
-      print(e);
+      print('Error signing in with Google: $e');
+      setState(() {
+        _emailError = 'Google Sign-In failed: $e';
+      });
     }
   }
 
   Future<void> _signInWithApple() async {
     try {
-      final credential = await SignInWithApple.getAppleIDCredential(
+      final appleCredential = await SignInWithApple.getAppleIDCredential(
         scopes: [
           AppleIDAuthorizationScopes.email,
           AppleIDAuthorizationScopes.fullName,
         ],
       );
 
-      final oauthCredential = OAuthProvider("apple.com").credential(
-        idToken: credential.identityToken,
-        accessToken: credential.authorizationCode,
+      final credential = OAuthProvider("apple.com").credential(
+        idToken: appleCredential.identityToken,
+        accessToken: appleCredential.authorizationCode,
       );
 
-      await _auth.signInWithCredential(oauthCredential);
+      final userCredential =
+          await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Navigate to InitializerWidget to decide where to go next
-      Navigator.pushNamedAndRemoveUntil(context, '/', (route) => false);
+      // Check if this is a new user
+      if (userCredential.additionalUserInfo?.isNewUser == true) {
+        print('New Apple user signed up');
+      } else {
+        print('Existing Apple user signed in');
+      }
     } catch (e) {
-      print(e);
+      print('Error signing in with Apple: $e');
+      setState(() {
+        _emailError = 'Apple Sign-In failed: $e';
+      });
     }
   }
 
@@ -125,38 +180,57 @@ class _SignUpScreenState extends State<SignUpScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.secondary,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: Text(
+                  'Welcome to FoodFellas!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors
+                            .white, // This color will be masked by the gradient
+                      ),
+                  textAlign: TextAlign.center,
+                ),
+              ),
+              const SizedBox(height: 10),
               Text(
-                'Create Your Account',
-                style: Theme.of(context).textTheme.headlineMedium,
+                'Join the community and create\nyour FoodFellas Account',
+                style: Theme.of(context).textTheme.bodyLarge,
+                textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              if (_emailError != null)
-                Text(
-                  _emailError!,
-                  style: const TextStyle(color: Colors.red),
-                ),
               TextField(
                 controller: _emailController,
                 decoration: InputDecoration(
                   labelText: 'Your email address',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: _emailError != null ? Colors.red : Colors.grey,
+                    ),
                   ),
+                  errorText: _emailError,
                 ),
               ),
               const SizedBox(height: 10),
-              if (_passwordError != null)
-                Text(
-                  _passwordError!,
-                  style: const TextStyle(color: Colors.red),
-                ),
               TextField(
                 controller: _passwordController,
                 decoration: InputDecoration(
                   labelText: 'Create a password',
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide(
+                      color: _passwordError != null ? Colors.red : Colors.grey,
+                    ),
                   ),
+                  errorText: _passwordError,
                 ),
                 obscureText: true,
               ),
@@ -166,13 +240,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 child: ElevatedButton(
                   onPressed: _signUpWithEmail,
                   style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
                     padding: const EdgeInsets.symmetric(
                         horizontal: 30, vertical: 15),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),
                     ),
                   ),
-                  child: const Text('Create Account'),
+                  child: Text(
+                    'Create Account',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary),
+                  ),
                 ),
               ),
               const SizedBox(height: 20),

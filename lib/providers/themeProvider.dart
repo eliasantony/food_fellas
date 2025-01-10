@@ -16,6 +16,7 @@ class ThemeProvider extends ChangeNotifier {
   Future<void> _loadThemePreference() async {
     final prefs = await SharedPreferences.getInstance();
     if (prefs.containsKey('isDarkMode')) {
+      
       _isDarkMode = prefs.getBool('isDarkMode') ?? false;
     } else {
       // Check the system theme if no preference is saved

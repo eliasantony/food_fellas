@@ -46,7 +46,7 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Avatar Creator'),
+        title: const Text('Avatar Creator'),
       ),
       body: Column(
         children: [
@@ -67,104 +67,158 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
               ),
             ),
           ),
-          SizedBox(height: 10),
+          const SizedBox(height: 10),
           buildColorPicker(),
-          SizedBox(height: 20),
-          // Category Selector Row
-          buildCategorySelector(),
-          // Grid View for selecting atoms
+          const SizedBox(height: 20),
+
+          // Category Selector + GridView + Bottom Button in a Container
           Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: GridView.builder(
-                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: 4,
-                  crossAxisSpacing: 5.0,
-                  mainAxisSpacing: 5.0,
+            child: Container(
+              decoration: BoxDecoration(
+                color: Colors.grey[600], // Light grey background
+                borderRadius: const BorderRadius.only(
+                  topLeft: Radius.circular(24),
+                  topRight: Radius.circular(24),
                 ),
-                itemCount: currentAtoms.length,
-                itemBuilder: (context, index) {
-                  PeepAtom atom = currentAtoms[index];
-                  bool isSelected =
-                      selectedAtom == atom; // Check if the atom is selected
-                  return GestureDetector(
-                    onTap: () => _onAtomSelected(atom),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        border: Border.all(
-                          color: isSelected
-                              ? Colors.blueAccent
-                              : Colors.transparent,
-                          width: 2.0,
+              ),
+              child: Column(
+                children: [
+                  // Category Selector
+                  buildCategorySelectorContainer(),
+
+                  // Grid View
+                  Expanded(
+                    child: Padding(
+                      padding: const EdgeInsets.all(8.0),
+                      child: GridView.builder(
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 8.0,
+                          mainAxisSpacing: 8.0,
                         ),
-                        borderRadius: BorderRadius.circular(8.0),
-                      ),
-                      child: Center(
-                        child: PeepImage(
-                          peepAtom: atom,
-                          size: (selectedCategory == 'Face' ||
-                                  selectedCategory == 'Accessories')
-                              ? 96
-                              : 64, // Adjust size based on category
-                        ), // Display the image of the atom
+                        itemCount: currentAtoms.length,
+                        itemBuilder: (context, index) {
+                          PeepAtom atom = currentAtoms[index];
+                          bool isSelected = selectedAtom == atom;
+                          return GestureDetector(
+                            onTap: () => _onAtomSelected(atom),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                border: Border.all(
+                                  color: isSelected
+                                      ? Theme.of(context).colorScheme.primary
+                                      : Colors.transparent,
+                                  width: 2.0,
+                                ),
+                                borderRadius: BorderRadius.circular(8.0),
+                                color: Colors.grey[600],
+                              ),
+                              child: Center(
+                                child: PeepImage(
+                                  peepAtom: atom,
+                                  size: (selectedCategory == 'Face' ||
+                                          selectedCategory == 'Accessories')
+                                      ? 96
+                                      : 64,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                     ),
-                  );
-                },
+                  ),
+
+                  // Bottom Button
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 24.0),
+                    child: ElevatedButton.icon(
+                      onPressed: () async {
+                        Uint8List? capturedImage =
+                            await screenshotController.capture();
+                        if (capturedImage != null) {
+                          Navigator.pop(context, capturedImage);
+                        }
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 30, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(24),
+                        ),
+                      ),
+                      icon: Icon(
+                        Icons.check,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                      label: Text(
+                        'Use Avatar',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
           ),
-          SizedBox(height: 20),
-          ElevatedButton(
-            onPressed: () async {
-              Uint8List? capturedImage = await screenshotController.capture();
-              if (capturedImage != null) {
-                Navigator.pop(context, capturedImage);
-              }
-            },
-            child: Text('Use Avatar'),
-          ),
-          SizedBox(height: 20),
         ],
       ),
     );
   }
 
-  Widget buildCategorySelector() {
+  /// Wraps the Category Selector with rounded corners and padding.
+  Widget buildCategorySelectorContainer() {
     return Padding(
-      padding: const EdgeInsets.all(8.0),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceAround,
-        children: categories.map((category) {
-          return GestureDetector(
-            onTap: () {
-              setState(() {
-                selectedCategory = category;
-                _updateCurrentAtoms(); // Update grid view when category is changed
-              });
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              decoration: BoxDecoration(
-                border: Border(
-                  bottom: BorderSide(
-                    color: selectedCategory == category
-                        ? Colors.blue
-                        : Colors.transparent,
-                    width: 2.0,
+      padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.grey[700],
+          borderRadius: BorderRadius.circular(16.0),
+        ),
+        padding: const EdgeInsets.all(8.0),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.spaceAround,
+          children: categories.map((category) {
+            bool isSelected = selectedCategory == category;
+            return GestureDetector(
+              onTap: () {
+                setState(() {
+                  selectedCategory = category;
+                  _updateCurrentAtoms();
+                });
+              },
+              child: Container(
+                padding:
+                    const EdgeInsets.symmetric(vertical: 8.0, horizontal: 12),
+                decoration: BoxDecoration(
+                  border: Border(
+                    bottom: BorderSide(
+                      color: isSelected
+                          ? Theme.of(context).colorScheme.primary
+                          : Colors.transparent,
+                      width: 2.0,
+                    ),
+                  ),
+                ),
+                child: Text(
+                  category,
+                  style: TextStyle(
+                    color: isSelected
+                        ? Theme.of(context).colorScheme.primary
+                        : Theme.of(context).colorScheme.onSurfaceVariant,
+                    fontWeight:
+                        isSelected ? FontWeight.bold : FontWeight.normal,
                   ),
                 ),
               ),
-              child: Text(
-                category,
-                style: TextStyle(
-                  color:
-                      selectedCategory == category ? Colors.blue : Colors.black,
-                ),
-              ),
-            ),
-          );
-        }).toList(),
+            );
+          }).toList(),
+        ),
       ),
     );
   }
@@ -206,11 +260,12 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
   }
 
   Widget buildColorPicker() {
-    return ElevatedButton(
+    return ElevatedButton.icon(
       onPressed: () {
         pickBackgroundColor();
       },
-      child: Text('Pick Background Color'),
+      icon: Icon(Icons.color_lens),
+      label: Text('Pick Background Color'),
     );
   }
 

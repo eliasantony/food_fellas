@@ -84,7 +84,6 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                 leading: Icon(Icons.photo_library),
                 title: Text('Upload a Picture'),
                 onTap: () {
-                  Navigator.of(context).pop();
                   _pickImage();
                 },
               ),
@@ -92,7 +91,6 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                 leading: Icon(Icons.person),
                 title: Text('Create an Avatar'),
                 onTap: () {
-                  Navigator.of(context).pop();
                   _navigateToAvatarBuilder();
                 },
               ),
@@ -107,82 +105,168 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Tell Us About Yourself'),
+        title: const Text('Profile Infos'),
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            GestureDetector(
-              onTap: _showImageSourceDialog,
-              child: CircleAvatar(
-                radius: 60,
-                backgroundImage:
-                    _profileImage != null ? MemoryImage(_profileImage!) : null,
-                child: _profileImage == null
-                    ? Icon(
-                        Icons.person,
-                        size: 60,
-                        color: Theme.of(context).colorScheme.onSurfaceVariant,
-                      )
-                    : null,
+      body: Column(
+        children: [
+          Expanded(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Column(
+                      children: [
+                        GestureDetector(
+                          onTap: _showImageSourceDialog,
+                          child: CircleAvatar(
+                            radius: 70,
+                            backgroundImage: _profileImage != null
+                                ? MemoryImage(_profileImage!)
+                                : null,
+                            backgroundColor: Colors.transparent,
+                            child: _profileImage == null
+                                ? Icon(
+                                    Icons.person,
+                                    size: 60,
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onSurfaceVariant,
+                                  )
+                                : null,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          'Tap to Upload Photo',
+                          style: const TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 20),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceAround,
+                    children: [
+                      ElevatedButton.icon(
+                        onPressed: () => _pickImage(),
+                        icon: const Icon(Icons.add_a_photo),
+                        label: const Text('Upload Photo'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.all(16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                      ElevatedButton.icon(
+                        onPressed: () => _navigateToAvatarBuilder(),
+                        icon: const Icon(Icons.person),
+                        label: const Text('Create Avatar'),
+                        style: ElevatedButton.styleFrom(
+                          padding: const EdgeInsets.all(16),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 30),
+                  Text(
+                    'Tell us about yourself',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  TextField(
+                    controller: _displayNameController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.person_outline),
+                      labelText: 'Display Name',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  TextField(
+                    controller: _shortDescriptionController,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.text_snippet_outlined),
+                      labelText: 'Short Description',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                    maxLines: 3,
+                  ),
+                  const SizedBox(height: 20),
+                  Text(
+                    'For how many people do you usually cook?',
+                    style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                          fontWeight: FontWeight.bold,
+                        ),
+                  ),
+                  const SizedBox(height: 10),
+                  TextField(
+                    controller: _preferredServingsController,
+                    keyboardType: TextInputType.number,
+                    decoration: InputDecoration(
+                      prefixIcon: const Icon(Icons.people_outline),
+                      labelText: 'Preferred Servings',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ),
-            const SizedBox(height: 20),
-            // Display Name
-            TextField(
-              controller: _displayNameController,
-              decoration: InputDecoration(
-                labelText: 'Display Name',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Short Description
-            TextField(
-              controller: _shortDescriptionController,
-              decoration: InputDecoration(
-                labelText: 'Short Description',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-              maxLines: 3,
-            ),
-            const SizedBox(height: 10),
-            Text(
-              'For how many people do you usually cook?',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-            TextField(
-              controller: _preferredServingsController,
-              keyboardType: TextInputType.number,
-              decoration: InputDecoration(
-                labelText: 'Preferred Servings',
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-              ),
-            ),
-            const Spacer(),
-            SizedBox(
+          ),
+          // The Next Button at the Bottom
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+            child: SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: _navigateToNext,
-                child: const Text('Next'),
                 style: ElevatedButton.styleFrom(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 30,
+                    vertical: 15,
+                  ),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      'Next',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Icon(
+                      Icons.arrow_forward,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ],
                 ),
               ),
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

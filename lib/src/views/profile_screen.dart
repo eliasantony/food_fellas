@@ -3,16 +3,21 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
+import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
 import 'package:food_fellas/src/views/editProfile_screen.dart';
+import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/userFollowerList_screen.dart';
 import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:food_fellas/src/widgets/recipeList_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart';
+import 'package:provider/provider.dart';
 import '../widgets/recipeCard.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -28,7 +33,6 @@ class ProfileScreen extends StatefulWidget {
   @override
   _ProfileScreenState createState() => _ProfileScreenState();
 }
-
 
 class _ProfileScreenState extends State<ProfileScreen> {
   bool isFollowing = false;
@@ -148,8 +152,37 @@ class _ProfileScreenState extends State<ProfileScreen> {
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('${userData['display_name']}',
-            style: theme.textTheme.titleLarge),
+        centerTitle: true,
+        title: ShaderMask(
+          shaderCallback: (bounds) {
+            if (Theme.of(context).brightness == Brightness.dark) {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.secondary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            } else {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            }
+          },
+          child: Text(
+            "Profile",
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ),
         backgroundColor: theme.appBarTheme.backgroundColor,
         actions: isCurrentUser
             ? [
@@ -185,6 +218,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ),
               ]
             : [],
+        leading: Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+          child: SizedBox(
+            width: 8,
+            height: 8,
+            child: Image.asset(
+              'lib/assets/brand/hat.png',
+              fit: BoxFit.contain,
+            ),
+          ),
+        ),
       ),
       body: SingleChildScrollView(
         child: Column(
@@ -199,6 +243,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildRecipesSection(context, theme, userData),
             // Collections Section
             _buildCollectionsSection(context, theme, userData, isCurrentUser),
+            SizedBox(height: 20),
           ],
         ),
       ),
@@ -221,25 +266,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
             backgroundColor: Colors.transparent,
           ),
           SizedBox(width: 8),
-                  Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                displayName,
-                style: theme.textTheme.headlineSmall,
-              ),
-              SizedBox(height: 4),
-              Text(
-                shortDescription,
-                style: theme.textTheme.titleMedium,
-                textAlign: TextAlign.left,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ],
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  displayName,
+                  style: theme.textTheme.headlineSmall,
+                ),
+                SizedBox(height: 4),
+                Text(
+                  shortDescription,
+                  style: theme.textTheme.titleMedium,
+                  textAlign: TextAlign.left,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
           ),
-        ),
           if (!isCurrentUser) Spacer(),
           if (!isCurrentUser)
             Tooltip(
@@ -465,11 +510,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                 // No collections yet
                 if (isCurrentUser) {
-                  return ListView(
-                    scrollDirection: Axis.horizontal,
-                    children: [
-                      _buildCreateCollectionCard(context, theme),
-                    ],
+                  return Padding(
+                    padding: const EdgeInsets.only(left: 8.0),
+                    child: ListView(
+                      scrollDirection: Axis.horizontal,
+                      children: [
+                        _buildCreateCollectionCard(context, theme),
+                      ],
+                    ),
                   );
                 } else {
                   return Center(
@@ -493,8 +541,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       final collection = collections[index];
                       final collectionData =
                           collection.data() as Map<String, dynamic>;
-                      return _buildCollectionCard(
-                          context, theme, collection.id, collectionData);
+                      final userRole = userData['display_name'];
+                      return _buildCollectionCard(context, theme, userId,
+                          userRole, collection.id, collectionData);
                     }
                   },
                 ),
@@ -507,8 +556,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 // Collection Card
-  Widget _buildCollectionCard(BuildContext context, ThemeData theme,
-      String collectionId, Map<String, dynamic> collectionData) {
+  Widget _buildCollectionCard(
+      BuildContext context,
+      ThemeData theme,
+      String userId,
+      String userRole,
+      String collectionId,
+      Map<String, dynamic> collectionData) {
     String name = collectionData['name'] ?? 'Unnamed';
     String icon = collectionData['icon'] ?? '🍽';
     List<dynamic> recipes = collectionData['recipes'] ?? [];
@@ -520,6 +574,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => CollectionDetailScreen(
+              userId: userId,
+              userRole: userRole,
               collectionId: collectionId,
               collectionEmoji: icon,
               collectionName: name,
@@ -577,7 +633,124 @@ class _ProfileScreenState extends State<ProfileScreen> {
               Icon(Icons.add, size: 40),
               SizedBox(height: 8),
               Text(
-                'Create New',
+                'Create New Collection',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  // Create New Collection Card
+  Widget _buildCreateRecipeCard(BuildContext context, ThemeData theme) {
+    return GestureDetector(
+      onTap: () {
+        _showCreateRecipeOptions(context);
+      },
+      child: Card(
+        child: Container(
+          width: 120,
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.add, size: 40),
+              SizedBox(height: 8),
+              Text(
+                'Create New Recipe',
+                textAlign: TextAlign.center,
+                style: theme.textTheme.titleMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  void _showCreateRecipeOptions(context) {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.create),
+                title: Text('Manually create a recipe'),
+                onTap: () {
+                  Navigator.pop(context); // Close the bottom sheet
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => AddRecipeForm()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.camera_alt),
+                title: Text('Use the Image to Recipe feature'),
+                onTap: () {
+                  Navigator.pop(context); // Close the bottom sheet
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => ImageToRecipeScreen()),
+                  );
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.chat),
+                title: Text('Chat with our Recipe AI'),
+                onTap: () {
+                  Navigator.pop(context); // Close the bottom sheet
+                  Provider.of<BottomNavBarProvider>(context, listen: false)
+                      .setIndex(3);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  // Create show all recipes Card
+  Widget _buildShowAllRecipesCard(BuildContext context, ThemeData theme) {
+    final String titleForRecipes;
+    if (isCurrentUser) {
+      titleForRecipes = 'My Recipes';
+    } else {
+      titleForRecipes = '${userData?['display_name']}\'s Recipes';
+    }
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipesListScreen(
+              baseQuery: FirebaseFirestore.instance
+                  .collection('recipes')
+                  .where('authorId', isEqualTo: widget.userId),
+              title: titleForRecipes,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        child: Container(
+          width: 120,
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.more_horiz, size: 40),
+              SizedBox(height: 8),
+              Text(
+                'Show All Recipes',
                 textAlign: TextAlign.center,
                 style: theme.textTheme.titleMedium,
               ),
@@ -621,22 +794,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
     return Column(
       children: [
-        SizedBox(height: 20),
+        const SizedBox(height: 20),
+        // Section Header
         Container(
           alignment: Alignment.centerLeft,
-          padding: const EdgeInsets.symmetric(horizontal: 16.0),
-          child: // Recipes Section Title
-              Text(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0), // Left Padding
+          child: Text(
             isCurrentUser
                 ? 'My Recipes'
                 : '${userData['display_name']}\'s Recipes',
             style: theme.textTheme.titleLarge,
           ),
         ),
-        SizedBox(height: 10),
-        // Fetch and display user's recipes
-        Container(
-          margin: const EdgeInsets.only(left: 8),
+        const SizedBox(height: 10),
+        // Recipes Row
+        Padding(
+          padding: const EdgeInsets.only(left: 8.0), // Match left padding
           child: _buildUserRecipesRow(context, theme, userData),
         ),
       ],
@@ -651,43 +824,57 @@ class _ProfileScreenState extends State<ProfileScreen> {
       stream: FirebaseFirestore.instance
           .collection('recipes')
           .where('authorId', isEqualTo: userId)
+          .orderBy('createdAt', descending: true) // Ensure proper sorting
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          return Center(child: Text('Error fetching recipes'));
+          print('Error fetching recipes: ${snapshot.error}');
+          return const Center(child: Text('Error fetching recipes'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Center(child: CircularProgressIndicator());
+          return const Center(child: CircularProgressIndicator());
         }
+
         final recipes = snapshot.data!.docs;
 
-        if (recipes.isEmpty) {
-          return Center(child: Text('You have not added any recipes yet.'));
+        // Add the "Create New Recipe" card explicitly
+        List<Widget> recipeWidgets = [
+          if (isCurrentUser) _buildCreateRecipeCard(context, theme),
+        ];
+
+        // Show the latest 5 recipes and add the "Show All Recipes" card if needed
+        if (recipes.isNotEmpty) {
+          recipeWidgets.addAll(
+            recipes.take(5).map((doc) {
+              return RecipeCard(
+                recipeId: doc.id,
+              );
+            }),
+          );
+
+          if (recipes.length > 5) {
+            recipeWidgets.add(
+              _buildShowAllRecipesCard(context, theme),
+            );
+          }
+        } else if (!isCurrentUser) {
+          recipeWidgets.add(
+            Center(
+              child: Text(
+                '${userData['display_name']} has not added any recipes yet.',
+                style: theme.textTheme.bodyLarge,
+              ),
+            ),
+          );
         }
 
-        // Prepare the list of recipe data
-        List<Map<String, dynamic>> recipeDataList = recipes.map((doc) {
-          final data = doc.data() as Map<String, dynamic>;
-          data['recipeId'] = doc.id; // Add recipeId to the data
-          return data;
-        }).toList();
-
-        if (recipes.length > 5) {
-          recipeDataList = recipeDataList.sublist(0, 5);
-        }
-
-        // Add "View All" card if more than 5 recipes
-        if (recipes.length > 5) {
-          // Add "View All" card
-          recipeDataList.add({
-            'isViewAll': true,
-            'userId': userId,
-            'displayName': userData['display_name'],
-            'isCurrentUser': isCurrentUser,
-          });
-        }
-
-        return HorizontalRecipeRow(recipes: recipeDataList);
+        return SizedBox(
+          height: 290,
+          child: ListView(
+            scrollDirection: Axis.horizontal,
+            children: recipeWidgets,
+          ),
+        );
       },
     );
   }

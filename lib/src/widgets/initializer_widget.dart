@@ -7,9 +7,9 @@ import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:food_fellas/src/views/auth/welcome_screen.dart';
 import 'package:food_fellas/main.dart';
 import 'package:provider/provider.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class InitializerWidget extends StatefulWidget {
-
   const InitializerWidget({
     super.key,
   });
@@ -19,32 +19,13 @@ class InitializerWidget extends StatefulWidget {
 }
 
 class _InitializerWidgetState extends State<InitializerWidget> {
-  bool _initialized = false;
-  bool _error = false;
-
-  // Function to initialize Firebase
-  void initializeFlutterFire() async {
-    try {
-      // Wait for Firebase to initialize and set `_initialized` state to true
-      print('Initializing Firebase...');
-      await Firebase.initializeApp();
-      print('Firebase initialized');
-      setState(() {
-        _initialized = true;
-      });
-    } catch (e) {
-      // Set `_error` state to true if Firebase initialization fails
-      print('Firebase initialization error: $e');
-      setState(() {
-        _error = true;
-      });
+  Future<bool> isFirstTimeOpeningApp() async {
+    final prefs = await SharedPreferences.getInstance();
+    final isFirstTime = prefs.getBool('isFirstTime') ?? true;
+    if (isFirstTime) {
+      prefs.setBool('isFirstTime', false); // Mark as no longer first time
     }
-  }
-
-  @override
-  void initState() {
-    super.initState();
-    initializeFlutterFire();
+    return isFirstTime;
   }
 
   Future<bool> checkOnboardingComplete(String uid) async {
@@ -63,20 +44,17 @@ class _InitializerWidgetState extends State<InitializerWidget> {
     }
   }
 
+  @override
+  void initState() {
+    super.initState();
+  }
+
   Future<void> _fetchUserData(String uid) async {
     Provider.of<UserDataProvider>(context, listen: false).updateUserData(uid);
   }
 
-@override
+  @override
   Widget build(BuildContext context) {
-    if (_error) {
-      return _buildErrorScreen();
-    }
-
-    if (!_initialized) {
-      return _buildLoadingScreen();
-    }
-
     return StreamBuilder<User?>(
       stream: FirebaseAuth.instance.authStateChanges(),
       builder: (context, snapshot) {
@@ -107,9 +85,25 @@ class _InitializerWidgetState extends State<InitializerWidget> {
   }
 
   Widget _buildLoadingScreen() {
-    return const Scaffold(
+    return Scaffold(
       body: Center(
-        child: CircularProgressIndicator(),
+        child: Stack(
+          children: [
+            Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [
+                    Color(0xFF1a8100),
+                    Color(0xFFfeb47b),
+                  ],
+                ),
+              ),
+            ),
+            CircularProgressIndicator(),
+          ],
+        ),
       ),
     );
   }

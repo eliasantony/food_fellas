@@ -237,7 +237,7 @@ void _showEmojiPicker(
               indicatorColor: Theme.of(context).colorScheme.primary,
               iconColor: Colors.grey,
               iconColorSelected: Theme.of(context).colorScheme.primary,
-              recentTabBehavior: RecentTabBehavior.RECENT,
+              recentTabBehavior: RecentTabBehavior.NONE,
               categoryIcons:
                   const CategoryIcons(), // Use default icons, can be customized if needed
             ),

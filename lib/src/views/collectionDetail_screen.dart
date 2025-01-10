@@ -6,12 +6,16 @@ import 'package:food_fellas/src/widgets/filterModal.dart';
 import '../widgets/recipeCard.dart';
 
 class CollectionDetailScreen extends StatefulWidget {
+  final String userId;
+  final String userRole;
   final String collectionId;
   final String collectionEmoji;
   final String collectionName;
   final bool collectionVisibility;
 
   CollectionDetailScreen({
+    required this.userId,
+    required this.userRole,
     required this.collectionId,
     required this.collectionEmoji,
     required this.collectionName,
@@ -36,7 +40,7 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
 
   // Fetch recipes in batches due to Firestore's 'whereIn' limitation
   void _fetchRecipes() async {
-    final user = _auth.currentUser;
+    final user = widget.userId;
     if (user == null) {
       // Handle user not logged in
       setState(() {
@@ -48,7 +52,7 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
     try {
       final collectionSnapshot = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .doc(user)
           .collection('collections')
           .doc(widget.collectionId)
           .get();
@@ -339,18 +343,19 @@ class _CollectionDetailScreenState extends State<CollectionDetailScreen> {
             icon: const Icon(Icons.filter_list),
             onPressed: _openFilterModal,
           ),
-          IconButton(
-            icon: Icon(Icons.edit),
-            onPressed: () {
-              showCreateCollectionDialog(
-                context,
-                initialName: widget.collectionName,
-                initialIcon: widget.collectionEmoji,
-                initialVisibility: widget.collectionVisibility,
-                collectionId: widget.collectionId,
-              );
-            },
-          ),
+          if (user.uid == widget.userId || widget.userRole == 'admin')
+            IconButton(
+              icon: Icon(Icons.edit),
+              onPressed: () {
+                showCreateCollectionDialog(
+                  context,
+                  initialName: widget.collectionName,
+                  initialIcon: widget.collectionEmoji,
+                  initialVisibility: widget.collectionVisibility,
+                  collectionId: widget.collectionId,
+                );
+              },
+            ),
         ],
       ),
       body: isLoading

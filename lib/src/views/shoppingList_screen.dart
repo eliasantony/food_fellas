@@ -5,6 +5,8 @@ import 'package:flutter_svg/svg.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 class ShoppingListScreen extends StatelessWidget {
+  const ShoppingListScreen({super.key});
+
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
@@ -16,11 +18,35 @@ class ShoppingListScreen extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text(
-          "Shopping List",
-          style: GoogleFonts.poppins(
-            color: Color(0xFF116131),
-            fontWeight: FontWeight.w600,
+        centerTitle: true,
+        title: ShaderMask(
+          shaderCallback: (bounds) {
+            if (Theme.of(context).brightness == Brightness.dark) {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.secondary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            } else {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            }
+          },
+          child: Text(
+            "Shopping List",
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
+            ),
           ),
         ),
         leading: Padding(

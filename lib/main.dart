@@ -35,6 +35,7 @@ void main() async {
   Gemini.init(apiKey: dotenv.env['GEMINI_API_KEY']!);
 
   await Firebase.initializeApp(
+    name: 'FoodFellas',
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
@@ -102,6 +103,11 @@ class _MainAppState extends State<MainApp> {
       ),
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: InitializerWidget(),
+      routes: {
+        '/login': (context) => const LoginScreen(),
+        '/signup': (context) => const SignUpScreen(),
+        '/mainPage': (context) => MainPage(key: mainPageKey),
+      },
     );
   }
 }

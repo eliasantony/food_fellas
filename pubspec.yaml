@@ -29,7 +29,7 @@ dependencies:
   cloud_firestore: ^5.2.1
   provider: ^6.1.2
   firebase_auth: ^5.3.0
-  google_sign_in: ^6.2.1
+  google_sign_in: ^6.2.2
   sign_in_with_apple: ^6.1.2
   # For animations and illustrations
   flare_flutter: ^3.0.0
@@ -76,16 +76,3 @@ flutter:
     - lib/assets/lottie/
     - lib/assets/brand/
     - .env
-
-flutter_icons:
-  android: true
-  ios: true
-  image_path: "lib/assets/icon/foodfellas_app_logo.png"
-
-flutter_native_splash:
-  color: "#116131"
-  image: lib/assets/splash/foodfellas_app_splash.png
-  logo_width: 200
-  android: true
-  ios: true
-  web: false

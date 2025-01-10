@@ -10,6 +10,7 @@ class WelcomeScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final isDarkMode = Theme.of(context).brightness == Brightness.dark;
     return Scaffold(
       body: Center(
         child: Padding(
@@ -19,23 +20,42 @@ class WelcomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: <Widget>[
               // Animated illustration or Lottie Animation
-              SizedBox(
-                height: 200,
-                child: Lottie.asset('lib/assets/lottie/welcomeAnimation.json',
-                    repeat: true),
+              ColorFiltered(
+                colorFilter: ColorFilter.mode(
+                  isDarkMode ? Colors.white : Colors.black,
+                  BlendMode.srcATop,
+                ),
+                child: SizedBox(
+                  height: 200,
+                  child: Lottie.asset(
+                    'lib/assets/lottie/welcomeAnimation.json',
+                    repeat: true,
+                  ),
+                ),
               ),
               const SizedBox(height: 40),
-              Text(
-                'Welcome to FoodFellas!',
-                style: Theme.of(context).textTheme.headlineMedium?.copyWith(
-                      fontWeight: FontWeight.bold,
-                      color: Theme.of(context).colorScheme.primary,
-                    ),
-                textAlign: TextAlign.center,
+              ShaderMask(
+                shaderCallback: (bounds) => LinearGradient(
+                  colors: [
+                    Theme.of(context).colorScheme.primary,
+                    Theme.of(context).colorScheme.secondary,
+                  ],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ).createShader(bounds),
+                child: Text(
+                  'Welcome to FoodFellas!',
+                  style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                        fontWeight: FontWeight.bold,
+                        color: Colors
+                            .white, // This color will be masked by the gradient
+                      ),
+                  textAlign: TextAlign.center,
+                ),
               ),
               const SizedBox(height: 20),
               Text(
-                'Ready to embark on a delicious journey?',
+                'Ready to start your journey\nand level up your recipe game?',
                 style: Theme.of(context).textTheme.bodyLarge,
                 textAlign: TextAlign.center,
               ),

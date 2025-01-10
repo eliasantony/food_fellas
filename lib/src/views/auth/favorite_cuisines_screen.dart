@@ -74,9 +74,12 @@ class _FavoriteCuisinesScreenState extends State<FavoriteCuisinesScreen> {
         padding: EdgeInsets.all(16.0),
         child: Column(
           children: [
-            Text(
-              'Which cuisines make your mouth water?',
-              style: TextStyle(fontSize: 18),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: Text(
+                'Do you have any favorite cuisines?',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
             ),
             SizedBox(height: 20),
             Expanded(
@@ -97,13 +100,39 @@ class _FavoriteCuisinesScreenState extends State<FavoriteCuisinesScreen> {
                 }).toList(),
               ),
             ),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _navigateToNext,
-                child: Text('Next'),
-                style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _navigateToNext,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Next',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ],
+                  ),
                 ),
               ),
             ),
