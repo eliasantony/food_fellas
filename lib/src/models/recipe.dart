@@ -13,6 +13,10 @@ class Recipe {
   int? totalTime; // in minutes
   List<RecipeIngredient> ingredients;
   int initialServings;
+  double? calories;
+  double? carbs;
+  double? protein;
+  double? fat;
   List<String> cookingSteps;
   List<Tag> tags;
   List<String>? aiTagNames;
@@ -33,6 +37,10 @@ class Recipe {
     this.totalTime,
     List<RecipeIngredient>? ingredients,
     this.initialServings = 2,
+    this.calories,
+    this.carbs,
+    this.protein,
+    this.fat,
     List<String>? cookingSteps,
     List<Tag>? tags,
     this.aiTagNames,
@@ -61,6 +69,10 @@ class Recipe {
               .toList() ??
           [],
       initialServings: json['initialServings'] ?? 2,
+      calories: (json['calories'] as num?)?.toDouble(),
+      carbs: (json['carbs'] as num?)?.toDouble(),
+      protein: (json['protein'] as num?)?.toDouble(),
+      fat: (json['fat'] as num?)?.toDouble(),
       cookingSteps: List<String>.from(json['cookingSteps'] ?? []),
       tags: (json['tags'] as List<dynamic>?)
               ?.map((item) => Tag.fromJson(item))
@@ -94,6 +106,10 @@ class Recipe {
       'totalTime': totalTime,
       'ingredients': ingredients.map((ri) => ri.toJson()).toList(),
       'initialServings': initialServings,
+      'calories': calories,
+      'carbs': carbs,
+      'protein': protein,
+      'fat': fat,
       'cookingSteps': cookingSteps,
       'tags': tags.map((tag) => tag.toJson()).toList(),
       'aiTagNames': aiTagNames ?? [],
@@ -116,6 +132,10 @@ class Recipe {
       'totalTime': totalTime,
       'ingredients': ingredients.map((ri) => ri.toJson()).toList(),
       'initialServings': initialServings,
+      'calories': calories,
+      'carbs': carbs,
+      'protein': protein,
+      'fat': fat,
       'cookingSteps': cookingSteps,
       'tags': tags.map((tag) => tag.toJson()).toList(),
       'aiTagNames': aiTagNames ?? [],

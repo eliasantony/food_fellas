@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
-import 'package:flutter_chat_ui/flutter_chat_ui.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
 
 class ChatProvider with ChangeNotifier {

@@ -31,7 +31,164 @@ const Sentiment = require("sentiment");
 admin.initializeApp();
 const sentiment = new Sentiment();
 
-exports.preprocessRecipe = functions.firestore
+exports.calculateWeeklyRecommendations = functions
+  .runWith({ memory: "1GB", timeoutSeconds: 300 }) // tune if needed
+  .region("europe-west1")
+  .https.onRequest(async (req, res) => {
+    const apiKey = req.query.apiKey || req.headers["x-api-key"];
+    if (apiKey !== functions.config().app.secure_api_key) {
+      return res.status(403).send("Unauthorized");
+    }
+    try {
+      // 1. Fetch all users with pagination
+      console.log("Fetching users...");
+      const users = await fetchCollectionWithPagination("users");
+      console.log(`Fetched ${users.length} users`);
+
+      // 2. Fetch all recipes with pagination
+      console.log("Fetching recipes...");
+      const recipes = await fetchCollectionWithPagination("recipes");
+      console.log(`Fetched ${recipes.length} recipes`);
+
+      // 3. For each user, compute top recommendations
+      for (const user of users) {
+        console.log(`Calculating recommendations for user ${user.id}`);
+        const userRecommendations = [];
+
+        for (const recipe of recipes) {
+          // Compute a score for each recipe for this user
+          const score = computeRecipeScore(user, recipe);
+          userRecommendations.push({ recipeId: recipe.id, score });
+        }
+
+        // 4. Sort the user’s recommended recipes descending by score
+        userRecommendations.sort((a, b) => b.score - a.score);
+
+        // 5. Take top 5–10
+        const topRecommendations = userRecommendations.slice(0, 10);
+
+        // 6. Save to Firestore, e.g., a subcollection or field
+        const recsRef = admin
+          .firestore()
+          .collection("users")
+          .doc(user.id)
+          .collection("recommendations");
+
+        // Clear old recommendations if desired
+        console.log(`Clearing old recommendations for user ${user.id}`);
+        const oldRecsSnap = await recsRef.get();
+        const batch = admin.firestore().batch();
+        oldRecsSnap.forEach((doc) => batch.delete(doc.ref));
+        await batch.commit();
+
+        // Write new recommendations
+        console.log(`Saving ${topRecommendations.length} recommendations for user ${user.id}`);
+        const newBatch = admin.firestore().batch();
+        topRecommendations.forEach((rec) => {
+          const docRef = recsRef.doc(rec.recipeId);
+          newBatch.set(docRef, {
+            score: rec.score,
+            recipeId: rec.recipeId,
+            createdAt: admin.firestore.FieldValue.serverTimestamp(),
+          });
+        });
+        await newBatch.commit();
+      }
+
+      console.log("Recommendations calculation complete.");
+      res.status(200).send("Weekly recommendations calculated.");
+    } catch (error) {
+      console.error("Error calculating recommendations:", error);
+      res.status(500).send("Error");
+    }
+  });
+
+/**
+ * Fetch a Firestore collection with pagination.
+ */
+async function fetchCollectionWithPagination(collectionName, limit = 100) {
+  let data = [];
+  let lastVisible = null;
+
+  // Determine the field to order by
+  const orderByField = collectionName === "users" ? "created_time" : "createdAt";
+
+  do {
+    console.log(`Querying ${collectionName} starting after:`, lastVisible);
+    const query = admin
+      .firestore()
+      .collection(collectionName)
+      .orderBy(orderByField)
+      .startAfter(lastVisible || 0)
+      .limit(limit);
+
+    const snap = await query.get();
+    console.log(`Fetched ${snap.size} documents from ${collectionName}`);
+
+    if (!snap.empty) {
+      data = data.concat(snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      lastVisible = snap.docs[snap.docs.length - 1];
+    } else {
+      console.log(`No more documents found in ${collectionName}`);
+      lastVisible = null;
+    }
+  } while (lastVisible);
+
+  return data;
+}
+
+/**
+ * Enhanced scoring function with additional logic.
+ */
+function computeRecipeScore(user, recipe) {
+  let score = 0;
+
+  // 1. Dietary preference matches
+  const userDietPrefs = user.dietaryPreferences || [];
+  const recipeTags = recipe.tagNames || [];
+  for (const pref of userDietPrefs) {
+    if (recipeTags.includes(pref)) {
+      score += 5; // or any weighting logic
+    }
+  }
+
+  // 2. Favorite cuisines
+  const userFavCuisines = user.favoriteCuisines || [];
+  for (const favCuisine of userFavCuisines) {
+    if (recipeTags.includes(favCuisine)) {
+      score += 5;
+    }
+  }
+
+  // 3. Recently viewed recipes
+  const viewedRecently = user.subcollections?.interactionHistory?.map((i) => i.recipeId) || [];
+  if (viewedRecently.includes(recipe.id)) {
+    score += 2;
+  }
+
+  // 4. Recipes in user collections
+  const collectionRecipes = user.subcollections?.collections?.flatMap((c) => c.recipes) || [];
+  if (collectionRecipes.includes(recipe.id)) {
+    score += 3;
+  }
+
+  // 5. Recipe from a followed author
+  const followingAuthors = user.subcollections?.following?.map((f) => f.uid) || [];
+  if (followingAuthors.includes(recipe.authorId)) {
+    score += 3;
+  }
+
+  // 6. Popularity factor
+  if (recipe.averageRating >= 4 && recipe.ratingsCount > 10) {
+    score += 5;
+  }
+
+  return score;
+}
+
+exports.preprocessRecipe = functions
+  .region("europe-west1")
+  .firestore
   .document("recipes/{recipeId}")
   .onWrite(async (change) => {
     const data = change.after.data();
@@ -105,7 +262,9 @@ async function updateUserRecipeStats(userId) {
 }
 
 // Analyze sentiment of a comment when it is added
-exports.analyzeCommentSentiment = functions.firestore
+exports.analyzeCommentSentiment = functions
+  .region("europe-west1")
+  .firestore
   .document("recipes/{recipeId}/comments/{commentId}")
   .onCreate(async (snap) => {
     const commentData = snap.data();
@@ -126,7 +285,9 @@ exports.analyzeCommentSentiment = functions.firestore
   });
 
 // Function to update recipe's average rating when a rating is altered
-exports.updateRecipeRating = functions.firestore
+exports.updateRecipeRating = functions
+  .region("europe-west1")
+  .firestore
   .document("recipes/{recipeId}/ratings/{userId}")
   .onWrite(async (change, context) => {
     const recipeId = context.params.recipeId;
@@ -204,7 +365,7 @@ async function updateUserAverageRating(userId) {
  * @param {functions.https.CallableContext} context - The callable context.
  * @returns {Promise<object>}
  */
-exports.generateImage = functions.https.onCall(async (data) => {
+exports.generateImage = functions.region("europe-west1").https.onCall(async (data) => {
   const apiKey = functions.config().getimgai.apikey;
   const prompt = data.prompt;
 

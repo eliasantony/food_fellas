@@ -73,7 +73,6 @@ GenerativeModel? getGenerativeModel(
       "shortDescription": "A creamy pasta dish with grilled chicken in Alfredo sauce.",
       "mainIngredients": ["Chicken Breast", "Pasta", "Cream", "Parmesan Cheese"]
     }
-
     ```
 
     Then say something like:

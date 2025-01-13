@@ -266,12 +266,13 @@ class SearchProvider with ChangeNotifier {
 
     try {
       final query = "$title $description ${ingredients.join(' ')}";
+      //print('Fuzzy Search Query: $query');
 
       final response = await TypesenseHttpClient.get(
         '/collections/recipes/documents/search',
         {
           'q': query,
-          'query_by': 'title,description,ingredients',
+          'query_by': 'title,description,ingredientNames',
           'num_typos': '4',
           'per_page': '3',
         },
@@ -282,7 +283,7 @@ class SearchProvider with ChangeNotifier {
         return hit['document'] as Map<String, dynamic>;
       }).toList();
 
-      print("Fuzzy Search Results: $_similarRecipes");
+      //print("Fuzzy Search Results: $_similarRecipes");
     } catch (e) {
       print('Error fetching fuzzy recipes: $e');
       _similarRecipes = [];
@@ -354,10 +355,10 @@ class SearchProvider with ChangeNotifier {
   Future<void> fetchSimilarRecipesById(String recipeId) async {
     _isLoadingSimilarRecipes = true;
     notifyListeners();
-
+    print('fetchSimilarRecipesById with recipeId: $recipeId');
     try {
       _similarRecipes = await TypesenseHttpClient.fetchSimilarRecipesById(
-          recipeId); // Fetch top 3 similar recipes
+          recipeId); // Fetch top 4 similar recipes
     } catch (e) {
       print('Error fetching similar recipes: $e');
       _similarRecipes = [];

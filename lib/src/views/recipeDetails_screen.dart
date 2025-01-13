@@ -1,13 +1,17 @@
-// ignore_for_file: use_build_context_synchronously
-
 import 'dart:developer';
 import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/src/models/macroEstimation_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
+import 'package:food_fellas/src/views/photoview_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
+import 'package:food_fellas/src/widgets/build_comment.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
+import 'package:food_fellas/src/widgets/macros_section.dart';
+import 'package:food_fellas/src/widgets/similarRecipes_section.dart';
 import 'package:marquee/marquee.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
@@ -47,6 +51,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   bool _isMarquee = false;
   bool _didFetchSimilar = false;
   String? _lastFetchedRecipeId;
+  bool _isLoadingMacros = false;
 
   @override
   void initState() {
@@ -59,9 +64,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _checkIfRecipeIsSaved();
     _fetchUserRole();
     _logRecipeView();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SearchProvider>().fetchSimilarRecipesById(widget.recipeId);
-    });
   }
 
   @override
@@ -1001,6 +1003,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               },
               body: ListView(
                 key: PageStorageKey('recipe-detail-${widget.recipeId}'),
+                shrinkWrap: false,
+                physics: const ClampingScrollPhysics(),
                 padding: EdgeInsets.zero,
                 children: _buildRecipeDetail(recipeData),
               ),
@@ -1012,6 +1016,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   List<Widget> _buildRecipeDetail(Map<String, dynamic> recipeData) {
+    String recipeId = recipeData['id'] ?? '';
     String description = recipeData['description'] ?? '';
     List<dynamic> ingredientsData = recipeData['ingredients'] ?? [];
     List<dynamic> cookingSteps = recipeData['cookingSteps'] ?? [];
@@ -1052,6 +1057,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         child: _buildIngredientsSection(ingredientsData),
       ),
       const SizedBox(height: 16),
+      // Macros Section
+      Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+        child: _currentRecipe != null
+            ? MacrosSection(recipe: _currentRecipe!)
+            : Container(),
+      ),
+      const SizedBox(height: 16),
       // Instructions Section
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
@@ -1076,7 +1089,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       const SizedBox(height: 16),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: SimilarRecipesSection(),
+        child: SimilarRecipesSection(recipeId: recipeId),
       ),
       const SizedBox(height: 32),
     ];
@@ -1653,105 +1666,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           );
         }
       },
-    );
-  }
-}
-
-class BuildComment extends StatelessWidget {
-  const BuildComment({
-    super.key,
-    required this.commentData,
-    required this.rating,
-  });
-
-  final Map<String, dynamic> commentData;
-  final double rating;
-
-  @override
-  Widget build(BuildContext context) {
-    return ListTile(
-      title: Text(commentData['userName'] ?? 'Anonymous'),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (rating > 0)
-            RatingBarIndicator(
-              rating: rating,
-              itemBuilder: (context, index) => const Icon(
-                Icons.star,
-                color: Colors.amber,
-              ),
-              itemCount: 5,
-              itemSize: 16.0,
-            ),
-          Text(commentData['comment'] ?? ''),
-        ],
-      ),
-      trailing: Text(
-        commentData['timestamp'] != null
-            ? (commentData['timestamp'] as Timestamp)
-                .toDate()
-                .toLocal()
-                .toString()
-                .split(' ')[0]
-                .split('-')
-                .reversed
-                .join('.')
-            : '',
-        style: const TextStyle(fontSize: 12, color: Colors.grey),
-      ),
-    );
-  }
-}
-
-class PhotoViewScreen extends StatelessWidget {
-  final String imageUrl;
-
-  PhotoViewScreen({required this.imageUrl});
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(),
-      body: Center(
-        child: PhotoView(
-          imageProvider: imageUrl.startsWith('http')
-              ? CachedNetworkImageProvider(imageUrl)
-              : AssetImage(imageUrl) as ImageProvider,
-          minScale: PhotoViewComputedScale.contained,
-          maxScale: PhotoViewComputedScale.covered * 2,
-        ),
-      ),
-    );
-  }
-}
-
-// Example: separate widget that only depends on the SearchProvider
-class SimilarRecipesSection extends StatelessWidget {
-  const SimilarRecipesSection({Key? key}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    final searchProvider = context.watch<SearchProvider>();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('Similar Recipes', style: Theme.of(context).textTheme.titleLarge),
-        const SizedBox(height: 10),
-        Consumer<SearchProvider>(
-          builder: (context, searchProvider, child) {
-            if (searchProvider.isLoadingSimilarRecipes) {
-              return const Center(child: CircularProgressIndicator());
-            } else if (searchProvider.similarRecipes.isNotEmpty) {
-              return HorizontalRecipeRow(
-                  recipes: searchProvider.similarRecipes);
-            } else {
-              return const Text('No similar recipes found.');
-            }
-          },
-        )
-      ],
     );
   }
 }

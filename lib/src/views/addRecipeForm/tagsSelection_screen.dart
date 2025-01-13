@@ -1,7 +1,9 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/src/models/autoTagSelection_config.dart';
+import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 import '../../models/tag.dart';
@@ -97,9 +99,27 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
         ${widget.recipe.toJson()} 
         Available tags: ${categorizedTags.keys.join(", ")}.
         Return just the tag names seperated by a comma.''';
+
+      final currentUser = FirebaseAuth.instance.currentUser;
+      if (await checkLimitExceeded(currentUser!.uid)) {
+        setState(() => isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'You have exceeded your monthly AI usage limit. Please try again next month.',
+            ),
+          ),
+        );
+        return;
+      }
+
       final response = await model?.generateContent([Content.text(prompt)]);
-      final usedTokens = response!.usageMetadata?.totalTokenCount ?? 0;
+      // 2) Track usage tokens
+      final usedTokens = response?.usageMetadata?.totalTokenCount ?? 0;
       print('Used tokens: $usedTokens');
+
+      // 3) Store or update user’s total tokens
+      await updateUserTokenUsage(currentUser.uid, usedTokens);
       final responseText = response?.text ?? '';
       final tagNames =
           responseText.split(',').map((tag) => tag.trim()).toList() ?? [];

@@ -285,7 +285,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          if (!isCurrentUser) Spacer(),
           if (!isCurrentUser)
             Tooltip(
               message: isFollowing

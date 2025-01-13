@@ -75,7 +75,9 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
           Expanded(
             child: Container(
               decoration: BoxDecoration(
-                color: Colors.grey[600], // Light grey background
+                color: Theme.of(context).brightness == Brightness.dark
+                    ? Colors.grey[600]
+                    : Colors.transparent,
                 borderRadius: const BorderRadius.only(
                   topLeft: Radius.circular(24),
                   topRight: Radius.circular(24),
@@ -112,7 +114,10 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
                                   width: 2.0,
                                 ),
                                 borderRadius: BorderRadius.circular(8.0),
-                                color: Colors.grey[600],
+                                color: Theme.of(context).brightness ==
+                                        Brightness.dark
+                                    ? Colors.grey[600]
+                                    : Colors.transparent,
                               ),
                               child: Center(
                                 child: PeepImage(
@@ -177,7 +182,9 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8.0, horizontal: 16.0),
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.grey[700],
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.grey[700]
+              : Colors.transparent,
           borderRadius: BorderRadius.circular(16.0),
         ),
         padding: const EdgeInsets.all(8.0),

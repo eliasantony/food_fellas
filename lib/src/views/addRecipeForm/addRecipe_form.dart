@@ -72,9 +72,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
               ),
               steps: _buildEasySteps(),
               activeStepIconColor:
-                  Theme.of(context).brightness == Brightness.dark
-                      ? Colors.white
-                      : Colors.black,
+                  Theme.of(context).colorScheme.primary, // Icon color
               onStepReached: (index) {
                 if (_getCurrentFormKey().currentState!.validate()) {
                   _getCurrentFormKey().currentState!.save();

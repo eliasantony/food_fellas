@@ -12,10 +12,12 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
-import 'package:food_fellas/src/models/aimodel_config2.dart';
+import 'package:food_fellas/src/models/aimodel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
+import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
@@ -68,29 +70,6 @@ Map<String, dynamic>? extractJsonRecipe(String text) {
   return null;
 }
 
-Map<String, dynamic>? extractPreviewJson(String text) {
-  try {
-    final codeBlockRegExp =
-        RegExp(r'```json\s*(\{[\s\S]*?\})\s*```', multiLine: true);
-    final match = codeBlockRegExp.firstMatch(text);
-    if (match != null) {
-      String? jsonString = match.group(1);
-      if (jsonString != null) {
-        final decoded = json.decode(jsonString);
-        if (decoded.containsKey('title') &&
-            decoded.containsKey('description') &&
-            decoded.containsKey('ingredients')) {
-          print(decoded);
-          return decoded;
-        }
-      }
-    }
-  } catch (e) {
-    print('Error parsing preview JSON: $e');
-  }
-  return null;
-}
-
 // Function to remove the JSON code block from the message text
 String removeJsonCodeBlock(String text) {
   final codeBlockRegExp =
@@ -126,6 +105,21 @@ class AIChatScreen extends StatefulWidget {
 class _AIChatScreenState extends State<AIChatScreen> {
   bool isLoading = false;
   bool preferencesEnabled = true;
+  List<ChatUser> typingUsers = [];
+
+  void _addTypingUser(ChatUser user) {
+    setState(() {
+      if (!typingUsers.contains(user)) {
+        typingUsers.add(user);
+      }
+    });
+  }
+
+  void _removeTypingUser(ChatUser user) {
+    setState(() {
+      typingUsers.remove(user);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -245,6 +239,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     inputTextStyle: TextStyle(
                       color: Colors.black,
                     ),
+                    maxInputLength: 500,
                     sendOnEnter: true,
                     trailing: [
                       IconButton(
@@ -252,6 +247,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                         icon: const Icon(Icons.image),
                       )
                     ]),
+                   typingUsers: [...typingUsers],
                 quickReplyOptions: QuickReplyOptions(
                   quickReplyTextStyle: TextStyle(
                     color: Theme.of(context).brightness == Brightness.dark
@@ -327,6 +323,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           ),
                         ],
                       );
+                    } else if (message.customProperties?['similarRecipeDoc'] !=
+                        null) {
+                      final doc = message.customProperties!['similarRecipeDoc'];
+                      return RecipeCard(recipeId: doc['id'], big: false);
                     } else {
                       // Regular message display
                       return MarkdownBody(
@@ -525,89 +525,150 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   Future<void> _sendMessage(ChatMessage chatMessage) async {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    final searchProvider =
+        Provider.of<SearchProvider>(context, listen: false); // (NEW)
+    final currentUser = FirebaseAuth.instance.currentUser;
 
+    // Add the user's message to the UI
     chatProvider.addMessage(chatMessage);
 
+    _addTypingUser(geminiUser);
+
+    // Check if user exceeded limit
+    bool exceeded = await checkLimitExceeded(currentUser!.uid);
+    if (exceeded) {
+      //setState(() => isLoading = false);
+      _removeTypingUser(geminiUser);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You have exceeded your monthly AI usage limit. Please try again next month.',
+          ),
+        ),
+      );
+      return; // Stop further processing
+    }
     try {
-      final prompt = [Content.text(chatMessage.text)];
-      List<Uint8List>? images;
-      if (chatMessage.medias?.isNotEmpty ?? false) {
-        images = [
-          File(chatMessage.medias!.first.url).readAsBytesSync(),
-        ];
+      //setState(() => isLoading = true);
+
+      // 1) Send a single request to the AI, retrieve response + usage
+      final response = await chatProvider.chatInstance?.sendMessage(
+        Content.text(chatMessage.text),
+      );
+      if (response == null) {
+        throw Exception('No response from AI');
       }
+      final responseText = response.text ?? '';
 
-      final model = getGenerativeModel();
-      final chat = model?.startChat();
+      // 2) Track usage tokens
+      final usedTokens = response.usageMetadata?.totalTokenCount ?? 0;
+      print('Used tokens: $usedTokens');
 
-      final response = await chat?.sendMessage(prompt.first);
-      final responseText = await chatProvider.sendMessageToAI(chatMessage.text);
+      // 3) Store or update user’s total tokens
+      await updateUserTokenUsage(currentUser.uid, usedTokens);
 
-      print('AI Response: $responseText');
+      // 4) Extract JSON recipe
+      final recipeJson = extractJsonRecipe(responseText);
 
-      // Extract the JSON preview recipe from the response
-      final previewJson = extractPreviewJson(responseText);
-      if (previewJson != null) {
-        final searchProvider =
-            Provider.of<SearchProvider>(context, listen: false);
-        final title = previewJson['title'];
-        final description = previewJson['description'];
-        final ingredients = List<String>.from(previewJson['ingredients']);
+      // 5) Fuzzy search if we found a new recipe
+      List<Map<String, dynamic>> foundSimilarRecipes = [];
+      if (recipeJson != null) {
+        final title = recipeJson['title'] ?? '';
+        final description = recipeJson['description'] ?? '';
+        final ingredientsList =
+            recipeJson['ingredients'] as List<dynamic>? ?? [];
 
-        // Call SearchProvider to fetch similar recipes
+        final List<String> ingredientNames = ingredientsList.map<String>((ing) {
+          return ing['ingredient']['ingredientName'] as String? ?? '';
+        }).toList();
+
+        // fetchFuzzyRecipes is from your SearchProvider
         await searchProvider.fetchFuzzyRecipes(
           title: title,
           description: description,
-          ingredients: ingredients,
+          ingredients: ingredientNames,
         );
 
-        if (searchProvider.similarRecipes.isNotEmpty) {
-          String foundRecipesText = "Here are some similar recipes I found:\n";
-          for (var recipe in searchProvider.similarRecipes) {
-            foundRecipesText +=
-                "- **${recipe['title']}**: ${recipe['description']}\n";
-          }
-          foundRecipesText +=
-              "Do you want to use one of these, or should I create a new recipe for you?";
-
-          print('Found similar recipes: $foundRecipesText');
-        }
+        foundSimilarRecipes = searchProvider.similarRecipes;
       }
 
-      // Extract the JSON recipe from the response
-      final recipeJson = extractJsonRecipe(responseText);
-      // Remove the JSON code block from the response text
+      // 7) Remove the JSON from the final display text
       final displayText = removeJsonCodeBlock(responseText).trim();
 
-      // **Extract options from the AI's response**
+      // 8) Extract conversation options for QuickReplies (like you already do)
       List<String> extractedOptions = extractOptions(displayText);
-      List<QuickReply> dynamicQuickReplies = [];
+      List<QuickReply> dynamicQuickReplies = extractedOptions.map((option) {
+        return QuickReply(title: option, value: option);
+      }).toList();
 
-      if (extractedOptions.isNotEmpty) {
-        // Create quick replies from the extracted options
-        dynamicQuickReplies = extractedOptions.map((option) {
-          return QuickReply(
-            title: option,
-            value: option,
-          );
-        }).toList();
-      }
-
+      // 9) Build the final AI message
       ChatMessage aiMessage = ChatMessage(
         user: geminiUser,
         createdAt: DateTime.now(),
         text: displayText,
-        customProperties: {"isAIMessage": true, "jsonRecipe": recipeJson},
         quickReplies:
             dynamicQuickReplies.isNotEmpty ? dynamicQuickReplies : null,
+        customProperties: {
+          "isAIMessage": true,
+          "jsonRecipe": recipeJson, // This will trigger your ChatRecipeCard
+        },
       );
 
+      // 10) Add the AI message to the chat
       chatProvider.addMessage(aiMessage);
+
+      if (foundSimilarRecipes.isNotEmpty) {
+        // 6) Show a separate chat message presenting the found recipes
+        ChatMessage foundMessage = ChatMessage(
+          user: geminiUser,
+          createdAt: DateTime.now(),
+          text: "**I found some recipes that seem similar!**\n\n"
+              "Here they are:",
+          customProperties: {
+            "isAIMessage": true,
+            // We could store them if you want or just show them
+          },
+        );
+        chatProvider.addMessage(foundMessage);
+
+        // Show them as small cards (or your own layout).
+        // For example, we can loop each found recipe and create a message:
+        for (var simRecipe in foundSimilarRecipes) {
+          ChatMessage simRecipeMsg = ChatMessage(
+            user: geminiUser,
+            createdAt: DateTime.now(),
+            text: simRecipe['title'] ?? 'Untitled', // or empty
+            // or store the entire doc to display in a custom widget
+            customProperties: {
+              "isAIMessage": true,
+              "similarRecipeDoc": simRecipe,
+            },
+          );
+          chatProvider.addMessage(simRecipeMsg);
+        }
+
+        // Then ask the user if they'd prefer an existing recipe or a new one
+        ChatMessage questionMsg = ChatMessage(
+          user: geminiUser,
+          createdAt: DateTime.now(),
+          text:
+              "Would you like to use one of these existing recipes or add the new one?",
+          quickReplies: [
+            QuickReply(title: 'Use Existing', value: 'Use Existing'),
+            QuickReply(title: 'Add New', value: 'Add New'),
+          ],
+          customProperties: {"isAIMessage": true},
+        );
+        chatProvider.addMessage(questionMsg);
+      }
     } catch (e) {
-      print(e);
+      print('Error: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Error: ${e.toString()}')),
       );
+    } finally {
+      _removeTypingUser(geminiUser);
+      //setState(() => isLoading = false);
     }
   }
 

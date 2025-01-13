@@ -85,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }).toList();
 
-      if (!mounted) return; // Ensure the widget is still mounted
+      if (!mounted) return;
 
       setState(() {
         _mealTypeTags = tags;
