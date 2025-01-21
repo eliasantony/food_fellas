@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
@@ -38,11 +39,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
   bool isFollowing = false;
   bool isCurrentUser = false;
   Map<String, dynamic>? userData;
+  String? _currentUserRole;
 
   @override
   void initState() {
     super.initState();
+    _fetchCurrentUserRole();
     _fetchUserData();
+  }
+
+  Future<void> _fetchCurrentUserRole() async {
+    final userProvider =
+        Provider.of<UserDataProvider>(this.context, listen: false);
+    setState(() {
+      _currentUserRole = userProvider.userData?['role'];
+    });
   }
 
   void _fetchUserData() async {
@@ -464,7 +475,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     // Define the collection stream with appropriate filters
     Stream<QuerySnapshot> collectionStream;
-    if (isCurrentUser) {
+    if (isCurrentUser || _currentUserRole == 'admin') {
       // Current user can access all their collections
       collectionStream = FirebaseFirestore.instance
           .collection('users')
@@ -540,9 +551,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       final collection = collections[index];
                       final collectionData =
                           collection.data() as Map<String, dynamic>;
-                      final userRole = userData['display_name'];
                       return _buildCollectionCard(context, theme, userId,
-                          userRole, collection.id, collectionData);
+                          collection.id, collectionData);
                     }
                   },
                 ),
@@ -555,30 +565,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
 // Collection Card
-  Widget _buildCollectionCard(
-      BuildContext context,
-      ThemeData theme,
-      String userId,
-      String userRole,
-      String collectionId,
-      Map<String, dynamic> collectionData) {
+  Widget _buildCollectionCard(BuildContext context, ThemeData theme,
+      String userId, String collectionId, Map<String, dynamic> collectionData) {
     String name = collectionData['name'] ?? 'Unnamed';
     String icon = collectionData['icon'] ?? '🍽';
     List<dynamic> recipes = collectionData['recipes'] ?? [];
+    bool isPublic = collectionData['isPublic'] ?? false;
 
     return GestureDetector(
       onTap: () {
-        // Navigate to Collection Detail Screen
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (context) => CollectionDetailScreen(
-              userId: userId,
-              userRole: userRole,
+            builder: (context) => RecipesListScreen(
+              isCollection: true,
+              collectionUserId: userId,
               collectionId: collectionId,
-              collectionEmoji: icon,
               collectionName: name,
-              collectionVisibility: collectionData['isPublic'],
+              collectionEmoji: icon,
+              collectionVisibility: isPublic,
             ),
           ),
         );
@@ -597,10 +602,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 style: TextStyle(fontSize: 40),
               ),
               SizedBox(height: 8),
-              Text(
-                name,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.titleMedium,
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!isPublic)
+                    Icon(Icons.lock_outline_rounded,
+                        size: 16, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Text(
+                    name,
+                    textAlign: TextAlign.center,
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ],
               ),
               SizedBox(height: 4),
               Text(
@@ -679,7 +693,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             children: <Widget>[
               ListTile(
                 leading: Icon(Icons.create),
-                title: Text('Manually create a recipe'),
+                title: Text('Create a recipe from scratch'),
                 onTap: () {
                   Navigator.pop(context); // Close the bottom sheet
                   Navigator.push(
@@ -690,7 +704,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.camera_alt),
-                title: Text('Use the Image to Recipe feature'),
+                title: Text('Image to Recipe'),
                 onTap: () {
                   Navigator.pop(context); // Close the bottom sheet
                   Navigator.push(
@@ -702,7 +716,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ),
               ListTile(
                 leading: Icon(Icons.chat),
-                title: Text('Chat with our Recipe AI'),
+                title: Text('Chat with AI'),
                 onTap: () {
                   Navigator.pop(context); // Close the bottom sheet
                   Provider.of<BottomNavBarProvider>(context, listen: false)
@@ -823,7 +837,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       stream: FirebaseFirestore.instance
           .collection('recipes')
           .where('authorId', isEqualTo: userId)
-          .orderBy('createdAt', descending: true) // Ensure proper sorting
+          .orderBy('createdAt', descending: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -857,13 +871,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
             );
           }
         } else if (!isCurrentUser) {
-          recipeWidgets.add(
-            Center(
-              child: Text(
-                '${userData['display_name']} has not added any recipes yet.',
-                style: theme.textTheme.bodyLarge,
-              ),
-            ),
+          return SizedBox(
+            height: 170,
+            child: Center(
+                child: Text('This user has not created any recipes yet.')),
           );
         }
 

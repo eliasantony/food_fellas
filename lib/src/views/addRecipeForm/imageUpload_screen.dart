@@ -52,12 +52,16 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   Widget build(BuildContext context) {
     return Column(
       children: [
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Text(
-            'Here you can either upload a picture of your dish...',
-            style: TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.left,
+        Align(
+          alignment: Alignment.centerLeft,
+          child: Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Text(
+              'Here you can either upload a picture of your dish...',
+              style: TextStyle(fontWeight: FontWeight.bold),
+              textAlign: TextAlign.left,
+            ),
           ),
         ),
         Form(
@@ -107,7 +111,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
     } else if (widget.recipe.imageUrl != null) {
       return _displayNetworkImage(widget.recipe.imageUrl!);
     } else {
-      widget.recipe.imageUrl = 'https://via.placeholder.com/150';
+      widget.recipe.imageUrl = 'https://placehold.co/200';
       return _displayNetworkImage(widget.recipe.imageUrl!);
     }
   }
@@ -282,9 +286,12 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         _isLoading = true;
       });
 
+      // Create a FirebaseFunctions instance for the specific region
+      final FirebaseFunctions functions =
+          FirebaseFunctions.instanceFor(region: 'europe-west1');
+
       // Call the Cloud Function
-      HttpsCallable callable =
-          FirebaseFunctions.instance.httpsCallable('generateImage');
+      final HttpsCallable callable = functions.httpsCallable('generateImage');
       final result = await callable.call(<String, dynamic>{
         'prompt': prompt,
       });
@@ -305,9 +312,11 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         _isLoading = false;
       });
       print('Error generating image: $e');
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error generating image: $e')),
-      );
+      if (e != "Invalid argument(s): Unknown key: imageUrl") {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error generating image: $e')),
+        );
+      }
     }
   }
 }

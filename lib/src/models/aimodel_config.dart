@@ -67,7 +67,6 @@ Once a user chooses a recipe, provide a JSON output with the following structure
   "tags": [
     {"id": "String", "name": "String", "icon": "Emoji", "category": "String"}
   ],
-  "imageUrl": "String"
 }
 ```
 
@@ -149,7 +148,6 @@ Example:
     {"id": "tag1", "name": "Vegetarian", "icon": "🥕", "category": "Dietary Preferences"},
     {"id": "tag2", "name": "Italian", "icon": "🍕", "category": "Cuisines"}
   ],
-  "imageUrl": "https://somefirebaseurl.com"
 }
 ```
 Use metric units for measurements (grams, milliliters, etc.). 

@@ -1,19 +1,12 @@
-import 'dart:developer';
-import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
-import 'package:firebase_vertexai/firebase_vertexai.dart';
-import 'package:food_fellas/providers/searchProvider.dart';
-import 'package:food_fellas/src/models/macroEstimation_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/photoview_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/widgets/build_comment.dart';
-import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:food_fellas/src/widgets/macros_section.dart';
 import 'package:food_fellas/src/widgets/similarRecipes_section.dart';
 import 'package:marquee/marquee.dart';
-import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 
@@ -93,21 +86,54 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     final userRef =
         FirebaseFirestore.instance.collection('users').doc(user.uid);
-
-    // Create or update the interaction document
-    await userRef.collection('interactionHistory').doc(widget.recipeId).set({
-      'recipeId': widget.recipeId,
-      'viewedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
-
-    // Optionally, you can also log this under the recipe document
     final recipeRef =
         FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
 
-    await recipeRef.collection('views').doc(user.uid).set({
-      'userId': user.uid,
-      'viewedAt': FieldValue.serverTimestamp(),
-    }, SetOptions(merge: true));
+    // Batch for atomic updates
+    WriteBatch batch = FirebaseFirestore.instance.batch();
+
+    // Log interaction for the user
+    batch.set(
+      userRef.collection('interactionHistory').doc(widget.recipeId),
+      {
+        'recipeId': widget.recipeId,
+        'viewedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    // Log view for the recipe
+    batch.set(
+      recipeRef.collection('views').doc(user.uid),
+      {
+        'userId': user.uid,
+        'viewedAt': FieldValue.serverTimestamp(),
+      },
+      SetOptions(merge: true),
+    );
+
+    // Update view count incrementally
+    batch.update(
+      recipeRef,
+      {
+        'viewsCount': FieldValue.increment(1),
+      },
+    );
+
+    // Commit batch
+    await batch.commit();
+
+    // Limit interaction history to 20 entries
+    QuerySnapshot interactionHistorySnapshot = await userRef
+        .collection('interactionHistory')
+        .orderBy('viewedAt', descending: true)
+        .get();
+
+    if (interactionHistorySnapshot.docs.length > 20) {
+      for (int i = 20; i < interactionHistorySnapshot.docs.length; i++) {
+        await interactionHistorySnapshot.docs[i].reference.delete();
+      }
+    }
   }
 
   Stream<DocumentSnapshot> _fetchRecipeStream() {
@@ -1028,11 +1054,17 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         (recipeData['ratingCounts'] as Map<String, dynamic>?)
                 ?.map((key, value) => MapEntry(int.parse(key), value as int)) ??
             {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+    final int viewsCount = recipeData['viewsCount'] ?? 0;
 
     return [
+      // Views Section
+      Padding(
+        padding: const EdgeInsets.only(top: 16.0),
+        child: _buildViewsSection(recipeData['viewsCount'] ?? 0),
+      ),
       // Rating Section
       Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.all(8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -1223,6 +1255,19 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             ),
           ),
         ),
+      ],
+    );
+  }
+
+  Widget _buildViewsSection(int viewsCount) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        const Icon(Icons.remove_red_eye, color: Colors.grey, size: 16),
+        const SizedBox(width: 4),
+        Text('$viewsCount views',
+            style: const TextStyle(
+                color: Colors.grey, fontWeight: FontWeight.bold)),
       ],
     );
   }

@@ -1,8 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/models/macroEstimation_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:provider/provider.dart';
 
 class MacrosSection extends StatefulWidget {
   final Recipe recipe;
@@ -14,6 +17,20 @@ class MacrosSection extends StatefulWidget {
 
 class _MacrosSectionState extends State<MacrosSection> {
   bool _isLoadingMacros = false;
+  String? _currentUserRole;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchCurrentUserRole();
+  }
+
+  Future<void> _fetchCurrentUserRole() async {
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    setState(() {
+      _currentUserRole = userProvider.userData?['role'];
+    });
+  }
 
   Future<void> _estimateMacrosForRecipe() async {
     if (widget.recipe == null) return;
@@ -197,6 +214,37 @@ class _MacrosSectionState extends State<MacrosSection> {
                           _isLoadingMacros = false;
                         });
                       },
+                    ),
+                  ),
+                if (_currentUserRole == 'user')
+                  Padding(
+                    padding: const EdgeInsets.only(top: 16.0),
+                    child: SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        icon: Icon(
+                          Icons.refresh,
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                        label: Text(
+                          'Refetch Macros',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary),
+                        ),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                        ),
+                        onPressed: () async {
+                          setState(() {
+                            _isLoadingMacros = true;
+                          });
+                          await _estimateMacrosForRecipe();
+                          setState(() {
+                            _isLoadingMacros = false;
+                          });
+                        },
+                      ),
                     ),
                   ),
               ],

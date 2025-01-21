@@ -72,7 +72,7 @@ Future<void> showCreateCollectionDialog(BuildContext context,
       return StatefulBuilder(
         builder: (context, setState) {
           return AlertDialog(
-            title: const Text('Create New Collection'),
+            title: const Text('Create new Collection'),
             content: SingleChildScrollView(
               child: Column(
                 children: [
@@ -188,7 +188,12 @@ Future<void> showCreateCollectionDialog(BuildContext context,
                     Navigator.pop(context);
                   }
                 },
-                child: Text(collectionId == null ? 'Create' : 'Update'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                child: Text(collectionId == null ? 'Create' : 'Update',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary)),
               ),
             ],
           );

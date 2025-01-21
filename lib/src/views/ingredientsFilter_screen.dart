@@ -84,16 +84,14 @@ class _IngredientFilterScreenState extends State<IngredientFilterScreen> {
         ],
       ),
       bottomNavigationBar: Padding(
-        padding: const EdgeInsets.all(16.0),
+        padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 32.0),
         child: ElevatedButton(
           onPressed: _onDone,
           style: ElevatedButton.styleFrom(
-            minimumSize:
-                Size(double.infinity, 50), // Makes the button full-width
-            backgroundColor: Theme.of(context).primaryColor,
+            backgroundColor: Theme.of(context).colorScheme.primary,
           ),
           child: Text('Done',
-              style: TextStyle(color: Theme.of(context).canvasColor)),
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
         ),
       ),
     );

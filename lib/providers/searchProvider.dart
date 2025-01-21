@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:http/http.dart' as http;
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/typesense/typesenseClient.dart';
@@ -12,24 +13,53 @@ enum SearchMode {
 }
 
 class SearchProvider with ChangeNotifier {
-  List<Map<String, dynamic>> _recipes = [];
-  List<Map<String, dynamic>> _users = [];
-  SearchMode _searchMode = SearchMode.both;
-  bool _isLoading = false;
   String _query = '';
-  Map<String, dynamic> _filters = {};
-  String _sortBy = 'averageRating:desc';
-  List<Map<String, dynamic>> _similarRecipes = [];
-  bool _isLoadingSimilarRecipes = false;
 
+  List<Map<String, dynamic>> _recipes = [];
   List<Map<String, dynamic>> get recipes => _recipes;
+
+  List<Map<String, dynamic>> _users = [];
   List<Map<String, dynamic>> get users => _users;
+
+  SearchMode _searchMode = SearchMode.both;
   SearchMode get searchMode => _searchMode;
+
+  bool _isLoading = false;
   bool get isLoading => _isLoading;
+
+  Map<String, dynamic> _filters = {};
   Map<String, dynamic> get filters => _filters;
+
+  String _sortBy = 'averageRating:desc';
   String get sortBy => _sortBy;
+
+  List<Map<String, dynamic>> _similarRecipes = [];
   List<Map<String, dynamic>> get similarRecipes => _similarRecipes;
+
+  bool _isLoadingSimilarRecipes = false;
   bool get isLoadingSimilarRecipes => _isLoadingSimilarRecipes;
+
+  final Map<String, List<Map<String, dynamic>>> _rowRecipes = {
+    'recommended': [],
+    'newRecipes': [],
+    'popular': [],
+    'topRated': [],
+  };
+  Map<String, List<Map<String, dynamic>>> get rowRecipes => _rowRecipes;
+
+  final Map<String, List<Map<String, dynamic>>> _rowUsers = {
+    'topChefs': [],
+  };
+  Map<String, List<Map<String, dynamic>>> get rowUsers => _rowUsers;
+
+  // Store "recently viewed" and "recommended" for the home screen
+  List<Map<String, dynamic>> _recentlyViewedCached = [];
+  List<Map<String, dynamic>> get recentlyViewedCached => _recentlyViewedCached;
+
+  List<Map<String, dynamic>> _recommendedCached = [];
+  List<Map<String, dynamic>> get recommendedCached => _recommendedCached;
+
+  bool _homeRowsFetched = false;
 
   void updateQuery(String query) {
     _query = query;
@@ -207,14 +237,42 @@ class SearchProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  Map<String, List<Map<String, dynamic>>> _rowRecipes = {
-    'recommended': [],
-    'newRecipes': [],
-    'popular': [],
-    'topRated': [],
-  };
+  /// Example method to fetch top chefs by averageRating desc or recipeCount desc
+  Future<void> fetchTopChefs({
+    String sortBy = 'averageRating:desc',
+    int limit = 5,
+  }) async {
+    // You could do this from Firestore or from TypeSense.
+    // Here’s a pseudo-Typesense call, for example:
+    try {
+      final Map<String, String> queryParams = {
+        'q': '*',
+        'query_by': 'display_name,email',
+        'sort_by': sortBy,
+        'page': '1',
+        'per_page': limit.toString(),
+      };
 
-  Map<String, List<Map<String, dynamic>>> get rowRecipes => _rowRecipes;
+      final response = await TypesenseHttpClient.get(
+        '/collections/users/documents/search',
+        queryParams,
+      );
+
+      final hits = response['hits'];
+      if (hits is List) {
+        _rowUsers['topChefs'] = hits.map<Map<String, dynamic>>((hit) {
+          return hit['document'] as Map<String, dynamic>;
+        }).toList();
+      } else {
+        _rowUsers['topChefs'] = [];
+      }
+    } catch (e) {
+      print('Error during fetchTopChefs: $e');
+      _rowUsers['topChefs'] = [];
+    }
+
+    notifyListeners();
+  }
 
   Future<void> fetchRowRecipes(
     String rowKey, {
@@ -254,6 +312,28 @@ class SearchProvider with ChangeNotifier {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<void> fetchHomeRowsOnce(String userId) async {
+    if (_homeRowsFetched) return;
+
+    // 1) fetch row recipes:
+    await fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
+    await fetchRowRecipes('topRated', sortBy: 'averageRating:desc');
+    //await fetchRowRecipes('popular', sortBy: 'viewCount:desc');
+    //await fetchRowRecipes('mostRated', sortBy: 'ratingCount:desc');
+    await fetchTopChefs(sortBy: 'recipeCount:desc');
+
+    // 2) fetch “recently viewed” & “recommended”
+    _recentlyViewedCached = await fetchRecentlyViewedRecipes(userId, limit: 10);
+    _recommendedCached = await fetchFirebaseRecommendations(userId, limit: 5);
+
+    _homeRowsFetched = true;
+    notifyListeners();
+  }
+
+  void invalidateHomeRows() {
+    _homeRowsFetched = false;
   }
 
   Future<void> fetchFuzzyRecipes({
@@ -366,5 +446,77 @@ class SearchProvider with ChangeNotifier {
 
     _isLoadingSimilarRecipes = false;
     notifyListeners();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchRecentlyViewedRecipes(
+    String userId, {
+    int limit = 5,
+  }) async {
+    final viewedRecipes = <Map<String, dynamic>>[];
+    try {
+      final viewsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('interactionHistory')
+          .orderBy('viewedAt', descending: true)
+          .limit(limit)
+          .get();
+
+      if (viewsSnapshot.docs.isEmpty) return [];
+
+      // For each doc, fetch the actual recipe
+      for (var doc in viewsSnapshot.docs) {
+        final recipeId = doc['recipeId'] as String;
+        final recipeSnapshot = await FirebaseFirestore.instance
+            .collection('recipes')
+            .doc(recipeId)
+            .get();
+        if (recipeSnapshot.exists) {
+          final recipeData = recipeSnapshot.data() as Map<String, dynamic>;
+          recipeData['id'] = recipeSnapshot.id;
+          viewedRecipes.add(recipeData);
+        }
+      }
+    } catch (e) {
+      print('Error fetching recently viewed recipes: $e');
+    }
+    return viewedRecipes;
+  }
+
+  Future<List<Map<String, dynamic>>> fetchFirebaseRecommendations(
+    String userId, {
+    int limit = 5,
+  }) async {
+    try {
+      // 1) Get the recommended recipe IDs
+      final recsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .collection('recommendations')
+          .orderBy('score', descending: true) // or createdAt
+          .limit(limit)
+          .get();
+
+      if (recsSnapshot.docs.isEmpty) return [];
+
+      // 2) For each recommendation doc, get the actual recipe doc
+      final recommendedRecipes = <Map<String, dynamic>>[];
+      for (var doc in recsSnapshot.docs) {
+        final recipeId = doc['recipeId'];
+        final recipeSnapshot = await FirebaseFirestore.instance
+            .collection('recipes')
+            .doc(recipeId)
+            .get();
+        if (recipeSnapshot.exists) {
+          final recipeData = recipeSnapshot.data() as Map<String, dynamic>;
+          recipeData['id'] = recipeSnapshot.id;
+          recommendedRecipes.add(recipeData);
+        }
+      }
+      return recommendedRecipes;
+    } catch (e) {
+      print('Error fetching user-specific recommendations: $e');
+      return [];
+    }
   }
 }

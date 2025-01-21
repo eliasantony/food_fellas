@@ -247,7 +247,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                         icon: const Icon(Icons.image),
                       )
                     ]),
-                   typingUsers: [...typingUsers],
+                typingUsers: [...typingUsers],
                 quickReplyOptions: QuickReplyOptions(
                   quickReplyTextStyle: TextStyle(
                     color: Theme.of(context).brightness == Brightness.dark
@@ -622,8 +622,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
         ChatMessage foundMessage = ChatMessage(
           user: geminiUser,
           createdAt: DateTime.now(),
-          text: "**I found some recipes that seem similar!**\n\n"
-              "Here they are:",
+          text: (foundSimilarRecipes.length > 1)
+              ? "**I found some recipes that seem similar!**\n\n"
+                  "Here they are:"
+              : "**I found a recipe that seems similar!**\n\n" "Here it is:",
           customProperties: {
             "isAIMessage": true,
             // We could store them if you want or just show them
@@ -646,20 +648,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
           );
           chatProvider.addMessage(simRecipeMsg);
         }
-
-        // Then ask the user if they'd prefer an existing recipe or a new one
-        ChatMessage questionMsg = ChatMessage(
-          user: geminiUser,
-          createdAt: DateTime.now(),
-          text:
-              "Would you like to use one of these existing recipes or add the new one?",
-          quickReplies: [
-            QuickReply(title: 'Use Existing', value: 'Use Existing'),
-            QuickReply(title: 'Add New', value: 'Add New'),
-          ],
-          customProperties: {"isAIMessage": true},
-        );
-        chatProvider.addMessage(questionMsg);
       }
     } catch (e) {
       print('Error: $e');

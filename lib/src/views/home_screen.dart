@@ -1,71 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_svg/flutter_svg.dart';
-import 'package:food_fellas/main.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
-import 'package:food_fellas/src/views/aichat_screen.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
+import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/widgets/expandableFAB.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
-import 'package:food_fellas/src/widgets/mockupHorizontalRecipeRow.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:food_fellas/src/widgets/recipeList_screen.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 class HomeScreen extends StatefulWidget {
+  const HomeScreen({super.key});
+
   @override
-  _HomeScreenState createState() => _HomeScreenState();
+  State<HomeScreen> createState() => _HomeScreenState();
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  User? _currentUser;
+  Map<String, dynamic>? _currentUser;
   String _displayName = '';
   String? _photoUrl;
   List<Tag> _mealTypeTags = [];
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<bool> _isExpandedNotifier = ValueNotifier(true);
+  bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _fetchCurrentUser();
+    _initializeData();
     _fetchMealTypeTags();
-
-    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
-    // Fetch Recommended Recipes
-    searchProvider.fetchRowRecipes('recommended', sortBy: 'averageRating:desc');
-    // Fetch New Recipes
-    searchProvider.fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
-    // Fetch Top Rated Recipes
-    searchProvider.fetchRowRecipes('topRated', sortBy: 'averageRating:desc');
+    _scrollController.addListener(_handleScroll);
   }
 
-  Future<void> _fetchCurrentUser() async {
-    User? user = FirebaseAuth.instance.currentUser;
-    if (user != null) {
-      String uid = user.uid;
-      final DocumentSnapshot userDoc =
-          await FirebaseFirestore.instance.collection('users').doc(uid).get();
-      if (userDoc.exists) {
-        final userData = userDoc.data() as Map<String, dynamic>;
-        setState(() {
-          _currentUser = user;
-          _displayName = userData['display_name'] ?? 'Guest';
-          _photoUrl = userData['photo_url'];
-        });
-      } else {
-        setState(() {
-          _currentUser = user;
-          _displayName = 'Guest';
-          _photoUrl = null;
-        });
-      }
-    } else {
-      setState(() {
-        _currentUser = null;
-        _displayName = 'Guest';
-        _photoUrl = null;
-      });
+  @override
+  void dispose() {
+    _scrollController.removeListener(_handleScroll);
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _initializeData() async {
+    setState(() {
+      _isLoading = true;
+    });
+    // Grab the user from your UserDataProvider, if it exists:
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    _currentUser = userProvider.userData; // if not null
+    _displayName = _currentUser?['display_name'] ?? 'Guest';
+    _photoUrl = _currentUser?['photo_url'];
+
+    await _fetchRows();
+    setState(() {
+      _isLoading = false;
+    });
+  }
+
+  void _handleScroll() {
+    final bool isExpanded = _scrollController.offset <= kToolbarHeight;
+    if (_isExpandedNotifier.value != isExpanded) {
+      _isExpandedNotifier.value = isExpanded;
+
+      // Update status bar color directly, no setState needed
+      SystemChrome.setSystemUIOverlayStyle(SystemUiOverlayStyle(
+        statusBarColor: isExpanded
+            ? Theme.of(context).colorScheme.primary
+            : Theme.of(context).colorScheme.surface,
+        statusBarIconBrightness:
+            isExpanded ? Brightness.light : Brightness.dark,
+      ));
+    }
+  }
+
+  Future<void> _fetchRows() async {
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    if (_currentUser != null) {
+      final userId = _currentUser!['uid'];
+      await searchProvider.fetchHomeRowsOnce(userId);
     }
   }
 
@@ -97,6 +115,24 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  /// Decide on an icon based on time of day
+  Widget _getTimeOfDayIcon() {
+    final hour = DateTime.now().hour;
+    if (hour < 11) {
+      // breakfast
+      return Icon(Icons.egg_alt_outlined, color: Colors.white, size: 100);
+    } else if (hour < 14) {
+      // lunch
+      return Icon(Icons.lunch_dining, color: Colors.white, size: 100);
+    } else if (hour < 18) {
+      // snack
+      return Icon(Icons.bakery_dining, color: Colors.white, size: 100);
+    } else {
+      // dinner
+      return Icon(Icons.ramen_dining, color: Colors.white, size: 100);
+    }
+  }
+
   String _getGreetingMessage() {
     DateTime now = DateTime.now();
     int hour = now.hour;
@@ -110,225 +146,275 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String _getTitle() {
-    DateTime now = DateTime.now();
-    int hour = now.hour;
-
+  String _getMealTimePrompt() {
+    final hour = DateTime.now().hour;
     if (hour < 11) {
       return 'Looking for breakfast ideas?';
     } else if (hour < 14) {
-      return 'What\'s for lunch today?';
+      return 'What\'s for lunch?';
     } else if (hour < 18) {
       return 'Time for a snack!';
     } else {
-      return 'Dinner time! What\'s on the menu?';
+      return 'Dinner time! \nWhat\'s on the menu?';
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final userProvider = Provider.of<UserDataProvider>(context);
+    final userData = userProvider.userData;
+
+    if (userData == null) {
+      return const Center(child: CircularProgressIndicator());
+    }
+
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    searchProvider.fetchHomeRowsOnce(userData['uid']);
+
     return Scaffold(
       body: _buildBody(),
-      floatingActionButton: ExpandableFab(
-        distance: 130,
-        children: [
-          ActionButton(
-            onPressed: () {
-              Provider.of<BottomNavBarProvider>(context, listen: false)
-                  .setIndex(3);
-            },
-            icon: const Icon(Icons.chat),
+      floatingActionButton: _buildFAB(),
+    );
+  }
+
+  Widget _buildBody() {
+    return NotificationListener<ScrollNotification>(
+      onNotification: (scrollNotification) {
+        if (scrollNotification is ScrollUpdateNotification) {
+          _handleScroll();
+        }
+        return false;
+      },
+      child: CustomScrollView(
+        controller: _scrollController,
+        slivers: [
+          SliverAppBar(
+            expandedHeight: 180.0,
+            pinned: true,
+            title: ValueListenableBuilder<bool>(
+              valueListenable: _isExpandedNotifier,
+              builder: (context, isExpanded, child) {
+                return isExpanded ? SizedBox.shrink() : _buildCollapsedBar();
+              },
+            ),
+            flexibleSpace: FlexibleSpaceBar(
+              collapseMode: CollapseMode.parallax,
+              background: _buildExpandedBar(),
+            ),
           ),
-          ActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => AddRecipeForm()),
-              );
-            },
-            icon: const Icon(Icons.create),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: _buildSearchBar(),
+            ),
           ),
-          ActionButton(
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(builder: (context) => ImageToRecipeScreen()),
-              );
-            },
-            icon: const Icon(Icons.camera_alt),
+          SliverToBoxAdapter(
+            child: _buildMealTypeCategories(),
           ),
+          // Recommended
+          SliverToBoxAdapter(child: _buildRecommendedRow()),
+          // New Recipes
+          SliverToBoxAdapter(
+            child: _buildSectionTitle('New Recipes'),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.only(left: 8),
+              child: Consumer<SearchProvider>(
+                builder: (context, provider, child) {
+                  final recipes = provider.rowRecipes['newRecipes'] ?? [];
+                  return recipes.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : HorizontalRecipeRow(recipes: recipes);
+                },
+              ),
+            ),
+          ),
+
+          // Top Rated
+          SliverToBoxAdapter(
+            child: _buildSectionTitle('Top Rated'),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.only(left: 8),
+              child: Consumer<SearchProvider>(
+                builder: (context, provider, child) {
+                  final recipes = provider.rowRecipes['topRated'] ?? [];
+                  return recipes.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : HorizontalRecipeRow(recipes: recipes);
+                },
+              ),
+            ),
+          ),
+
+          /* // Most Rated
+          SliverToBoxAdapter(
+            child: _buildSectionTitle('Most Rated'),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.only(left: 8),
+              child: Consumer<SearchProvider>(
+                builder: (context, provider, child) {
+                  final recipes = provider.rowRecipes['mostRated'] ?? [];
+                  return recipes.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : HorizontalRecipeRow(recipes: recipes);
+                },
+              ),
+            ),
+          ),
+
+          // Popular
+          SliverToBoxAdapter(
+            child: _buildSectionTitle('Popular'),
+          ),
+          SliverToBoxAdapter(
+            child: Container(
+              margin: const EdgeInsets.only(left: 8),
+              child: Consumer<SearchProvider>(
+                builder: (context, provider, child) {
+                  final recipes = provider.rowRecipes['popular'] ?? [];
+                  return recipes.isEmpty
+                      ? Center(child: CircularProgressIndicator())
+                      : HorizontalRecipeRow(recipes: recipes);
+                },
+              ),
+            ),
+          ), */
+
+          // Recently Viewed
+          SliverToBoxAdapter(child: _buildRecentlyViewedRow()),
+          // Top Chefs
+          SliverToBoxAdapter(child: _buildTopChefsRow()),
         ],
       ),
     );
   }
 
-  Widget _buildBody() {
-    return CustomScrollView(
-      slivers: [
-        SliverAppBar(
-          expandedHeight: 180.0,
-          pinned: true,
-          flexibleSpace: LayoutBuilder(
-            builder: (BuildContext context, BoxConstraints constraints) {
-              var top = constraints.biggest.height;
-              bool isExpanded = top > kToolbarHeight + 50;
-
-              return FlexibleSpaceBar(
-                titlePadding:
-                    EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                centerTitle: false,
-                title: isExpanded
-                    ? null
-                    : Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          SvgPicture.asset(
-                            'lib/assets/brand/FoodFellas_Heading.svg',
-                            height: 30.0,
-                          ),
-                          GestureDetector(
-                            onTap: () {
-                              Provider.of<BottomNavBarProvider>(context,
-                                      listen: false)
-                                  .setIndex(4);
-                            },
-                            child: CircleAvatar(
-                              backgroundColor: Colors.transparent,
-                              backgroundImage: _photoUrl != null
-                                  ? NetworkImage(_photoUrl!)
-                                  : const AssetImage(
-                                          'lib/assets/images/DefaultAvatar.png')
-                                      as ImageProvider,
-                            ),
-                          ),
-                        ],
-                      ),
-                background: isExpanded
-                    ? Container(
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [
-                              Theme.of(context).colorScheme.primary,
-                              Theme.of(context).colorScheme.secondary,
-                            ],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.only(
-                            bottomLeft: Radius.circular(16.0),
-                            bottomRight: Radius.circular(16.0),
-                          ),
-                        ),
-                        alignment: Alignment.center,
-                        child: Padding(
-                          padding:
-                              const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 16.0),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              // Column for greeting and title text
-                              Expanded(
-                                child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    const SizedBox(height: 20.0),
-                                    Text(
-                                      _getTitle(),
-                                      style: TextStyle(
-                                        fontSize: 22.0,
-                                        color: Colors.white,
-                                        fontWeight: FontWeight.bold,
-                                      ),
-                                    ),
-                                    const SizedBox(height: 8.0),
-                                    Text(
-                                      _getGreetingMessage(),
-                                      style: TextStyle(
-                                        fontSize: 16.0,
-                                        color: Colors.white.withOpacity(0.8),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                              // Adding the 3D AI sparkles illustration on the right
-                              Padding(
-                                padding: const EdgeInsets.only(left: 8.0),
-                                child: Image.asset(
-                                  'lib/assets/images/SPARKLES_EMOJI.png',
-                                  height: 100,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                      )
-                    : null,
-              );
-            },
-          ),
-        ),
-
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: _buildSearchBar(),
-          ),
-        ),
-        SliverToBoxAdapter(
-          child: _buildMealTypeCategories(),
-        ),
-        SliverToBoxAdapter(
-          child: _buildSectionTitle('Recommended'),
-        ),
-        SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.only(left: 8),
-            child: Consumer<SearchProvider>(
-              builder: (context, provider, child) {
-                final recipes = provider.rowRecipes['recommended'] ?? [];
-                return recipes.isEmpty
-                    ? Center(child: CircularProgressIndicator())
-                    : HorizontalRecipeRow(recipes: recipes);
-              },
+  Widget _buildCollapsedBar() {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Padding(
+          padding: const EdgeInsets.symmetric(vertical: 16.0),
+          child: SizedBox(
+            width: 40,
+            height: 40,
+            child: Image.asset(
+              'lib/assets/brand/hat.png',
+              fit: BoxFit.contain,
             ),
           ),
         ),
-        SliverToBoxAdapter(
-          child: _buildSectionTitle('New Recipes'),
-        ),
-        SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.only(left: 8),
-            child: Consumer<SearchProvider>(
-              builder: (context, provider, child) {
-                final recipes = provider.rowRecipes['newRecipes'] ?? [];
-                return recipes.isEmpty
-                    ? Center(child: CircularProgressIndicator())
-                    : HorizontalRecipeRow(recipes: recipes);
-              },
+        ShaderMask(
+          shaderCallback: (bounds) {
+            if (Theme.of(context).brightness == Brightness.dark) {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.secondary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            } else {
+              return LinearGradient(
+                colors: [
+                  Theme.of(context).colorScheme.primary,
+                  Theme.of(context).colorScheme.primary
+                ],
+                begin: Alignment.centerLeft,
+                end: Alignment.centerRight,
+              ).createShader(bounds);
+            }
+          },
+          child: Text(
+            "FoodFellas'",
+            style: GoogleFonts.poppins(
+              color: Colors.white,
+              fontWeight: FontWeight.w600,
             ),
           ),
         ),
-        SliverToBoxAdapter(
-          child: _buildSectionTitle('Top Rated'),
-        ),
-        SliverToBoxAdapter(
-          child: Container(
-            margin: const EdgeInsets.only(left: 8),
-            child: Consumer<SearchProvider>(
-              builder: (context, provider, child) {
-                final recipes = provider.rowRecipes['topRated'] ?? [];
-                return recipes.isEmpty
-                    ? Center(child: CircularProgressIndicator())
-                    : HorizontalRecipeRow(recipes: recipes);
-              },
-            ),
+        GestureDetector(
+          onTap: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(4);
+          },
+          child: CircleAvatar(
+            backgroundColor: Colors.transparent,
+            backgroundImage: _photoUrl != null
+                ? NetworkImage(_photoUrl!)
+                : AssetImage('lib/assets/images/DefaultAvatar.png')
+                    as ImageProvider,
           ),
         ),
-        // Add more sections as needed
       ],
+    );
+  }
+
+  Widget _buildExpandedBar() {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          colors: [
+            Theme.of(context).colorScheme.primary,
+            Theme.of(context).colorScheme.secondary,
+          ],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ),
+        borderRadius: BorderRadius.only(
+          bottomLeft: Radius.circular(30),
+          bottomRight: Radius.circular(30),
+        ),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 30, 16, 16),
+      child: SafeArea(
+        bottom: false,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // Column for greeting + meal-time prompt
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  // Greet the user first
+                  Text(
+                    _getGreetingMessage(),
+                    style: TextStyle(
+                      fontSize: 18,
+                      color: Colors.white.withOpacity(0.9),
+                      fontWeight: FontWeight.w400,
+                    ),
+                  ),
+                  SizedBox(height: 8),
+                  // Then meal time prompt
+                  Text(
+                    _getMealTimePrompt(),
+                    style: TextStyle(
+                      fontSize: 22,
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            // On the right side, show an icon
+            Padding(
+              padding: const EdgeInsets.only(top: 8.0),
+              child: _getTimeOfDayIcon(),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -403,6 +489,127 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  /// Build the “Recommended” row. Hide if empty or user is new.
+  Widget _buildRecommendedRow() {
+    final searchProvider = Provider.of<SearchProvider>(context);
+    final recipes = searchProvider.recommendedCached;
+    if (recipes.isEmpty) return SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Recommended For You'),
+        Container(
+          margin: const EdgeInsets.only(left: 8),
+          child: HorizontalRecipeRow(recipes: recipes),
+        ),
+      ],
+    );
+  }
+
+  /// Build the “Recently Viewed” row
+  Widget _buildRecentlyViewedRow() {
+    final searchProvider = Provider.of<SearchProvider>(context);
+    final recipes = searchProvider.recentlyViewedCached;
+    if (recipes.isEmpty) return SizedBox.shrink();
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildSectionTitle('Recently Viewed'),
+        Container(
+          margin: const EdgeInsets.only(left: 8.0),
+          child: HorizontalRecipeRow(recipes: recipes),
+        ),
+      ],
+    );
+  }
+
+  /// Build the “Top Chefs” row
+  Widget _buildTopChefsRow() {
+    final provider = Provider.of<SearchProvider>(context, listen: true);
+    final topChefs = provider.rowUsers['topChefs'] ?? [];
+    if (topChefs.isEmpty) return SizedBox.shrink();
+
+    // You can create a custom widget, e.g. HorizontalUserRow
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
+          child: Text(
+            'Top Chefs',
+            style: TextStyle(
+              fontWeight: FontWeight.bold,
+              fontSize: 20.0,
+            ),
+          ),
+        ),
+        Container(
+          height: 200,
+          margin: EdgeInsets.only(left: 8),
+          child: ListView.builder(
+            scrollDirection: Axis.horizontal,
+            itemCount: topChefs.length,
+            itemBuilder: (context, index) {
+              final chef = topChefs[index];
+              return _buildChefCard(chef);
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildChefCard(Map<String, dynamic> chef) {
+    final name = chef['display_name'] ?? 'Unknown Chef';
+    final photoUrl = chef['photo_url'];
+    final avgRating = chef['averageRating']?.toStringAsFixed(1) ?? '0.0';
+    final recipeCount = chef['recipeCount'] ?? 0;
+
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (ctx) => ProfileScreen(userId: chef['uid']),
+          ),
+        );
+      },
+      child: Container(
+        width: 130,
+        child: Column(
+          children: [
+            CircleAvatar(
+              radius: 50,
+              backgroundImage: (photoUrl != null && photoUrl.isNotEmpty)
+                  ? NetworkImage(photoUrl)
+                  : AssetImage('lib/assets/images/DefaultAvatar.png')
+                      as ImageProvider,
+              backgroundColor: Colors.transparent,
+            ),
+            SizedBox(height: 8),
+            Text(
+              name,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(fontWeight: FontWeight.bold),
+            ),
+            Text('$recipeCount recipes'),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text('$avgRating'),
+                SizedBox(width: 4),
+                Icon(Icons.star, color: Colors.orange, size: 16),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildSectionTitle(String title) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16.0, 16.0, 16.0, 8.0),
@@ -420,18 +627,61 @@ class _HomeScreenState extends State<HomeScreen> {
             onTap: () {
               final searchProvider =
                   Provider.of<SearchProvider>(context, listen: false);
-              // clear filters or keep them
+              final bottomNavBarProvider =
+                  Provider.of<BottomNavBarProvider>(context, listen: false);
+
+              // This is the ID of the logged-in user
+              String userId = FirebaseAuth.instance.currentUser!.uid;
+
+              // Clear or reset filters if needed
               searchProvider.updateFilters({});
-              // set the new sort order
-              if (title == 'Recommended') {
-                searchProvider.setSortOrder('averageRating:desc');
+
+              if (title == 'Recommended For You') {
+                // Navigate to a RecipesListScreen that reads the subcollection
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecipesListScreen(
+                      title: 'Recommended For You',
+                      baseQuery: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userId)
+                          .collection('recommendations')
+                          .orderBy('score', descending: true),
+                      isCollection: false,
+                    ),
+                  ),
+                );
+              } else if (title == 'Recently Viewed') {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => RecipesListScreen(
+                      title: 'Recently Viewed',
+                      baseQuery: FirebaseFirestore.instance
+                          .collection('users')
+                          .doc(userId)
+                          .collection('interactionHistory')
+                          .orderBy('viewedAt', descending: true),
+                      isCollection: false,
+                    ),
+                  ),
+                );
               } else if (title == 'New Recipes') {
+                // We want to show the “Discover” tab with sort = createdAt desc
                 searchProvider.setSortOrder('createdAt:desc');
+                bottomNavBarProvider.setIndex(1);
               } else if (title == 'Top Rated') {
+                // We want to show the “Discover” tab with sort = avgRating desc
                 searchProvider.setSortOrder('averageRating:desc');
+                bottomNavBarProvider.setIndex(1);
+              } else if (title == 'Most Rated') {
+                // We want to show the “Discover” tab with sort = avgRating desc
+                searchProvider.setSortOrder('ratingCount:desc');
+                bottomNavBarProvider.setIndex(1);
+              } else if (title == 'Top Chefs') {
+                return;
               }
-              Provider.of<BottomNavBarProvider>(context, listen: false)
-                  .setIndex(1);
             },
             child: Text(
               'See All',
@@ -444,6 +694,39 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildFAB() {
+    return ExpandableFab(
+      distance: 130,
+      children: [
+        ActionButton(
+          onPressed: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(3);
+          },
+          icon: const Icon(Icons.chat),
+        ),
+        ActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AddRecipeForm()),
+            );
+          },
+          icon: const Icon(Icons.create),
+        ),
+        ActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ImageToRecipeScreen()),
+            );
+          },
+          icon: const Icon(Icons.camera_alt),
+        ),
+      ],
     );
   }
 }

@@ -1,0 +1,297 @@
+{
+  "aiTagNames": [],
+  "authorId": "ecFKkmIyFuSGq84gSnEm2Mmd24Z2",
+  "cookTime": 15,
+  "cookingSteps": [
+    "Cook the penne pasta according to package instructions.",
+    "Sauté diced onions in a pan until softened, then add minced garlic.",
+    "Stir in the tomato paste and cook briefly, then deglaze with white wine.",
+    "Add the heavy cream and pesto rosso, stirring to combine into a creamy sauce.",
+    "Toss the cooked pasta with the sauce until fully coated.",
+    "Divide onto plates and top with burrata, halved cherry tomatoes, and fresh basil leaves.",
+    "Serve immediately and enjoy!"
+  ],
+  "createdAt": 1729618053432,
+  "createdByAI": true,
+  "description": "A creamy, rich, and flavorful dish with a touch of elegance! This elevated version features sautéed onions and garlic, a splash of wine, and a creamy pesto rosso sauce. Perfectly topped with burrata, cherry tomatoes, and fresh basil for an unforgettable dinner.",
+  "fat": 45,
+  "id": "LFpLQrlrbNfn3HkMlmcn",
+  "imageUrl": "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/recipes%2F1729617985556.jpg?alt=media&token=3aa2b74a-e1d9-4f76-a5e3-202acafc1ca1",
+  "ingredients": [
+    {
+      "baseAmount": 250,
+      "ingredient": {
+        "approved": false,
+        "category": "Pasta",
+        "ingredientName": "Penne Pasta"
+      },
+      "servings": 2,
+      "unit": "g"
+    },
+    {
+      "baseAmount": 100,
+      "ingredient": {
+        "approved": false,
+        "category": "Sauce",
+        "ingredientName": "Pesto Rosso Sauce"
+      },
+      "servings": 2,
+      "unit": "ml"
+    },
+    {
+      "baseAmount": 125,
+      "ingredient": {
+        "approved": false,
+        "category": "Cheese",
+        "ingredientName": "Burrata Cheese"
+      },
+      "servings": 2,
+      "unit": "g"
+    },
+    {
+      "baseAmount": 10,
+      "ingredient": {
+        "approved": false,
+        "category": "Vegetable",
+        "ingredientName": "Cherry Tomatoes"
+      },
+      "servings": 2,
+      "unit": "pieces"
+    },
+    {
+      "baseAmount": 2,
+      "ingredient": {
+        "approved": false,
+        "category": "Herb",
+        "ingredientName": "Basil"
+      },
+      "servings": 2,
+      "unit": "leaves"
+    },
+    {
+      "baseAmount": 100,
+      "ingredient": {
+        "approved": true,
+        "category": "Vegetable",
+        "ingredientName": "Onion"
+      },
+      "servings": null,
+      "unit": "g"
+    },
+    {
+      "baseAmount": 2,
+      "ingredient": {
+        "approved": true,
+        "category": "Vegetable",
+        "ingredientName": "Garlic"
+      },
+      "servings": null,
+      "unit": "cloves"
+    },
+    {
+      "baseAmount": 1,
+      "ingredient": {
+        "approved": true,
+        "category": "Vegetable",
+        "ingredientName": "Tomato Paste"
+      },
+      "servings": null,
+      "unit": "tbsp"
+    },
+    {
+      "baseAmount": 50,
+      "ingredient": {
+        "approved": false,
+        "category": "Other",
+        "ingredientName": "White Wine"
+      },
+      "servings": null,
+      "unit": "ml"
+    },
+    {
+      "baseAmount": 100,
+      "ingredient": {
+        "approved": false,
+        "category": "Dairy",
+        "ingredientName": "Heavy Cream"
+      },
+      "servings": null,
+      "unit": "ml"
+    }
+  ],
+  "initialServings": 2,
+  "prepTime": 10,
+  "protein": 30,
+  "tags": [
+    {
+      "category": "Dietary Preferences",
+      "icon": "🥕",
+      "id": "tag1",
+      "name": "Vegetarian"
+    },
+    {
+      "category": "Cuisines",
+      "icon": "🍕",
+      "id": "tag2",
+      "name": "Italian"
+    },
+    {
+      "category": "Time",
+      "icon": "⏱️",
+      "id": "tag3",
+      "name": "Under 30 minutes"
+    },
+    {
+      "category": "Difficulty",
+      "icon": "😄",
+      "id": "tag4",
+      "name": "Easy"
+    },
+    {
+      "category": "Meal Type",
+      "icon": "🍽️",
+      "id": "tag5",
+      "name": "Dinner"
+    },
+    {
+      "category": "Cooking Style",
+      "icon": "⚡",
+      "id": "tag6",
+      "name": "Quick & Easy"
+    },
+    {
+      "category": "Occasion",
+      "icon": "🏠",
+      "id": "tag7",
+      "name": "Casual"
+    },
+    {
+      "category": "Other Tags",
+      "icon": "🧀",
+      "id": "o0DCqsWvgtjYZKSSSlyf",
+      "name": "Savory"
+    },
+    {
+      "category": "Other Tags",
+      "icon": "🍝",
+      "id": "prMxFXeIDTibCBHhZi9V",
+      "name": "Comfort Food"
+    }
+  ],
+  "title": "Pasta with Pesto Rosso Sauce and Burrata 🍝",
+  "totalTime": 25,
+  "updatedAt": 1737125826631,
+  "averageRating": 0,
+  "ingredientNames": [
+    "Penne Pasta",
+    "Pesto Rosso Sauce",
+    "Burrata Cheese",
+    "Cherry Tomatoes",
+    "Basil",
+    "Onion",
+    "Garlic",
+    "Tomato Paste",
+    "White Wine",
+    "Heavy Cream"
+  ],
+  "tagNames": [
+    "Vegetarian",
+    "Italian",
+    "Under 30 minutes",
+    "Easy",
+    "Dinner",
+    "Quick & Easy",
+    "Casual",
+    "Savory",
+    "Comfort Food"
+  ],
+  "calories": 750,
+  "carbs": 90,
+  "subcollections": {
+    "comments": [
+      {
+        "id": "gO4QZLFSms5SGiPRJo7W",
+        "comment": "Very Nice!",
+        "rating": 5,
+        "userId": "r8zp6y3A05N4GRtH19q4efLipR93",
+        "userName": "iOS Tester",
+        "timestamp": {
+          "_seconds": 1735488844,
+          "_nanoseconds": 510000000
+        },
+        "sentimentScore": 3
+      },
+      {
+        "id": "iX2HRd9NFMdt6bLu2x55",
+        "rating": 4,
+        "comment": "So easy!",
+        "userName": "Tester",
+        "userId": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "timestamp": {
+          "_seconds": 1731421339,
+          "_nanoseconds": 919000000
+        }
+      }
+    ],
+    "ratings": [
+      {
+        "id": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "rating": 2,
+        "timestamp": {
+          "_seconds": 1733522876,
+          "_nanoseconds": 945000000
+        }
+      },
+      {
+        "id": "QaITxzpni6bMcTdQz7sFuvU2RUz1",
+        "rating": 5,
+        "timestamp": {
+          "_seconds": 1735488878,
+          "_nanoseconds": 27000000
+        }
+      },
+      {
+        "id": "r8zp6y3A05N4GRtH19q4efLipR93",
+        "rating": 5,
+        "timestamp": {
+          "_seconds": 1735488830,
+          "_nanoseconds": 292000000
+        }
+      }
+    ],
+    "views": [
+      {
+        "id": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "userId": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "viewedAt": {
+          "_seconds": 1733522861,
+          "_nanoseconds": 571000000
+        }
+      },
+      {
+        "id": "QaITxzpni6bMcTdQz7sFuvU2RUz1",
+        "userId": "QaITxzpni6bMcTdQz7sFuvU2RUz1",
+        "viewedAt": {
+          "_seconds": 1735693643,
+          "_nanoseconds": 400000000
+        }
+      },
+      {
+        "id": "ecFKkmIyFuSGq84gSnEm2Mmd24Z2",
+        "userId": "ecFKkmIyFuSGq84gSnEm2Mmd24Z2",
+        "viewedAt": {
+          "_seconds": 1737126401,
+          "_nanoseconds": 690000000
+        }
+      },
+      {
+        "id": "r8zp6y3A05N4GRtH19q4efLipR93",
+        "userId": "r8zp6y3A05N4GRtH19q4efLipR93",
+        "viewedAt": {
+          "_seconds": 1736018927,
+          "_nanoseconds": 196000000
+        }
+      }
+    ]
+  }
+}
