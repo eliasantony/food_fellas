@@ -15,6 +15,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
+import 'package:share_plus/share_plus.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
@@ -677,6 +678,32 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipeProvider = Provider.of<RecipeProvider>(context);
 
     return Scaffold(
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          // Implement share functionality here
+          final recipeUrl =
+              'https://foodfellas.app/share/recipe/${widget.recipeId}';
+          Share.share(
+              'Check out this recipe: ${_currentRecipe?.title ?? 'Untitled'}\n$recipeUrl');
+        },
+        backgroundColor: Colors.transparent,
+        shape: const CircleBorder(),
+        elevation: 6.0,
+        clipBehavior: Clip.antiAlias,
+        child: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Theme.of(context).primaryColor,
+                Theme.of(context).colorScheme.secondary,
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+          child: const Icon(Icons.share, color: Colors.white),
+        ),
+      ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _fetchRecipeStream(),
         builder: (context, snapshot) {

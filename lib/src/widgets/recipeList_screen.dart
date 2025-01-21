@@ -446,6 +446,36 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         ? '${widget.collectionEmoji ?? ''} ${widget.collectionName ?? 'Collection'}'
         : (widget.title ?? 'Recipes');
 
+    if (widget.collectionVisibility == false &&
+        widget.collectionUserId != FirebaseAuth.instance.currentUser?.uid) {
+      return Scaffold(
+        appBar: AppBar(
+          title: Text(
+            actualTitle,
+            style: TextStyle(fontWeight: FontWeight.bold),
+          ),
+        ),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.lock, size: 50, color: Colors.grey),
+              SizedBox(height: 16),
+              Text(
+                'This collection is private.',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.grey[700],
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: Text(actualTitle),

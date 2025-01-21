@@ -19,6 +19,7 @@ import 'package:food_fellas/src/widgets/recipeList_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import '../widgets/recipeCard.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -197,38 +198,85 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: theme.appBarTheme.backgroundColor,
         actions: isCurrentUser
             ? [
-                IconButton(
-                  icon: Icon(Icons.edit, color: theme.iconTheme.color),
-                  onPressed: () async {
-                    // Navigate to edit profile screen
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            EditProfileScreen(userData: userData!),
-                      ),
-                    );
-                    // Refresh the profile data after returning
-                    _fetchUserData();
+                PopupMenuButton<int>(
+                  icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
+                  onSelected: (item) async {
+                    switch (item) {
+                      case 0:
+                        // Navigate to edit profile screen
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                EditProfileScreen(userData: userData!),
+                          ),
+                        );
+                        // Refresh the profile data after returning
+                        _fetchUserData();
+                        break;
+                      case 1:
+                        // Navigate to settings screen
+                        await Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) =>
+                                SettingsScreen(userData: userData!),
+                          ),
+                        );
+                        // Refresh the profile data if necessary
+                        _fetchUserData();
+                        break;
+                      case 2:
+                        // Share profile
+                        final String profileUrl =
+                            'https://foodfellas.app/share/profile/${widget.userId}';
+                        Share.share('Check out my profile: $profileUrl');
+                    }
                   },
+                  itemBuilder: (context) => [
+                    PopupMenuItem<int>(
+                      value: 0,
+                      child: Row(
+                        children: [
+                          Icon(Icons.edit, color: theme.iconTheme.color),
+                          SizedBox(width: 8),
+                          Text('Edit Profile'),
+                        ],
+                      ),
+                    ),
+                    PopupMenuItem<int>(
+                      value: 1,
+                      child: Row(
+                        children: [
+                          Icon(Icons.settings, color: theme.iconTheme.color),
+                          SizedBox(width: 8),
+                          Text('Settings'),
+                        ],
+                      ),
+                    ),
+                  ],
                 ),
-                IconButton(
-                  icon: Icon(Icons.settings, color: theme.iconTheme.color),
-                  onPressed: () async {
-                    // Navigate to settings screen
-                    await Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) =>
-                            SettingsScreen(userData: userData!),
-                      ),
-                    );
-                    // Refresh the profile data if necessary
-                    _fetchUserData();
-                  },
+                PopupMenuItem<int>(
+                  value: 2,
+                  child: Row(
+                    children: [
+                      Icon(Icons.share, color: theme.iconTheme.color),
+                      SizedBox(width: 8),
+                      Text('Share Profile'),
+                    ],
+                  ),
                 ),
               ]
-            : [],
+            : [
+                IconButton(
+                  icon: Icon(Icons.share, color: theme.iconTheme.color),
+                  onPressed: () {
+                    final String profileUrl =
+                        'https://foodfellas.app/share/profile/${widget.userId}';
+                    Share.share('Check out this profile: $profileUrl');
+                  },
+                ),
+              ],
         leading: Padding(
           padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
           child: SizedBox(

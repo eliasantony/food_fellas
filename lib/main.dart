@@ -1,3 +1,4 @@
+import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -12,8 +13,10 @@ import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
+import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
+import 'package:food_fellas/src/widgets/recipeList_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -43,6 +46,23 @@ void main() async {
     persistenceEnabled: true,
   );
 
+  final appLinks = AppLinks();
+
+  // Check for an initial link
+  final initialUri = await appLinks.getInitialLink();
+  if (initialUri != null) {
+    // Delay the handling until after the widget tree is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _handleIncomingLink(initialUri);
+    });
+  }
+
+  appLinks.uriLinkStream.listen((Uri? uri) {
+    if (uri != null) {
+      _handleIncomingLink(uri);
+    }
+  });
+
   runApp(
     MultiProvider(
       providers: [
@@ -56,6 +76,79 @@ void main() async {
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
       ],
       child: MainApp(),
+    ),
+  );
+}
+
+void _handleIncomingLink(Uri uri) {
+  // Parse the incoming URI and navigate to the appropriate screen
+  final pathSegments = uri.pathSegments;
+
+  // Check if the URL starts with "share"
+  if (pathSegments.isNotEmpty && pathSegments[0] == 'share') {
+    if (pathSegments.length > 2) {
+      final contentType = pathSegments[1];
+      final contentId = pathSegments[2];
+
+      final context = mainPageKey.currentContext;
+      if (context != null) {
+        // Navigate based on content type
+        switch (contentType) {
+          case 'recipe':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RecipeDetailScreen(recipeId: contentId),
+              ),
+            );
+            break;
+          case 'profile':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ProfileScreen(userId: contentId),
+              ),
+            );
+            break;
+          case 'collection':
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => RecipesListScreen(
+                  isCollection: true,
+                  collectionId: contentId,
+                ),
+              ),
+            );
+            break;
+          default:
+            _showError(context, 'Unknown content type: $contentType');
+        }
+      } else {
+        // If context is not available, consider storing the link for later handling
+        print('Context not available for navigation');
+      }
+    } else {
+      final context = mainPageKey.currentContext;
+      if (context != null) {
+        _showError(context, 'Invalid share link: Missing content type or ID');
+      }
+      print('Invalid share link: Missing content type or ID');
+    }
+  } else {
+    final context = mainPageKey.currentContext;
+    if (context != null) {
+      _showError(context, 'Link does not start with "share"');
+    }
+    print('Link does not start with "share"');
+  }
+}
+
+void _showError(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text(message),
+      backgroundColor: Colors.redAccent,
     ),
   );
 }
@@ -125,7 +218,6 @@ class _MainPageState extends State<MainPage> {
   final List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     DiscoverScreen(),
-    //CommunityScreen(),
     ShoppingListScreen(),
     const AIChatScreen(),
     ProfileScreen(),
