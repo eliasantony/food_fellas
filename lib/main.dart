@@ -28,6 +28,8 @@ import 'src/views/profile_screen.dart';
 import 'src/views/auth/signup_screen.dart';
 import 'src/widgets/initializer_widget.dart';
 
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
 final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
 
 void main() async {
@@ -57,6 +59,7 @@ void main() async {
     });
   }
 
+  // Listen for subsequent links while the app is running
   appLinks.uriLinkStream.listen((Uri? uri) {
     if (uri != null) {
       _handleIncomingLink(uri);
@@ -81,7 +84,9 @@ void main() async {
 }
 
 void _handleIncomingLink(Uri uri) {
-  // Parse the incoming URI and navigate to the appropriate screen
+  // Just a debug print so you know it's being triggered.
+  print('Deep link triggered for: $uri');
+
   final pathSegments = uri.pathSegments;
 
   // Check if the URL starts with "share"
@@ -90,31 +95,28 @@ void _handleIncomingLink(Uri uri) {
       final contentType = pathSegments[1];
       final contentId = pathSegments[2];
 
-      final context = mainPageKey.currentContext;
-      if (context != null) {
-        // Navigate based on content type
+      // 3. Use the global navigator to push the route:
+      final nav = globalNavigatorKey.currentState;
+      if (nav != null) {
         switch (contentType) {
           case 'recipe':
-            Navigator.push(
-              context,
+            nav.push(
               MaterialPageRoute(
-                builder: (context) => RecipeDetailScreen(recipeId: contentId),
+                builder: (_) => RecipeDetailScreen(recipeId: contentId),
               ),
             );
             break;
           case 'profile':
-            Navigator.push(
-              context,
+            nav.push(
               MaterialPageRoute(
-                builder: (context) => ProfileScreen(userId: contentId),
+                builder: (_) => ProfileScreen(userId: contentId),
               ),
             );
             break;
           case 'collection':
-            Navigator.push(
-              context,
+            nav.push(
               MaterialPageRoute(
-                builder: (context) => RecipesListScreen(
+                builder: (_) => RecipesListScreen(
                   isCollection: true,
                   collectionId: contentId,
                 ),
@@ -122,35 +124,32 @@ void _handleIncomingLink(Uri uri) {
             );
             break;
           default:
-            _showError(context, 'Unknown content type: $contentType');
+            _showError('Unknown content type: $contentType');
         }
       } else {
-        // If context is not available, consider storing the link for later handling
-        print('Context not available for navigation');
+        print('NavigatorState is null. Could not push.');
       }
     } else {
-      final context = mainPageKey.currentContext;
-      if (context != null) {
-        _showError(context, 'Invalid share link: Missing content type or ID');
-      }
-      print('Invalid share link: Missing content type or ID');
+      _showError('Invalid share link: Missing content type or ID');
     }
   } else {
-    final context = mainPageKey.currentContext;
-    if (context != null) {
-      _showError(context, 'Link does not start with "share"');
-    }
-    print('Link does not start with "share"');
+    _showError('Link does not start with "share"');
   }
 }
 
-void _showError(BuildContext context, String message) {
-  ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(
-      content: Text(message),
-      backgroundColor: Colors.redAccent,
-    ),
-  );
+void _showError(String message) {
+  print('ERROR: $message');
+
+  // Optionally show a dialog or snack bar if context is available:
+  final ctx = globalNavigatorKey.currentContext;
+  if (ctx != null) {
+    ScaffoldMessenger.of(ctx).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: Colors.redAccent,
+      ),
+    );
+  }
 }
 
 class MainApp extends StatefulWidget {
@@ -174,6 +173,7 @@ class _MainAppState extends State<MainApp> {
     return MaterialApp(
       title: 'FoodFellas',
       debugShowCheckedModeBanner: false,
+      navigatorKey: globalNavigatorKey,
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -199,7 +199,7 @@ class _MainAppState extends State<MainApp> {
       routes: {
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
-        '/mainPage': (context) => MainPage(key: mainPageKey),
+        '/mainPage': (context) => MainPage(),
       },
     );
   }

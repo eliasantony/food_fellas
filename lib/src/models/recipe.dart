@@ -25,7 +25,7 @@ class Recipe {
   DateTime? createdAt;
   DateTime? updatedAt;
   File? imageFile;
-  List<double>? embedding;
+  List<double>? embeddings;
 
   Recipe({
     this.id,
@@ -49,7 +49,7 @@ class Recipe {
     this.createdAt,
     this.updatedAt,
     this.imageFile,
-    this.embedding,
+    this.embeddings,
   })  : ingredients = ingredients ?? [],
         cookingSteps = cookingSteps ?? [],
         tags = tags ?? [];
@@ -89,8 +89,8 @@ class Recipe {
       updatedAt: json['updatedAt'] != null
           ? DateTime.fromMillisecondsSinceEpoch(json['updatedAt'])
           : null,
-      embedding: json['embedding'] != null
-          ? List<double>.from(json['embedding'])
+      embeddings: json['embeddings'] != null
+          ? List<double>.from(json['embeddings'])
           : null,
     );
   }
@@ -117,7 +117,7 @@ class Recipe {
       'imageUrl': imageUrl,
       'createdAt': createdAt?.millisecondsSinceEpoch,
       'updatedAt': updatedAt?.millisecondsSinceEpoch,
-      'embedding': embedding,
+      'embedding': embeddings,
     };
   }
 
@@ -143,7 +143,7 @@ class Recipe {
       'imageUrl': imageUrl,
       'createdAt': createdAt?.millisecondsSinceEpoch,
       'updatedAt': updatedAt?.millisecondsSinceEpoch,
-      'embedding': embedding,
+      'embeddings': embeddings,
     });
   }
 }

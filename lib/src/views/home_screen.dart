@@ -79,12 +79,18 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _fetchCurrentUser() async {
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    _currentUser = userProvider.userData;
+    _displayName = _currentUser?['display_name'] ?? 'Guest';
+    _photoUrl = _currentUser?['photo_url'];
+  }
+
   Future<void> _fetchRows() async {
     final searchProvider = Provider.of<SearchProvider>(context, listen: false);
-    if (_currentUser != null) {
-      final userId = _currentUser!['uid'];
-      await searchProvider.fetchHomeRowsOnce(userId);
-    }
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    print('Fetching home rows for $userId');
+    await searchProvider.fetchHomeRowsOnce(userId);
   }
 
   Future<void> _fetchMealTypeTags() async {
@@ -167,9 +173,6 @@ class _HomeScreenState extends State<HomeScreen> {
     if (userData == null) {
       return const Center(child: CircularProgressIndicator());
     }
-
-    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
-    searchProvider.fetchHomeRowsOnce(userData['uid']);
 
     return Scaffold(
       body: _buildBody(),

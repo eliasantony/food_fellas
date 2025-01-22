@@ -211,9 +211,17 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         return;
       }
 
-      recipe.authorId = currentUser.uid;
       final now = DateTime.now();
-      recipe.updatedAt = now;
+      recipe.updatedAt = now; // Always update 'updatedAt'
+
+      // 1) Only set the authorId if it's a brand-new recipe (no existing recipe.id).
+      //    If recipe.id is null or empty => brand new
+      //    If recipe.id is set => editing existing recipe
+      if (recipe.id == null || recipe.id!.isEmpty) {
+        // This is a new recipe
+        recipe.authorId = currentUser.uid; // Keep track of who created it
+        recipe.createdAt = now; // Created time
+      }
 
       // Handle image upload if an image is provided
       if (recipe.imageFile != null) {
@@ -240,12 +248,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
             .map((ri) => ri.ingredient.ingredientName)
             .join(", ");
         String tagNames = recipe.tags.map((tag) => tag.name).join(", ");
-        String combinedText = [
-          recipe.title, // Recipe title
-          ingredientNames, // List of ingredient names
-          tagNames // List of tag names
-        ].join(" ");
-        recipe.embedding = await embeddingModel.generateEmbedding(combinedText);
+        String combinedText =
+            [recipe.title, ingredientNames, tagNames].join(" ");
+        recipe.embeddings =
+            await embeddingModel.generateEmbedding(combinedText);
       } catch (e) {
         print('Error generating embedding: $e');
         ScaffoldMessenger.of(context).showSnackBar(
@@ -257,61 +263,68 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         return;
       }
 
-      // If recipe.id is set, update the existing document; otherwise, create a new one
+      // Determine if we are editing or creating new
+      bool isNewRecipe = (recipe.id == null || recipe.id!.isEmpty);
+
+      // 2) Decide which DocumentReference to use
       DocumentReference docRef;
-      if (recipe.id != null && recipe.id!.isNotEmpty) {
-        // Editing an existing recipe
+      if (isNewRecipe) {
+        // brand-new recipe
+        docRef = FirebaseFirestore.instance.collection('recipes').doc();
+        recipe.id = docRef.id; // set the recipe ID
+      } else {
+        // editing existing recipe
         docRef =
             FirebaseFirestore.instance.collection('recipes').doc(recipe.id);
-      } else {
-        // Adding a new recipe
-        docRef = FirebaseFirestore.instance.collection('recipes').doc();
-        recipe.id = docRef.id;
-        recipe.createdAt = now;
-
-        // Increment the user's recipeCount
-        final userRef =
-            FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
-        userRef.update({'recipeCount': FieldValue.increment(1)});
       }
 
-      // Extract tagsNames from tags
-      List<dynamic>? tags = recipe.tags;
-      List<String> tagsNames = [];
-      if (tags != null) {
-        tagsNames = tags
-            .map((tag) => tag.name.toString())
-            .toSet()
-            .toList(); // Using Set to avoid duplicates
-      }
+      // Prepare the tag names for easier searching
+      List<String> tagsNames =
+          recipe.tags.map((tag) => tag.name).toSet().toList();
 
-      // Prepare the data to be saved, including tagsNames
+      // Convert to JSON but also add tagsNames
       Map<String, dynamic> recipeData = recipe.toJson();
       recipeData['tagsNames'] = tagsNames;
 
-      // Save the recipe to Firestore
       try {
-        await docRef.set(recipe.toJson());
+        // Set or update the recipe in Firestore
+        await docRef.set(recipeData);
 
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Recipe submitted successfully!')),
-        );
+        // If new recipe => increment user's recipe count
+        if (isNewRecipe) {
+          final userRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(currentUser.uid);
+          userRef.update({'recipeCount': FieldValue.increment(1)});
+        }
 
-        setState(() {
-          _isSubmitting = false;
-        });
-
-        Navigator.pop(context);
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-              builder: (context) => ThankYouScreen(recipeId: recipe.id!)),
-        );
+        // 3) Show feedback & navigate
+        if (isNewRecipe) {
+          // NEW recipe => go to Thank You screen
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Recipe submitted successfully!')),
+          );
+          Navigator.pop(context); // pop the form
+          Navigator.pushReplacement(
+            context,
+            MaterialPageRoute(
+              builder: (context) => ThankYouScreen(recipeId: recipe.id!),
+            ),
+          );
+        } else {
+          // EDIT => just show a snackbar and pop back with a "true" result
+          // so that the calling screen knows it was successful
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(content: Text('Recipe edited successfully!')),
+          );
+          Navigator.pop(context, true);
+        }
       } catch (e) {
         print('Error submitting recipe: $e');
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Error submitting recipe: $e')),
         );
+      } finally {
         setState(() {
           _isSubmitting = false;
         });

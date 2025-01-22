@@ -13,12 +13,31 @@ class SimilarRecipesSection extends StatefulWidget {
 }
 
 class _SimilarRecipesSectionState extends State<SimilarRecipesSection> {
+  String? _lastFetchedId;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SearchProvider>().fetchSimilarRecipesById(widget.recipeId);
+      _fetchSimilarIfNeeded();
     });
+  }
+
+  @override
+  void didUpdateWidget(SimilarRecipesSection oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.recipeId != oldWidget.recipeId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _fetchSimilarIfNeeded();
+      });
+    }
+  }
+
+  void _fetchSimilarIfNeeded() {
+    if (_lastFetchedId != widget.recipeId) {
+      _lastFetchedId = widget.recipeId;
+      context.read<SearchProvider>().fetchSimilarRecipesById(widget.recipeId);
+    }
   }
 
   @override

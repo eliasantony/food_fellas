@@ -94,12 +94,21 @@ class TypesenseHttpClient {
 
     if (response.statusCode == 200) {
       final Map<String, dynamic> result = jsonDecode(response.body);
-      final results = result['results'] as List;
-      final first = results.first;
-      final hits = first['hits'] as List;
-      return hits
-          .map((hit) => hit['document'] as Map<String, dynamic>)
-          .toList();
+      final results = result['results'];
+      if (results is List) {
+        final first = results.first;
+        print(first);
+        final hits = first['hits'];
+        if (hits is List) {
+          return hits
+              .map((hit) => hit['document'] as Map<String, dynamic>)
+              .toList();
+        } else {
+          throw Exception('Expected hits to be a List');
+        }
+      } else {
+        throw Exception('Expected results to be a List');
+      }
     } else {
       throw Exception(
           'HTTP POST Error ${response.statusCode}: ${response.body}');

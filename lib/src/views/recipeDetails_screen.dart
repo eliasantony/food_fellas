@@ -43,9 +43,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<double> _opacityNotifier = ValueNotifier<double>(0.0);
   bool _isMarquee = false;
-  bool _didFetchSimilar = false;
-  String? _lastFetchedRecipeId;
-  bool _isLoadingMacros = false;
 
   @override
   void initState() {
@@ -567,7 +564,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           builder: (context, setState) {
             return AlertDialog(
               title: const Text('Save Recipe to Collections'),
-              content: Container(
+              content: SizedBox(
                 width: double.maxFinite,
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -654,31 +651,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _checkIfRecipeIsSaved();
   }
 
-  void _createNewCollection(String name, String icon, bool isPublic) async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    final collectionRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('collections')
-        .doc();
-
-    await collectionRef.set({
-      'name': name,
-      'icon': icon,
-      'isPublic': isPublic,
-      'recipes': [widget.recipeId],
-      'createdAt': FieldValue.serverTimestamp(),
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
-    final recipeProvider = Provider.of<RecipeProvider>(context);
+    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
+        backgroundColor: Theme.of(context).colorScheme.primary,
+        foregroundColor: Theme.of(context).colorScheme.onPrimary,
         onPressed: () {
           // Implement share functionality here
           final recipeUrl =
@@ -686,23 +666,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           Share.share(
               'Check out this recipe: ${_currentRecipe?.title ?? 'Untitled'}\n$recipeUrl');
         },
-        backgroundColor: Colors.transparent,
-        shape: const CircleBorder(),
-        elevation: 6.0,
-        clipBehavior: Clip.antiAlias,
-        child: Container(
-          decoration: BoxDecoration(
-            gradient: LinearGradient(
-              colors: [
-                Theme.of(context).primaryColor,
-                Theme.of(context).colorScheme.secondary,
-              ],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-          ),
-          child: const Icon(Icons.share, color: Colors.white),
-        ),
+        child: const Icon(Icons.share, color: Colors.white),
       ),
       body: StreamBuilder<DocumentSnapshot>(
         stream: _fetchRecipeStream(),
@@ -777,7 +741,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                               top: MediaQuery.of(context).padding.top,
                               left: 4.0,
                               right: 4.0,
-                              child: Container(
+                              child: SizedBox(
                                 height: kToolbarHeight,
                                 child: Row(
                                   mainAxisAlignment:
@@ -886,7 +850,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                               height: MediaQuery.of(context)
                                                   .padding
                                                   .top),
-                                          Container(
+                                          SizedBox(
                                             height: kToolbarHeight,
                                             child: Row(
                                               mainAxisAlignment:
@@ -1081,7 +1045,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         (recipeData['ratingCounts'] as Map<String, dynamic>?)
                 ?.map((key, value) => MapEntry(int.parse(key), value as int)) ??
             {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
-    final int viewsCount = recipeData['viewsCount'] ?? 0;
 
     return [
       // Views Section
@@ -1344,7 +1307,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         ),
       );
       chips.add(
-        Container(
+        SizedBox(
           height: 24,
           child: const VerticalDivider(
             color: Colors.grey,
@@ -1562,8 +1525,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           itemBuilder: (context, index) {
             return ListTile(
               leading: CircleAvatar(
-                child: Text('${index + 1}'),
                 radius: 16,
+                child: Text('${index + 1}'),
               ),
               title: Text(steps[index]),
             );

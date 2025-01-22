@@ -64,12 +64,6 @@ android {
             signingConfig signingConfigs.debug
         }
     }
-
-    applicationVariants.all { variant ->
-        variant.outputs.all { output ->
-            output.outputFileName = "${variant.name}-${variant.versionName}.apk"
-        }
-    }
 }
 
 flutter {
