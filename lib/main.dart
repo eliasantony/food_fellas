@@ -1,10 +1,14 @@
+import 'dart:io';
+
 import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/ingredientProvider.dart';
@@ -13,6 +17,7 @@ import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
+import 'package:food_fellas/src/services/firebase_messaging_service.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
@@ -28,6 +33,8 @@ import 'src/views/profile_screen.dart';
 import 'src/views/auth/signup_screen.dart';
 import 'src/widgets/initializer_widget.dart';
 
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
 final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
@@ -35,14 +42,37 @@ final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  try {
+    await Firebase.initializeApp(
+      name: 'FoodFellas',
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    print('Firebase initialization error: $e');
+  }
+
+  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  await _requestNotificationPermissions();
+  await _initLocalNotifications();
+
+  if (Platform.isAndroid) {
+    // On Android, it's safe to call getToken() right away
+    String? token = await FirebaseMessaging.instance.getToken();
+    print("FCM Token on Android: $token");
+  } else if (Platform.isIOS) {
+    // Avoid calling getToken() on a simulator
+    bool isSimulator = !await _isPhysicalDevice();
+    if (isSimulator) {
+      print("Running on iOS Simulator. APNS token is not supported here.");
+    } else {
+      // It's a real device, so you can safely call getToken()
+      String? token = await FirebaseMessaging.instance.getToken();
+      print("FCM Token on iOS device: $token");
+    }
+  }
+
   await dotenv.load(fileName: ".env");
-
   Gemini.init(apiKey: dotenv.env['GEMINI_API_KEY']!);
-
-  await Firebase.initializeApp(
-    name: 'FoodFellas',
-    options: DefaultFirebaseOptions.currentPlatform,
-  );
 
   FirebaseFirestore.instance.settings = const Settings(
     persistenceEnabled: true,
@@ -81,6 +111,23 @@ void main() async {
       child: MainApp(),
     ),
   );
+}
+
+Future<bool> _isPhysicalDevice() async {
+  return !Platform.isIOS || !await FirebaseMessaging.instance.isSupported();
+}
+
+/// Request notification permissions for iOS.
+Future<void> _requestNotificationPermissions() async {
+  FirebaseMessaging messaging = FirebaseMessaging.instance;
+
+  NotificationSettings settings = await messaging.requestPermission(
+    alert: true,
+    badge: true,
+    sound: true,
+  );
+
+  print('User granted permission: ${settings.authorizationStatus}');
 }
 
 void _handleIncomingLink(Uri uri) {
@@ -152,6 +199,62 @@ void _showError(String message) {
   }
 }
 
+Future<void> _initLocalNotifications() async {
+  const AndroidInitializationSettings initializationSettingsAndroid =
+      AndroidInitializationSettings('app_icon'); // your drawable app icon
+  final DarwinInitializationSettings initializationSettingsIOS =
+      DarwinInitializationSettings(
+    requestAlertPermission: true,
+    requestBadgePermission: true,
+    requestSoundPermission: true,
+  );
+  final InitializationSettings initializationSettings = InitializationSettings(
+    android: initializationSettingsAndroid,
+    iOS: initializationSettingsIOS,
+  );
+
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+
+  if (Platform.isAndroid) {
+    // This block executes only on Android
+    const AndroidNotificationChannel channel = AndroidNotificationChannel(
+      'default_channel', // Same as defined in the AndroidManifest.xml
+      'Default Notifications',
+      description: 'This channel is used for default notifications.',
+      importance: Importance.max,
+    );
+
+    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
+        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
+            AndroidFlutterLocalNotificationsPlugin>();
+
+    if (androidImplementation != null) {
+      await androidImplementation.createNotificationChannel(channel);
+    } else {
+      print('AndroidFlutterLocalNotificationsPlugin is null.');
+    }
+  }
+}
+
+Future<void> _showNotification(String? title, String? body) async {
+  const AndroidNotificationDetails androidPlatformChannelSpecifics =
+      AndroidNotificationDetails(
+    'default_channel',
+    'Default Channel',
+    channelDescription: 'Used for important notifications.',
+    importance: Importance.max,
+    priority: Priority.high,
+  );
+  const NotificationDetails platformChannelSpecifics =
+      NotificationDetails(android: androidPlatformChannelSpecifics);
+  await flutterLocalNotificationsPlugin.show(
+    0, // notification id
+    title,
+    body,
+    platformChannelSpecifics,
+  );
+}
+
 class MainApp extends StatefulWidget {
   @override
   State<MainApp> createState() => _MainAppState();
@@ -164,6 +267,20 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
+
+    FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      final notification = message.notification;
+      if (notification != null) {
+        _showNotification(notification.title, notification.body);
+      }
+    });
+
+    // When the user taps on a notification message (the app is in background but not terminated)
+    FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
+      print('A new onMessageOpenedApp event was published!');
+      // You can navigate the user to a specific screen depending on the message data
+      // e.g. if (message.data['screen'] == 'chat') { ... }
+    });
   }
 
   @override
