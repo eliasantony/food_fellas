@@ -97,6 +97,29 @@ exports.calculateWeeklyRecommendations = functions
 
       console.log("Recommendations calculation complete.");
       res.status(200).send("Weekly recommendations calculated.");
+
+      // 1. Filter for users that have weekly recommendations turned on
+      const usersWithRecsEnabled = users.filter(
+        (u) => u.notifications?.weeklyRecommendations && u.fcmToken
+      );
+
+      // 2. Send notifications in batches
+      const messages = usersWithRecsEnabled.map((u) => ({
+        token: u.fcmToken,
+        notification: {
+          title: "Your Weekly Recommendations Are Here!",
+          body: "Check out your new recipe recommendations."
+        },
+        data: {
+          type: "weekly_recommendations",
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      }));
+
+      if (messages.length > 0) {
+        const response = await admin.messaging().sendAll(messages);
+        console.log(`${response.successCount} weekly recommendation notifications sent.`);
+      }
     } catch (error) {
       console.error("Error calculating recommendations:", error);
       res.status(500).send("Error");
@@ -261,27 +284,59 @@ async function updateUserRecipeStats(userId) {
   );
 }
 
-// Analyze sentiment of a comment when it is added
 exports.analyzeCommentSentiment = functions
   .region("europe-west1")
   .firestore
   .document("recipes/{recipeId}/comments/{commentId}")
-  .onCreate(async (snap) => {
+  .onCreate(async (snap, context) => {
     const commentData = snap.data();
     const commentText = commentData.comment;
+    const recipeId = context.params.recipeId;
 
+    // 1. Sentiment analysis (already in your code)
     if (commentText) {
       const result = sentiment.analyze(commentText);
       const sentimentScore = result.score;
 
-      // Update the comment document with the sentiment score
       await snap.ref.set(
-        {
-          sentimentScore: sentimentScore,
-        },
-        {merge: true},
+        { sentimentScore },
+        { merge: true },
       );
     }
+
+    // 2. Fetch recipe to get authorId
+    const recipeRef = admin.firestore().collection("recipes").doc(recipeId);
+    const recipeDoc = await recipeRef.get();
+    if (!recipeDoc.exists) return;
+    const recipeData = recipeDoc.data();
+    const authorId = recipeData.authorId;
+
+    // 3. Fetch author user doc & check newComment notifications
+    const authorDoc = await admin.firestore()
+      .collection("users")
+      .doc(authorId)
+      .get();
+    if (!authorDoc.exists) return;
+
+    const authorData = authorDoc.data();
+    const notificationsEnabled = authorData.notifications?.newComment;
+    const authorToken = authorData.fcmToken;
+
+    if (!notificationsEnabled || !authorToken) return;
+
+    // 4. Send push notification
+    const title = "New Comment on Your Recipe!";
+    const body = `Someone commented: "${commentText}"`;
+    
+    await admin.messaging().sendToDevice(authorToken, {
+      notification: { title, body },
+      data: {
+        type: "new_comment",
+        recipeId: recipeId,
+        commentId: context.params.commentId,
+        click_action: "FLUTTER_NOTIFICATION_CLICK",
+      },
+    });
   });
 
 // Function to update recipe's average rating when a rating is altered
@@ -440,3 +495,120 @@ exports.generateImage = functions.region("europe-west1").https.onCall(async (dat
     throw new functions.https.HttpsError("internal", error.message);
   }
 });
+
+exports.notifyOnNewFollower = functions
+  .region("europe-west1")
+  .firestore
+  .document("users/{followedUid}/followers/{followerUid}")
+  .onCreate(async (snap, context) => {
+    const followedUid = context.params.followedUid;
+    const followerUid = context.params.followerUid;
+
+    try {
+      // 1. Fetch the followed user (the user who is receiving the follower)
+      const followedUserDoc = await admin.firestore()
+        .collection("users")
+        .doc(followedUid)
+        .get();
+      if (!followedUserDoc.exists) return;
+
+      const followedUserData = followedUserDoc.data();
+
+      // 2. Check if notifications are enabled for "newFollower"
+      if (!followedUserData.notifications?.newFollower) {
+        return; // user disabled "new follower" notifications
+      }
+
+      // 3. Get followedUser's FCM token
+      const fcmToken = followedUserData.fcmToken;
+      if (!fcmToken) return;
+
+      // 4. Get the follower's display name
+      const followerUserDoc = await admin.firestore()
+        .collection("users")
+        .doc(followerUid)
+        .get();
+
+      const followerName = followerUserDoc.exists
+        ? followerUserDoc.data().display_name || "Someone"
+        : "Someone";
+
+      // 5. Construct the notification
+      const title = "New Follower Alert!";
+      const body = `${followerName} is now following you.`;
+
+      // 6. Send the push
+      await admin.messaging().sendToDevice(fcmToken, {
+        notification: { title, body },
+        data: {
+          type: "new_follower",
+          followerUid: followerUid,
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      });
+    } catch (error) {
+      console.error("Error sending new follower notification:", error);
+    }
+  });
+
+  exports.notifyOnNewRecipe = functions
+  .region("europe-west1")
+  .firestore
+  .document("recipes/{recipeId}")
+  .onCreate(async (snap, context) => {
+    const newRecipe = snap.data();
+    const authorId = newRecipe.authorId;
+
+    try {
+      // 1. Fetch all the followers of this author
+      //    e.g. if you store them as "users/{authorId}/followers/{followerId}"
+      const followersSnap = await admin.firestore()
+        .collection("users")
+        .doc(authorId)
+        .collection("followers")
+        .get();
+
+      if (followersSnap.empty) return;
+
+      // 2. For each follower, check "notifications.newRecipeFromFollowing" & fcmToken
+      const tokensToSend = [];
+      for (const doc of followersSnap.docs) {
+        const followerId = doc.id;
+        const followerDoc = await admin.firestore()
+          .collection("users")
+          .doc(followerId)
+          .get();
+
+        if (!followerDoc.exists) continue;
+
+        const followerData = followerDoc.data();
+        const notifyEnabled = followerData.notifications?.newRecipeFromFollowing;
+        const token = followerData.fcmToken;
+
+        if (notifyEnabled && token) {
+          tokensToSend.push({ token, followerData });
+        }
+      }
+
+      if (tokensToSend.length === 0) return;
+
+      // 3. Build your notification content
+      const title = "New Recipe Posted!";
+      const body = `Check out a new recipe from someone you follow.`;
+
+      // 4. Send to each token (or use sendMulticast for better performance)
+      const messages = tokensToSend.map(({ token, followerData }) => ({
+        token,
+        notification: { title, body },
+        data: {
+          type: "new_recipe",
+          recipeId: snap.id,  // let the app know which recipe to open
+          click_action: "FLUTTER_NOTIFICATION_CLICK",
+        },
+      }));
+
+      await admin.messaging().sendAll(messages);
+    } catch (error) {
+      console.error("Error sending new recipe notification:", error);
+    }
+  });

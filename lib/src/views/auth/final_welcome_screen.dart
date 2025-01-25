@@ -1,3 +1,4 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:lottie/lottie.dart';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -34,6 +35,8 @@ class FinalWelcomeScreen extends StatelessWidget {
         userData.photoUrl = downloadUrl;
       }
 
+      final fcmToken = await FirebaseMessaging.instance.getToken();
+
       // Save all data to Firestore
       await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
         'uid': user.uid,
@@ -47,9 +50,11 @@ class FinalWelcomeScreen extends StatelessWidget {
         'favoriteCuisines': userData.favoriteCuisines,
         'cookingSkillLevel': userData.cookingSkillLevel,
         'preferredServings': userData.preferredServings,
-        'notificationsEnabled': userData.notificationsEnabled,
+        'notificationsEnabled': userData.allNotificationsEnabled,
+        'notifications': userData.notifications, // Save preferences here
         'onboardingComplete': true,
         'role': 'user',
+        if (fcmToken != null) 'fcmToken': fcmToken,
       }, SetOptions(merge: true));
     }
 

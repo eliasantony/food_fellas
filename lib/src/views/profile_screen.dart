@@ -254,17 +254,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ],
                       ),
                     ),
+                    PopupMenuItem<int>(
+                      value: 2,
+                      child: Row(
+                        children: [
+                          Icon(Icons.share, color: theme.iconTheme.color),
+                          SizedBox(width: 8),
+                          Text('Share Profile'),
+                        ],
+                      ),
+                    ),
                   ],
-                ),
-                PopupMenuItem<int>(
-                  value: 2,
-                  child: Row(
-                    children: [
-                      Icon(Icons.share, color: theme.iconTheme.color),
-                      SizedBox(width: 8),
-                      Text('Share Profile'),
-                    ],
-                  ),
                 ),
               ]
             : [

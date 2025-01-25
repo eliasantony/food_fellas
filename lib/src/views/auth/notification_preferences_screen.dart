@@ -16,11 +16,15 @@ class NotificationPreferencesScreen extends StatefulWidget {
 
 class _NotificationPreferencesScreenState
     extends State<NotificationPreferencesScreen> {
-  bool notificationsEnabled = true;
+  bool allNotificationsEnabled = true;
+  bool newFollowerEnabled = true;
+  bool newRecipeEnabled = true;
+  bool newCommentEnabled = true;
+  bool weeklyRecommendationsEnabled = true;
 
   void _navigateToNext() {
     // Update userData with notification preferences
-    widget.userData.notificationsEnabled = notificationsEnabled;
+    widget.userData.allNotificationsEnabled = allNotificationsEnabled;
 
     // Navigate to the next screen
     Navigator.push(
@@ -40,56 +44,75 @@ class _NotificationPreferencesScreenState
       body: Padding(
         padding: EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Stay in the loop with the latest recipes and tips!',
+              'Stay in the loop with the latest updates!',
               style: TextStyle(fontSize: 18),
             ),
             SizedBox(height: 20),
             SwitchListTile(
               title: Text('Enable Notifications'),
-              value: notificationsEnabled,
+              value: allNotificationsEnabled,
               onChanged: (bool value) {
                 setState(() {
-                  notificationsEnabled = value;
+                  allNotificationsEnabled = value;
+                  if (!value) {
+                    newFollowerEnabled = false;
+                    newRecipeEnabled = false;
+                    newCommentEnabled = false;
+                    weeklyRecommendationsEnabled = false;
+                  }
                 });
               },
             ),
+            if (allNotificationsEnabled) ...[
+              SwitchListTile(
+                title: Text('New Follower'),
+                value: newFollowerEnabled,
+                onChanged: (bool value) {
+                  setState(() => newFollowerEnabled = value);
+                },
+              ),
+              SwitchListTile(
+                title: Text('New Recipe from Following'),
+                value: newRecipeEnabled,
+                onChanged: (bool value) {
+                  setState(() => newRecipeEnabled = value);
+                },
+              ),
+              SwitchListTile(
+                title: Text('New Comment'),
+                value: newCommentEnabled,
+                onChanged: (bool value) {
+                  setState(() => newCommentEnabled = value);
+                },
+              ),
+              SwitchListTile(
+                title: Text('Weekly Recommendations'),
+                value: weeklyRecommendationsEnabled,
+                onChanged: (bool value) {
+                  setState(() => weeklyRecommendationsEnabled = value);
+                },
+              ),
+            ],
             Spacer(),
-            Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
-              child: SizedBox(
-                width: double.infinity,
-                child: ElevatedButton(
-                  onPressed: _navigateToNext,
-                  style: ElevatedButton.styleFrom(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 30,
-                      vertical: 15,
-                    ),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    backgroundColor: Theme.of(context).colorScheme.primary,
-                  ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        'Finish up!',
-                        style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Icon(
-                        Icons.arrow_forward,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                    ],
-                  ),
-                ),
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () {
+                  // Save preferences to userData
+                  widget.userData.allNotificationsEnabled =
+                      allNotificationsEnabled;
+                  widget.userData.notifications = {
+                    'newFollower': newFollowerEnabled,
+                    'newRecipeFromFollowing': newRecipeEnabled,
+                    'newComment': newCommentEnabled,
+                    'weeklyRecommendations': weeklyRecommendationsEnabled,
+                  };
+                  _navigateToNext();
+                },
+                child: Text('Finish up!'),
               ),
             ),
           ],

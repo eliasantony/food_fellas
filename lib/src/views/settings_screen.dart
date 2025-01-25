@@ -2,15 +2,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
+import 'package:food_fellas/src/widgets/settings_notificationPreferences_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
-  final Map<String, dynamic> userData;
 
   const SettingsScreen({
     Key? key,
-    required this.userData,
   }) : super(key: key);
 
   @override
@@ -23,7 +22,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
-    notificationsEnabled = widget.userData['notificationsEnabled'] ?? true;
   }
 
   void _logOut() async {
@@ -55,6 +53,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _disableAccount() {
     // Implement account disabling logic
     // E.g., update a field in Firestore to mark the account as disabled
+  }
+
+    void _showInstagram() {
+    // Open the browser to show the Privacy Policy link
+    var url = Uri(
+        scheme: 'https',
+        host: 'instagram.com',
+        fragment: '/foodfellas.app',
+        path: '/');
+    _launchURL(url);
   }
 
   void _showTermsOfService() {
@@ -96,22 +104,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          ListTile(
+           ListTile(
             leading: Icon(Icons.notifications),
-            title: Text('Enable Notifications'),
-            trailing: Switch(
-              value: notificationsEnabled,
-              onChanged: (value) {
-                setState(() {
-                  notificationsEnabled = value;
-                  // Update in Firestore
-                  FirebaseFirestore.instance
-                      .collection('users')
-                      .doc(widget.userData['uid'])
-                      .update({'notificationsEnabled': value});
-                });
-              },
-            ),
+            title: Text('Manage Notifications'),
+            trailing: Icon(Icons.arrow_forward),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => SettingsNotificationPreferencesScreen(),
+                ),
+              );
+            },
           ),
           ListTile(
             leading: Icon(Icons.brightness_6),
@@ -138,6 +142,27 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.info),
             title: Text('App Version'),
             subtitle: Text('pre 1.0.0'),
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.share),
+            title: Text('Share Food Fellas'),
+            onTap: () {
+              // Implement share logic
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.star),
+            title: Text('Rate Food Fellas'),
+            onTap: () {
+              // Implement rating logic
+            },
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.photo_camera),
+            title: Text('Follow us on Instagram'),
+            onTap: _showInstagram,
           ),
           Divider(),
           ListTile(

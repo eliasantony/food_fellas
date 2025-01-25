@@ -1,0 +1,141 @@
+{
+  "cookingSkillLevel": "Intermediate",
+  "created_time": {
+    "_seconds": 1736505697,
+    "_nanoseconds": 178000000
+  },
+  "notificationsEnabled": true,
+  "shortDescription": "I am the admin of this app!",
+  "display_name": "Elias",
+  "uid": "ecFKkmIyFuSGq84gSnEm2Mmd24Z2",
+  "last_active_time": {
+    "_seconds": 1736505697,
+    "_nanoseconds": 178000000
+  },
+  "preferredServings": 4,
+  "onboardingComplete": true,
+  "dietaryPreferences": [
+    "High-Protein",
+    "No Preferences"
+  ],
+  "photo_url": "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/profile_images%2FecFKkmIyFuSGq84gSnEm2Mmd24Z2.jpg?alt=media&token=a4e55b70-f3fc-41d1-860b-c048dd384e9e",
+  "favoriteCuisines": [
+    "Vietnamese",
+    "Middle Eastern",
+    "German",
+    "Italian",
+    "Mexican",
+    "Chinese",
+    "Japanese",
+    "American"
+  ],
+  "email": "elias@antony.at",
+  "role": "admin",
+  "averageRating": 0,
+  "recipeCount": 2,
+  "fcmToken": "dOAVwMRBS4ySvy8nzuBxXW:APA91bGF5YZah7HR2JXKutG4ZWmgZIh2B9KU3HhfLgkAKf21ZzK3LWUj8ksbkTkwikbLEvNGC1LT3fdpO1R6THChqyIloZtPPO-AaUWVa3gHCUlaKFzL0-U",
+  "subcollections": {
+    "collections": [
+      {
+        "id": "WZo7VJoKoGniTRZj3IHP",
+        "icon": "🥑",
+        "name": "Private",
+        "createdAt": {
+          "_seconds": 1737375294,
+          "_nanoseconds": 109000000
+        },
+        "recipes": [
+          "mg4JOubn9FUQbAkanmat"
+        ],
+        "isPublic": true
+      }
+    ],
+    "conversations": [
+      {
+        "id": "1736506181912",
+        "createdAt": {
+          "_seconds": 1736506182,
+          "_nanoseconds": 92000000
+        }
+      },
+      {
+        "id": "1736519681645",
+        "createdAt": {
+          "_seconds": 1736519681,
+          "_nanoseconds": 853000000
+        }
+      }
+    ],
+    "following": [
+      {
+        "id": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "uid": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "timestamp": {
+          "_seconds": 1736517429,
+          "_nanoseconds": 400000000
+        }
+      }
+    ],
+    "interactionHistory": [
+      {
+        "id": "7lYvKQa6pq0dvCrWcYCU",
+        "viewedAt": {
+          "_seconds": 1736781110,
+          "_nanoseconds": 194000000
+        },
+        "recipeId": "7lYvKQa6pq0dvCrWcYCU"
+      },
+      {
+        "id": "91sewLZVo21ie0doLCu6",
+        "viewedAt": {
+          "_seconds": 1736718278,
+          "_nanoseconds": 953000000
+        },
+        "recipeId": "91sewLZVo21ie0doLCu6"
+      }
+    ],
+    "recommendations": [
+      {
+        "id": "91sewLZVo21ie0doLCu6",
+        "score": 5,
+        "recipeId": "91sewLZVo21ie0doLCu6",
+        "createdAt": {
+          "_seconds": 1737338410,
+          "_nanoseconds": 440000000
+        }
+      },
+      {
+        "id": "D3AiJepVdqMBobz4EqME",
+        "score": 5,
+        "recipeId": "D3AiJepVdqMBobz4EqME",
+        "createdAt": {
+          "_seconds": 1737338410,
+          "_nanoseconds": 440000000
+        }
+      }
+    ],
+    "shoppingList": [
+      {
+        "id": "FVyptdpizXTmxSSy9ZBv",
+        "item": "Chicken Drumsticks",
+        "amount": 8,
+        "unit": "pieces",
+        "status": "active",
+        "timestamp": {
+          "_seconds": 1737731292,
+          "_nanoseconds": 696000000
+        }
+      }
+    ],
+    "usage": [
+      {
+        "id": "2025-01",
+        "totalTokensUsed": 36222,
+        "updatedAt": {
+          "_seconds": 1737036245,
+          "_nanoseconds": 650000000
+        }
+      }
+    ]
+  }
+}

@@ -42,6 +42,7 @@ final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  print('Initializing Firebase...');
   try {
     await Firebase.initializeApp(
       name: 'FoodFellas',
@@ -52,12 +53,13 @@ void main() async {
   }
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  await _requestNotificationPermissions();
-  await _initLocalNotifications();
+  await requestNotificationPermissions();
+  await initLocalNotifications();
 
   if (Platform.isAndroid) {
     // On Android, it's safe to call getToken() right away
     String? token = await FirebaseMessaging.instance.getToken();
+    saveTokenToDatabase();
     print("FCM Token on Android: $token");
   } else if (Platform.isIOS) {
     // Avoid calling getToken() on a simulator
@@ -67,6 +69,7 @@ void main() async {
     } else {
       // It's a real device, so you can safely call getToken()
       String? token = await FirebaseMessaging.instance.getToken();
+      saveTokenToDatabase();
       print("FCM Token on iOS device: $token");
     }
   }
@@ -115,19 +118,6 @@ void main() async {
 
 Future<bool> _isPhysicalDevice() async {
   return !Platform.isIOS || !await FirebaseMessaging.instance.isSupported();
-}
-
-/// Request notification permissions for iOS.
-Future<void> _requestNotificationPermissions() async {
-  FirebaseMessaging messaging = FirebaseMessaging.instance;
-
-  NotificationSettings settings = await messaging.requestPermission(
-    alert: true,
-    badge: true,
-    sound: true,
-  );
-
-  print('User granted permission: ${settings.authorizationStatus}');
 }
 
 void _handleIncomingLink(Uri uri) {
@@ -199,61 +189,7 @@ void _showError(String message) {
   }
 }
 
-Future<void> _initLocalNotifications() async {
-  const AndroidInitializationSettings initializationSettingsAndroid =
-      AndroidInitializationSettings('app_icon'); // your drawable app icon
-  final DarwinInitializationSettings initializationSettingsIOS =
-      DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
-  );
-  final InitializationSettings initializationSettings = InitializationSettings(
-    android: initializationSettingsAndroid,
-    iOS: initializationSettingsIOS,
-  );
 
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
-
-  if (Platform.isAndroid) {
-    // This block executes only on Android
-    const AndroidNotificationChannel channel = AndroidNotificationChannel(
-      'default_channel', // Same as defined in the AndroidManifest.xml
-      'Default Notifications',
-      description: 'This channel is used for default notifications.',
-      importance: Importance.max,
-    );
-
-    final AndroidFlutterLocalNotificationsPlugin? androidImplementation =
-        flutterLocalNotificationsPlugin.resolvePlatformSpecificImplementation<
-            AndroidFlutterLocalNotificationsPlugin>();
-
-    if (androidImplementation != null) {
-      await androidImplementation.createNotificationChannel(channel);
-    } else {
-      print('AndroidFlutterLocalNotificationsPlugin is null.');
-    }
-  }
-}
-
-Future<void> _showNotification(String? title, String? body) async {
-  const AndroidNotificationDetails androidPlatformChannelSpecifics =
-      AndroidNotificationDetails(
-    'default_channel',
-    'Default Channel',
-    channelDescription: 'Used for important notifications.',
-    importance: Importance.max,
-    priority: Priority.high,
-  );
-  const NotificationDetails platformChannelSpecifics =
-      NotificationDetails(android: androidPlatformChannelSpecifics);
-  await flutterLocalNotificationsPlugin.show(
-    0, // notification id
-    title,
-    body,
-    platformChannelSpecifics,
-  );
-}
 
 class MainApp extends StatefulWidget {
   @override
@@ -268,19 +204,40 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
 
+    // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
       if (notification != null) {
-        _showNotification(notification.title, notification.body);
+        showNotification(notification.title, notification.body);
       }
     });
 
-    // When the user taps on a notification message (the app is in background but not terminated)
+    // App opened via notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('A new onMessageOpenedApp event was published!');
-      // You can navigate the user to a specific screen depending on the message data
-      // e.g. if (message.data['screen'] == 'chat') { ... }
+      print('onMessageOpenedApp event was published: ${message.data}');
+      handleNotificationNavigation(message.data);
     });
+
+    FirebaseMessaging.instance
+        .getInitialMessage()
+        .then((RemoteMessage? message) {
+      if (message != null) {
+        handleNotificationNavigation(message.data);
+      }
+    });
+
+    // Listen to token refresh
+    FirebaseMessaging.instance.onTokenRefresh.listen((newToken) async {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({'fcmToken': newToken});
+      }
+    });
+
+    saveTokenToDatabase();
   }
 
   @override

@@ -9,5 +9,6 @@ class UserData {
   List<String>? favoriteCuisines;
   int? preferredServings;
   String? cookingSkillLevel;
-  bool? notificationsEnabled;
+  bool? allNotificationsEnabled;
+  Map<String, bool>? notifications;
 }
