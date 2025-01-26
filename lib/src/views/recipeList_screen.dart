@@ -143,7 +143,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
 
     for (var doc in subDocs) {
       final data = doc.data() as Map<String, dynamic>;
-      final rid = data['recipeId'] as String?;
+      final rid = doc.id;
       if (rid != null) {
         recipeIds.add(rid);
         // keep the subDoc data for merging
@@ -274,17 +274,19 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     });
   }
 
-  /// Helper to fetch recipes by IDs, returning a list of merged maps
   Future<List<Map<String, dynamic>>> _fetchRecipesByIds(
     List<String> recipeIds,
     List<Map<String, dynamic>> subDataList,
   ) async {
-    // Because Firestore .whereIn(...) has a limit of 10, do multiple calls if needed:
-    List<Map<String, dynamic>> results = [];
+    if (recipeIds.isEmpty) {
+      print('No recipe IDs provided.');
+      return [];
+    }
 
-    // chunk recipeIds in sets of 10
+    List<Map<String, dynamic>> results = [];
     const batchLimit = 10;
     int i = 0;
+
     while (i < recipeIds.length) {
       final endIndex = (i + batchLimit < recipeIds.length)
           ? i + batchLimit
@@ -292,30 +294,32 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       final batchIds = recipeIds.sublist(i, endIndex);
       i = endIndex;
 
-      final recipesSnapshot = await FirebaseFirestore.instance
-          .collection('recipes')
-          .where(FieldPath.documentId, whereIn: batchIds)
-          .get();
+      try {
+        final recipesSnapshot = await FirebaseFirestore.instance
+            .collection('recipes')
+            .where(FieldPath.documentId, whereIn: batchIds)
+            .get();
 
-      final recipeMapById = <String, Map<String, dynamic>>{};
-      for (var rDoc in recipesSnapshot.docs) {
-        recipeMapById[rDoc.id] = rDoc.data() as Map<String, dynamic>;
-      }
+        final recipeMapById = <String, Map<String, dynamic>>{};
+        for (var rDoc in recipesSnapshot.docs) {
+          recipeMapById[rDoc.id] = rDoc.data() as Map<String, dynamic>;
+        }
 
-      // merge with subData
-      // for each subData item, see if we have a matching recipe doc
-      for (var subData in subDataList) {
-        final rid = subData['recipeId'];
-        if (batchIds.contains(rid)) {
-          final recipeDoc = recipeMapById[rid];
-          if (recipeDoc != null) {
-            results.add({
-              'id': rid, // main recipe doc ID
-              ...recipeDoc,
-              ...subData, // e.g. score, viewedAt, arrayIndex, etc.
-            });
+        for (var subData in subDataList) {
+          final rid = subData['subDocId']; // Use subDocId as recipeId
+          if (batchIds.contains(rid)) {
+            final recipeDoc = recipeMapById[rid];
+            if (recipeDoc != null) {
+              results.add({
+                'id': rid, // Add the document ID
+                ...recipeDoc,
+                ...subData, // Merge any additional subcollection data
+              });
+            }
           }
         }
+      } catch (e) {
+        print('Error fetching recipes for batch $batchIds: $e');
       }
     }
 
@@ -366,11 +370,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
           (filters['ingredientNames'] as List).isNotEmpty) {
         List<String> neededIngs =
             (filters['ingredientNames'] as List).cast<String>();
-        print('Needed ings: $neededIngs');
 
         // Correctly access the list of ingredients
         List<dynamic> docIngredients = item['ingredients'] ?? [];
-        print('Doc ings: $docIngredients');
 
         // Extract ingredient names from each ingredient map
         final docIngNames = docIngredients.map((recipeIngMap) {
@@ -479,6 +481,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     return Scaffold(
       appBar: AppBar(
         title: Text(actualTitle),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(Icons.filter_list),
@@ -601,7 +604,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     if (selectedFilters.containsKey('tagNames')) {
       final List<String> tags =
           (selectedFilters['tagNames'] as List).cast<String>();
-      print('Tags: $tags');
       for (var tag in tags) {
         chips.add(
           Padding(
@@ -618,7 +620,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     if (selectedFilters.containsKey('ingredientNames')) {
       final List<String> ings =
           (selectedFilters['ingredientNames'] as List).cast<String>();
-      print('ingredientNames: $ings');
       for (var ing in ings) {
         chips.add(
           Padding(
@@ -646,7 +647,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         );
       }
     }
-    print('chips: $chips');
     return Container(
       height: 50,
       child: ListView(

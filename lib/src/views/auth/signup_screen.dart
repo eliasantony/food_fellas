@@ -208,6 +208,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 30),
               TextField(
                 controller: _emailController,
+                  autofillHints: [AutofillHints.newUsername],
                 decoration: InputDecoration(
                   labelText: 'Your email address',
                   border: OutlineInputBorder(
@@ -222,6 +223,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               const SizedBox(height: 10),
               TextField(
                 controller: _passwordController,
+                  autofillHints: [AutofillHints.newPassword],
                 decoration: InputDecoration(
                   labelText: 'Create a password',
                   border: OutlineInputBorder(

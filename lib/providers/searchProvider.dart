@@ -14,6 +14,7 @@ enum SearchMode {
 
 class SearchProvider with ChangeNotifier {
   String _query = '';
+  String get query => _query;
 
   List<Map<String, dynamic>> _recipes = [];
   List<Map<String, dynamic>> get recipes => _recipes;
@@ -61,9 +62,12 @@ class SearchProvider with ChangeNotifier {
 
   bool _homeRowsFetched = false;
 
-  void updateQuery(String query) {
+void updateQuery(String query) {
     _query = query;
+    _recipes = [];
+    _users = [];
     fetchRecipes();
+    notifyListeners();
   }
 
   void updateFilters(Map<String, dynamic> filters) {

@@ -66,6 +66,16 @@
         }
       }
     ],
+    "followers": [
+      {
+        "id": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "uid": "5z0n3OQWN2d876Wg5HljybRkjex1",
+        "timestamp": {
+          "_seconds": 1736517429,
+          "_nanoseconds": 400000000
+        }
+      }
+    ],
     "following": [
       {
         "id": "5z0n3OQWN2d876Wg5HljybRkjex1",

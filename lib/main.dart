@@ -21,7 +21,7 @@ import 'package:food_fellas/src/services/firebase_messaging_service.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
-import 'package:food_fellas/src/widgets/recipeList_screen.dart';
+import 'package:food_fellas/src/views/recipeList_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';

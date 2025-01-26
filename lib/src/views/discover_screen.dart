@@ -19,6 +19,7 @@ class DiscoverScreen extends StatefulWidget {
 
 class _DiscoverScreenState extends State<DiscoverScreen> {
   final ScrollController _scrollController = ScrollController();
+  final TextEditingController _searchController = TextEditingController();
   int _currentOffset = 0;
   final int _limit = 10;
 
@@ -26,6 +27,9 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   void initState() {
     super.initState();
     _fetchInitialRecipes();
+
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    _searchController.text = searchProvider.query;
 
     _scrollController.addListener(() {
       if (_scrollController.position.pixels ==
@@ -35,8 +39,17 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
     });
   }
 
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    _searchController.dispose();
+    super.dispose();
+  }
+
   Future<void> _fetchInitialRecipes() async {
     final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    final query = searchProvider.query; // Access the query
+    final filters = searchProvider.filters; // Access the filters
     _currentOffset = 0;
     await searchProvider.fetchRecipes(offset: _currentOffset, limit: _limit);
   }
@@ -95,6 +108,49 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ),
         ),
+        actions: [
+          PopupMenuButton<SearchMode>(
+            icon: Icon(Icons.manage_search_rounded),
+            tooltip: "Search Options",
+            onSelected: (SearchMode mode) {
+              final searchProvider =
+                  Provider.of<SearchProvider>(context, listen: false);
+              searchProvider.setSearchMode(mode);
+            },
+            itemBuilder: (context) => [
+              PopupMenuItem(
+                value: SearchMode.users,
+                child: Row(
+                  children: [
+                    Icon(Icons.person, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text("Search Users"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: SearchMode.recipes,
+                child: Row(
+                  children: [
+                    Icon(Icons.restaurant_menu, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text("Search Recipes"),
+                  ],
+                ),
+              ),
+              PopupMenuItem(
+                value: SearchMode.both,
+                child: Row(
+                  children: [
+                    Icon(Icons.search, color: Colors.grey),
+                    SizedBox(width: 8),
+                    Text("Search Both"),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
       ),
       body: Column(
         children: [
@@ -105,6 +161,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
               children: [
                 Expanded(
                   child: TextField(
+                    controller: _searchController,
                     decoration: InputDecoration(
                       labelText: _getTooltipForMode(searchProvider.searchMode),
                       border: OutlineInputBorder(),
@@ -117,20 +174,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                           : null,
                     ),
                     onChanged: (query) {
-                      // Depending on the toggle, call appropriate method
-                      if (searchProvider.searchMode == SearchMode.users) {
-                        searchProvider.fetchUsers(query);
-                      } else if (searchProvider.searchMode ==
-                          SearchMode.recipes) {
-                        searchProvider.updateQuery(query);
-                      } else if (searchProvider.searchMode == SearchMode.both) {
-                        searchProvider.fetchMultiSearch(query);
-                      }
+                      searchProvider.updateQuery(query);
                     },
                   ),
                 ),
-                // Search Toggle
-                _buildSearchToggle(context),
               ],
             ),
           ),
@@ -156,46 +203,6 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       default:
         return "Unknown Mode";
     }
-  }
-
-  Widget _buildSearchToggle(BuildContext context) {
-    final searchProvider = Provider.of<SearchProvider>(context);
-
-    IconData _getIconForMode(SearchMode mode) {
-      switch (mode) {
-        case SearchMode.users:
-          return Icons.person;
-        case SearchMode.recipes:
-          return Icons.restaurant_menu;
-        case SearchMode.both:
-          return Icons.search;
-        default:
-          return Icons.help;
-      }
-    }
-
-    void _toggleSearchMode() {
-      switch (searchProvider.searchMode) {
-        case SearchMode.users:
-          searchProvider.setSearchMode(SearchMode.recipes);
-          break;
-        case SearchMode.recipes:
-          searchProvider.setSearchMode(SearchMode.both);
-          break;
-        case SearchMode.both:
-          searchProvider.setSearchMode(SearchMode.users);
-          break;
-      }
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(vertical: 8),
-      child: IconButton(
-        icon: Icon(_getIconForMode(searchProvider.searchMode)),
-        tooltip: _getTooltipForMode(searchProvider.searchMode),
-        onPressed: _toggleSearchMode,
-      ),
-    );
   }
 
   Widget _buildResults(SearchProvider searchProvider) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_signin_button/button_list.dart';
 import 'package:flutter_signin_button/button_view.dart';
+import 'package:food_fellas/src/views/auth/forgot_password_screen.dart';
 import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -193,6 +194,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 30),
               TextField(
                 controller: _emailController,
+                autofillHints: [AutofillHints.username],
                 decoration: InputDecoration(
                   labelText: 'Your email address',
                   border: OutlineInputBorder(
@@ -209,6 +211,7 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               TextField(
                 controller: _passwordController,
+                autofillHints: [AutofillHints.password],
                 decoration: InputDecoration(
                   labelText: 'Your password',
                   border: OutlineInputBorder(
@@ -244,6 +247,22 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 20),
+              TextButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                  );
+                },
+                child: Text(
+                  'Forgot your password?',
+                  style: TextStyle(
+                    color: Theme.of(context).colorScheme.primary,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ),
+              const SizedBox(height: 10),
               TextButton(
                 onPressed: () {
                   Navigator.pop(context);

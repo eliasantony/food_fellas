@@ -1,12 +1,15 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/src/models/recipe.dart';
 import 'package:image_picker/image_picker.dart';
-import '../../models/recipe.dart';
+import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:lottie/lottie.dart';
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:path_provider/path_provider.dart';
 
 class ImageUploadPage extends StatefulWidget {
   final Recipe recipe;
@@ -232,18 +235,32 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
     );
   }
 
-  Future<void> _pickImage() async {
+Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
       final pickedImage = await picker.pickImage(source: ImageSource.gallery);
+
       if (pickedImage != null) {
         final File imageFile = File(pickedImage.path);
 
+        // Check the file size
+        final int imageSizeInBytes = await imageFile.length();
+        final double imageSizeInMB = imageSizeInBytes / (1024 * 1024);
+        print('Original Image Size: ${imageSizeInMB.toStringAsFixed(2)} MB');
+
+        // Compress the image if it's larger than 2 MB (adjust threshold as needed)
+        File compressedImageFile = imageFile;
+        if (imageSizeInMB > 2) {
+          print('Compressing image...');
+          compressedImageFile = await _compressImage(imageFile);
+          print('Image compressed successfully.');
+        }
+
         setState(() {
-          widget.recipe.imageFile = imageFile;
+          widget.recipe.imageFile = compressedImageFile;
         });
 
-        widget.onDataChanged('imageFile', imageFile);
+        widget.onDataChanged('imageFile', compressedImageFile);
       }
     } catch (e) {
       print('Error picking image: $e');
@@ -251,6 +268,38 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         SnackBar(content: Text('Failed to pick image. Please try again.')),
       );
     }
+  }
+
+  Future<File> _compressImage(File imageFile) async {
+    // Read the image data
+    final Uint8List imageBytes = await imageFile.readAsBytes();
+    final img.Image? originalImage = img.decodeImage(imageBytes);
+
+    if (originalImage == null) {
+      throw Exception('Failed to decode image');
+    }
+
+    // Resize or compress the image
+    final int maxWidth = 1080; // Max width (adjust as needed)
+    final int maxHeight = 1080; // Max height (adjust as needed)
+    final int quality = 85; // Compression quality (1-100)
+
+    final img.Image resizedImage = img.copyResize(
+      originalImage,
+      width: maxWidth,
+      height: maxHeight,
+    );
+
+    // Encode the resized/compressed image to JPEG format
+    final Uint8List compressedBytes =
+        Uint8List.fromList(img.encodeJpg(resizedImage, quality: quality));
+
+    // Save the compressed image back to a temporary file
+    final String tempDir = (await getTemporaryDirectory()).path;
+    final File compressedImageFile = File('$tempDir/compressed_image.jpg');
+    await compressedImageFile.writeAsBytes(compressedBytes);
+
+    return compressedImageFile;
   }
 
   Future<void> _generateImageWithAI() async {

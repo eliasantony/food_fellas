@@ -7,12 +7,13 @@ import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/widgets/expandableFAB.dart';
+import 'package:food_fellas/src/widgets/filterModal.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:food_fellas/src/widgets/recipeList_screen.dart';
+import 'package:food_fellas/src/views/recipeList_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -421,16 +422,37 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildSearchBar() {
+Widget _buildSearchBar() {
+    final TextEditingController searchController = TextEditingController();
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+    final bottomNavBarProvider =
+        Provider.of<BottomNavBarProvider>(context, listen: false);
+
     return TextField(
+      controller: searchController,
       decoration: InputDecoration(
         hintText: 'Search for recipes...',
         prefixIcon: Icon(Icons.search),
-        suffixIcon: IconButton(
-          icon: Icon(Icons.filter_list),
-          onPressed: () {
-            // Implement filter functionality
-          },
+        suffixIcon: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            IconButton(
+              icon: Icon(Icons.filter_list),
+              onPressed: () {
+                _openFilterModal(searchProvider);
+              },
+            ),
+            IconButton(
+              icon: Icon(Icons.arrow_forward),
+              onPressed: () {
+                final query = searchController.text.trim();
+                if (query.isNotEmpty) {
+                  searchProvider.updateQuery(query);
+                  bottomNavBarProvider.setIndex(1);
+                }
+              },
+            ),
+          ],
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(30.0),
@@ -730,6 +752,25 @@ class _HomeScreenState extends State<HomeScreen> {
           icon: const Icon(Icons.camera_alt),
         ),
       ],
+    );
+  }
+
+  void _openFilterModal(SearchProvider searchProvider) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return FractionallySizedBox(
+          heightFactor: 0.8,
+          child: FilterModal(
+            initialFilters: searchProvider.filters,
+            onApply: (filters) {
+              searchProvider.updateFilters(filters);
+              Navigator.pop(context);
+            },
+          ),
+        );
+      },
     );
   }
 }

@@ -15,7 +15,7 @@ import 'package:food_fellas/src/views/userFollowerList_screen.dart';
 import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
-import 'package:food_fellas/src/widgets/recipeList_screen.dart';
+import 'package:food_fellas/src/views/recipeList_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart';
 import 'package:provider/provider.dart';
@@ -220,7 +220,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           context,
                           MaterialPageRoute(
                             builder: (context) =>
-                                SettingsScreen(userData: userData!),
+                                SettingsScreen(userData: userData),
                           ),
                         );
                         // Refresh the profile data if necessary
@@ -271,8 +271,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 IconButton(
                   icon: Icon(Icons.share, color: theme.iconTheme.color),
                   onPressed: () {
+                    final currentUserId =
+                        FirebaseAuth.instance.currentUser!.uid;
                     final String profileUrl =
-                        'https://foodfellas.app/share/profile/${widget.userId}';
+                        'https://foodfellas.app/share/profile/$currentUserId';
                     Share.share('Check out this profile: $profileUrl');
                   },
                 ),
@@ -464,14 +466,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         title: 'Recipes',
                         value: '$recipesCount',
                         onTap: () {
+                          final recipesQuery = FirebaseFirestore.instance
+                              .collection('recipes')
+                              .where('authorId', isEqualTo: userId);
+
                           Navigator.push(
                             context,
                             MaterialPageRoute(
                               builder: (context) => RecipesListScreen(
-                                baseQuery: FirebaseFirestore.instance
-                                    .collection('recipes')
-                                    .where('authorId',
-                                        isEqualTo: widget.userId),
+                                baseQuery: recipesQuery,
                                 title: titleForRecipes,
                               ),
                             ),

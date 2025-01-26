@@ -7,9 +7,11 @@ import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
+  final Map<String, dynamic> userData;
 
   const SettingsScreen({
     Key? key,
+    required this.userData,
   }) : super(key: key);
 
   @override
@@ -22,6 +24,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
   @override
   void initState() {
     super.initState();
+  }
+
+  Future<void> _updateNotificationPreferences(
+      Map<String, dynamic> newPreferences) async {
+    final userId = widget.userData['uid'];
+
+    try {
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userId)
+          .update(newPreferences);
+      print('Notification preferences updated successfully!');
+    } catch (e) {
+      print('Error updating notification preferences: $e');
+    }
   }
 
   void _logOut() async {
@@ -108,13 +125,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.notifications),
             title: Text('Manage Notifications'),
             trailing: Icon(Icons.arrow_forward),
-            onTap: () {
-              Navigator.push(
+            onTap: () async {
+              // Navigate to Notification Preferences Screen
+              final result = await Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (context) => SettingsNotificationPreferencesScreen(),
+                  builder: (context) => SettingsNotificationPreferencesScreen(
+                    notificationsEnabled:
+                        widget.userData['notificationsEnabled'] ?? true,
+                    notifications: widget.userData['notifications'] ?? {},
+                  ),
                 ),
               );
+
+              if (result != null) {
+                // Save updated preferences
+                await _updateNotificationPreferences(result);
+              }
             },
           ),
           ListTile(
