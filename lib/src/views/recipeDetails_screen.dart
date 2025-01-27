@@ -477,13 +477,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Row(
-          children: [
-            const Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
-            const SizedBox(width: 8),
-            Text('$ingredientName added to your shopping list.'),
-          ],
+      content: Row(
+        children: [
+        const Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(
+          '$ingredientName added to your shopping list.',
+          overflow: TextOverflow.ellipsis,
+          ),
         ),
+        ],
+      ),
       ),
     );
   }
@@ -525,7 +530,20 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         await docRef.update({'amount': newAmount});
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-              content: Text('Updated $ingredientName in your shopping list.')),
+            content: Row(
+              children: [
+                const Icon(Icons.remove_shopping_cart_outlined,
+                    color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$ingredientName removed from your shopping list.',
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+          ),
         );
       }
     }

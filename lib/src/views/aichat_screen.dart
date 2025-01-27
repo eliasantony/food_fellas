@@ -16,6 +16,7 @@ import 'package:food_fellas/src/models/aimodel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
+import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -160,12 +161,19 @@ class _AIChatScreenState extends State<AIChatScreen> {
           ),
         ),
         actions: [
+          IconButton(
+            icon: Icon(Icons.refresh),
+            tooltip: 'Reload Last Message',
+            onPressed: _reloadLastAIMessages,
+          ),
           PopupMenuButton<String>(
             onSelected: (value) {
               if (value == 'preferences') {
                 _togglePreferences();
               } else if (value == 'feedback') {
                 _openFeedbackForm();
+              } else if (value == 'clear_chat') {
+                _confirmClearChat();
               }
             },
             itemBuilder: (BuildContext context) {
@@ -188,7 +196,23 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 ),
                 PopupMenuItem<String>(
                   value: 'feedback',
-                  child: Text('Provide Feedback'),
+                  child: Row(
+                    children: [
+                      Icon(Icons.feedback),
+                      SizedBox(width: 8),
+                      Text('Provide Feedback'),
+                    ],
+                  ),
+                ),
+                PopupMenuItem<String>(
+                  value: 'clear_chat',
+                  child: Row(
+                    children: [
+                      Icon(Icons.cleaning_services_outlined),
+                      SizedBox(width: 8),
+                      Text('Clear Chat'),
+                    ],
+                  ),
                 ),
               ];
             },
@@ -241,10 +265,16 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     ),
                     maxInputLength: 500,
                     sendOnEnter: true,
+                    sendButtonBuilder: defaultSendButton(
+                        color: Theme.of(context).colorScheme.primary,
+                        padding: EdgeInsets.fromLTRB(16, 0, 0, 16)),
                     trailing: [
-                      IconButton(
-                        onPressed: _sendMediaMessage,
-                        icon: const Icon(Icons.image),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 16),
+                        child: IconButton(
+                          onPressed: _sendMediaMessage,
+                          icon: const Icon(Icons.image),
+                        ),
                       )
                     ]),
                 typingUsers: [...typingUsers],
@@ -530,7 +560,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
 
     // Add the user's message to the UI
-    chatProvider.addMessage(chatMessage);
+    chatProvider.addMessages([chatMessage], saveToFirestore: true);
 
     _addTypingUser(geminiUser);
 
@@ -615,7 +645,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       );
 
       // 10) Add the AI message to the chat
-      chatProvider.addMessage(aiMessage);
+      chatProvider.addMessages([aiMessage], saveToFirestore: true);
 
       if (foundSimilarRecipes.isNotEmpty) {
         // 6) Show a separate chat message presenting the found recipes
@@ -631,7 +661,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
             // We could store them if you want or just show them
           },
         );
-        chatProvider.addMessage(foundMessage);
+        chatProvider.addMessages([foundMessage], saveToFirestore: true);
 
         // Show them as small cards (or your own layout).
         // For example, we can loop each found recipe and create a message:
@@ -646,7 +676,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
               "similarRecipeDoc": simRecipe,
             },
           );
-          chatProvider.addMessage(simRecipeMsg);
+          chatProvider.addMessages([simRecipeMsg], saveToFirestore: true);
         }
       }
     } catch (e) {
@@ -754,5 +784,81 @@ class _AIChatScreenState extends State<AIChatScreen> {
         });
       }
     }
+  }
+
+  Future<void> _reloadLastAIMessages() async {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    setState(() {
+      isLoading = true;
+    });
+
+    print('Reloading last AI messages...');
+
+    try {
+      List<ChatMessage> lastAIMessages = await chatProvider.getLastAIMessages();
+      if (lastAIMessages.isNotEmpty) {
+        chatProvider.addMessages(lastAIMessages,
+            saveToFirestore: false); // Do not save
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Last AI messages reloaded.')),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('No previous AI messages found.')),
+        );
+      }
+    } catch (e) {
+      print('Error reloading last AI messages: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to reload the last AI messages.')),
+      );
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
+  /// Shows a confirmation dialog before clearing the chat.
+  void _confirmClearChat() {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('Clear Chat'),
+          content: Text(
+              'Are you sure you want to clear the chat and start a new conversation?'),
+          actions: [
+            TextButton(
+              child: Text('Cancel'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+              },
+            ),
+            ElevatedButton(
+              child: Text('Clear'),
+              onPressed: () {
+                Navigator.of(context).pop(); // Close the dialog
+                _clearChat(); // Proceed to clear the chat
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  /// Clears the chat by invoking the provider's clearChat method.
+  void _clearChat() {
+    final chatProvider = Provider.of<ChatProvider>(context, listen: false);
+    chatProvider.clearChat();
+
+    // Optionally, reset other UI states or inform the user
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Chat cleared. Starting a new conversation.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
   }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:food_fellas/src/models/textEmbedding_model.dart';
+import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/views/addRecipeForm/tagsSelection_screen.dart';
 import 'package:food_fellas/src/views/addRecipeForm/thankyou_screen.dart';
 import '../../models/recipe.dart';
@@ -286,25 +287,34 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       Map<String, dynamic> recipeData = recipe.toJson();
       recipeData['tagsNames'] = tagsNames;
 
-      try {
-        // Set or update the recipe in Firestore
+try {
         await docRef.set(recipeData);
 
-        // If new recipe => increment user's recipe count
         if (isNewRecipe) {
           final userRef = FirebaseFirestore.instance
               .collection('users')
               .doc(currentUser.uid);
-          userRef.update({'recipeCount': FieldValue.increment(1)});
-        }
 
-        // 3) Show feedback & navigate
-        if (isNewRecipe) {
-          // NEW recipe => go to Thank You screen
+          // Update recipe count and fetch the updated value
+          DocumentSnapshot userDoc = await userRef.get();
+          int recipeCount = ((userDoc.data() as Map<String, dynamic>?)?['recipeCount'] ?? 0) + 1;
+          print('Recipe count: $recipeCount');
+
+          await userRef.update({'recipeCount': FieldValue.increment(1)});
+
+          // Conditionally show feedback dialog if recipe count < 5
+          if (recipeCount < 5) {
+            showDialog(
+              context: context,
+              builder: (context) => RecipeFeedbackDialog(recipeId: recipe.id!),
+            );
+          }
+
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Recipe submitted successfully!')),
           );
-          Navigator.pop(context); // pop the form
+
+          Navigator.pop(context); // Close the form
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -312,8 +322,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
             ),
           );
         } else {
-          // EDIT => just show a snackbar and pop back with a "true" result
-          // so that the calling screen knows it was successful
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Recipe edited successfully!')),
           );
