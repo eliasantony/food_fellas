@@ -214,7 +214,7 @@ class _RecipeCardState extends State<RecipeCard> {
     }
   }
 
-  // Show the save dialog
+// Show the save dialog
   void _showSaveDialog() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) {
@@ -224,105 +224,168 @@ class _RecipeCardState extends State<RecipeCard> {
       return;
     }
 
-    // Fetch the user's collections
-    QuerySnapshot collectionsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('collections')
-        .get();
+    try {
+      // Fetch the user's own collections
+      QuerySnapshot ownedCollectionsSnapshot = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('collections')
+          .get();
 
-    List<DocumentSnapshot> collections = collectionsSnapshot.docs;
+      List<DocumentSnapshot> ownedCollections = ownedCollectionsSnapshot.docs;
 
-    Map<String, bool> collectionSelection = {};
+      // Fetch collections where the user is a contributor using a collection group query
+      QuerySnapshot contributedCollectionsSnapshot = await FirebaseFirestore
+          .instance
+          .collectionGroup('collections')
+          .where('contributors', arrayContains: user.uid)
+          .get();
 
-    // For each collection, check if the recipe is already in it
-    for (var collection in collections) {
-      List<dynamic> recipes = collection['recipes'] ?? [];
-      collectionSelection[collection.id] = recipes.contains(widget.recipeId);
-    }
+      // Exclude collections already owned by the user to avoid duplicates
+      List<DocumentSnapshot> contributedCollections =
+          contributedCollectionsSnapshot.docs
+              .where((doc) => doc.reference.parent.parent?.id != user.uid)
+              .toList();
 
-    showDialog(
-      context: context,
-      builder: (context) {
-        return StatefulBuilder(
-          builder: (context, setStateDialog) {
-            return AlertDialog(
-              title: Text('Save Recipe to Collections'),
-              content: Container(
-                width: double.maxFinite,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    // List of collections
-                    Expanded(
-                      child: ListView.builder(
-                        shrinkWrap: true,
-                        itemCount: collections.length + 1,
-                        itemBuilder: (context, index) {
-                          if (index == collections.length) {
-                            // Create New Collection
-                            return ListTile(
-                              leading: Icon(Icons.add),
-                              title: Text('Create New Collection'),
-                              onTap: () {
-                                Navigator.pop(context);
-                                showCreateCollectionDialog(context,
-                                    autoAddRecipe: true,
-                                    recipeId: widget.recipeId);
-                              },
-                            );
-                          } else {
-                            var collection = collections[index];
-                            bool isSelected =
-                                collectionSelection[collection.id] ?? false;
-                            return CheckboxListTile(
-                              value: isSelected,
-                              title: Row(
-                                children: [
-                                  Text(collection['icon'] ?? '🍽',
-                                      style: TextStyle(fontSize: 24)),
-                                  SizedBox(width: 8),
-                                  Text(collection['name'] ?? 'Unnamed'),
-                                ],
-                              ),
-                              onChanged: (bool? value) {
-                                setStateDialog(() {
-                                  collectionSelection[collection.id] =
-                                      value ?? false;
-                                });
-                                if (value == true) {
-                                  // Add recipe to collection
-                                  toggleRecipeInCollection(
-                                      collection.id, true, widget.recipeId);
-                                } else {
-                                  // Remove recipe from collection
-                                  toggleRecipeInCollection(
-                                      collection.id, false, widget.recipeId);
-                                }
-                                // After modifying collections, refresh saved recipes
-                                final recipeProvider =
-                                    Provider.of<RecipeProvider>(context,
-                                        listen: false);
-                                recipeProvider.refreshSavedRecipes();
-                              },
-                            );
-                          }
-                        },
+      // Combine owned and contributed collections
+      List<DocumentSnapshot> allCollections = [
+        ...ownedCollections,
+        ...contributedCollections,
+      ];
+
+      Map<String, bool> collectionSelection = {};
+
+      // For each collection, check if the recipe is already in it
+      for (var collection in allCollections) {
+        List<dynamic> recipes = collection['recipes'] ?? [];
+        collectionSelection[collection.id] = recipes.contains(widget.recipeId);
+      }
+
+      await showDialog(
+        context: context,
+        builder: (context) {
+          return StatefulBuilder(
+            builder: (context, setStateDialog) {
+              return AlertDialog(
+                title: Text('Save Recipe to Collections'),
+                content: Container(
+                  width: double.maxFinite,
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // List of collections
+                      Expanded(
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: allCollections.length + 1,
+                          itemBuilder: (context, index) {
+                            if (index == allCollections.length) {
+                              // Create New Collection
+                              return ListTile(
+                                leading: Icon(Icons.add),
+                                title: Text('Create New Collection'),
+                                onTap: () {
+                                  Navigator.pop(context);
+                                  showCreateCollectionDialog(context,
+                                      autoAddRecipe: true,
+                                      recipeId: widget.recipeId);
+                                },
+                              );
+                            } else {
+                              var collection = allCollections[index];
+                              bool isSelected =
+                                  collectionSelection[collection.id] ?? false;
+                              bool isOwned =
+                                  collection.reference.parent.parent?.id ==
+                                      user.uid;
+                              return CheckboxListTile(
+                                value: isSelected,
+                                title: Row(
+                                  children: [
+                                    Text(collection['icon'] ?? '🍽',
+                                        style: TextStyle(fontSize: 24)),
+                                    SizedBox(width: 8),
+                                    Text(collection['name'] ?? 'Unnamed'),
+                                    if (isOwned)
+                                      Padding(
+                                        padding: EdgeInsets.only(left: 8.0),
+                                        child: Icon(
+                                          Icons.star,
+                                          color: Colors.orange,
+                                          size: 16,
+                                        ),
+                                      ),
+                                  ],
+                                ),
+                                subtitle: isOwned
+                                    ? Text('Owned')
+                                    : Text('Contributor'),
+                                onChanged: (bool? value) {
+                                  setStateDialog(() {
+                                    collectionSelection[collection.id] =
+                                        value ?? false;
+                                  });
+                                  String collectionOwnerUid;
+                                  if (isOwned) {
+                                    collectionOwnerUid = user.uid;
+                                  } else {
+                                    // For contributed collections, the owner is the parent user
+                                    collectionOwnerUid =
+                                        collection.reference.parent.parent!.id;
+                                  }
+
+                                  if (value == true) {
+                                    // Add recipe to collection
+                                    toggleRecipeInCollection(
+                                      collectionOwnerUid: collectionOwnerUid,
+                                      collectionId: collection.id,
+                                      add: true,
+                                      recipeId: widget.recipeId,
+                                    );
+                                  } else {
+                                    // Remove recipe from collection
+                                    toggleRecipeInCollection(
+                                      collectionOwnerUid: collectionOwnerUid,
+                                      collectionId: collection.id,
+                                      add: false,
+                                      recipeId: widget.recipeId,
+                                    );
+                                  }
+
+                                  // After modifying collections, refresh saved recipes
+                                  final recipeProvider =
+                                      Provider.of<RecipeProvider>(context,
+                                          listen: false);
+                                  recipeProvider.refreshSavedRecipes();
+                                },
+                              );
+                            }
+                          },
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(context),
-                  child: Text('Done'),
-                ),
-              ],
-            );
-          },
-        );
-      },
-    );
+                actions: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: Text('Done'),
+                  ),
+                ],
+              );
+            },
+          );
+        },
+      );
+      // After the dialog is closed, refresh the UI if necessary
+      final recipeProvider =
+          Provider.of<RecipeProvider>(context, listen: false);
+      recipeProvider.refreshSavedRecipes();
+    } catch (e) {
+      // Handle errors appropriately
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching collections: $e')),
+      );
+    }
   }
 }

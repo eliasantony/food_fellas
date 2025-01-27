@@ -140,15 +140,13 @@ class _MockupRecipeCardState extends State<MockupRecipeCard> {
                                   collectionSelection[collection.id] =
                                       value ?? false;
                                 });
-                                if (value == true) {
-                                  // Add recipe to collection
-                                  toggleRecipeInCollection(
-                                      collection.id, true, widget.recipeId);
-                                } else {
-                                  // Remove recipe from collection
-                                  toggleRecipeInCollection(
-                                      collection.id, false, widget.recipeId);
-                                }
+                                toggleRecipeInCollection(
+                                  collectionOwnerUid: user
+                                      .uid, // because user is the *owner* of their own collection
+                                  collectionId: collection.id,
+                                  add: value ?? false,
+                                  recipeId: widget.recipeId,
+                                );
                                 // Update isSaved state
                                 setState(() {
                                   isSaved = value ?? false;

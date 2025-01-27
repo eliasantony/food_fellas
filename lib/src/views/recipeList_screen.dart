@@ -2,11 +2,14 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_rating_bar/flutter_rating_bar.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:food_fellas/src/widgets/filterModal.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 
 class RecipesListScreen extends StatefulWidget {
   /// This query points to a subcollection like "recommendations" or "interactionHistory"
@@ -22,6 +25,7 @@ class RecipesListScreen extends StatefulWidget {
   final String? collectionName;
   final String? collectionEmoji;
   final bool? collectionVisibility;
+  final List<String>? collectionContributers;
 
   RecipesListScreen({
     Key? key,
@@ -33,6 +37,7 @@ class RecipesListScreen extends StatefulWidget {
     this.collectionName,
     this.collectionEmoji,
     this.collectionVisibility,
+    this.collectionContributers,
   }) : super(key: key);
 
   @override
@@ -53,7 +58,10 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
   bool isLoadingCollection =
       false; // indicates we’re loading the user’s collection array
   List<String> allCollectionRecipeIds = [];
+  List<String> existingContributors = [];
   int collectionIndex = 0; // so we can chunk in sets of 10 or so
+  bool isFollowingCollection = false;
+  int selectedStarCount = 0;
 
   // Merged or final data that we filter
   List<Map<String, dynamic>> allMergedData = [];
@@ -66,7 +74,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
   @override
   void initState() {
     super.initState();
-
+    if (widget.isCollection && widget.collectionId != null) {
+      _checkIfFollowingCollection();
+    }
     if (widget.isCollection) {
       _fetchCurrentUserRole();
       _fetchCollectionInitial(); // Flow B
@@ -144,14 +154,12 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     for (var doc in subDocs) {
       final data = doc.data() as Map<String, dynamic>;
       final rid = doc.id;
-      if (rid != null) {
-        recipeIds.add(rid);
-        // keep the subDoc data for merging
-        subDataList.add({
-          'subDocId': doc.id,
-          ...data,
-        });
-      }
+      recipeIds.add(rid);
+      // keep the subDoc data for merging
+      subDataList.add({
+        'subDocId': doc.id,
+        ...data,
+      });
     }
 
     if (recipeIds.isEmpty) {
@@ -219,6 +227,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     } catch (e) {
       // handle error
       setState(() {
+        existingContributors = [];
         allCollectionRecipeIds = [];
         hasMore = false;
         isLoadingCollection = false;
@@ -274,6 +283,23 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     });
   }
 
+  void _checkIfFollowingCollection() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    // see if there's a doc in user’s followedCollections
+    final doc = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('followedCollections')
+        .doc(widget.collectionId)
+        .get();
+
+    setState(() {
+      isFollowingCollection = doc.exists; // if doc exists => user is following
+    });
+  }
+
   Future<List<Map<String, dynamic>>> _fetchRecipesByIds(
     List<String> recipeIds,
     List<Map<String, dynamic>> subDataList,
@@ -306,7 +332,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         }
 
         for (var subData in subDataList) {
-          final rid = subData['subDocId']; // Use subDocId as recipeId
+          final rid = subData['recipeId'];
           if (batchIds.contains(rid)) {
             final recipeDoc = recipeMapById[rid];
             if (recipeDoc != null) {
@@ -487,8 +513,28 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
             icon: Icon(Icons.filter_list),
             onPressed: _openFilterModal,
           ),
-
-          // Show the "edit" collection button only if:
+          // Show "follow" button only if it's a public collection and user isn't the owner
+          if (widget.isCollection == true &&
+              widget.collectionId != null &&
+              widget.collectionVisibility == true &&
+              widget.collectionUserId != FirebaseAuth.instance.currentUser?.uid)
+            IconButton(
+              icon: Icon(
+                isFollowingCollection ? Icons.favorite : Icons.favorite_border,
+                color: isFollowingCollection ? Colors.red : null,
+              ),
+              onPressed: () async {
+                await toggleFollowCollection(
+                  collectionOwnerUid: widget.collectionUserId!,
+                  collectionId: widget.collectionId!,
+                  currentlyFollowing: isFollowingCollection,
+                );
+                setState(() {
+                  isFollowingCollection = !isFollowingCollection;
+                });
+              },
+            ),
+          // Show a popup menu with "Edit" and "Manage Contributors" options
           if ((widget.isCollection &&
                   _currentUserRole != null &&
                   _currentUserRole == 'admin') ||
@@ -501,18 +547,45 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                 if (currentUser != null) {
                   bool isOwner = (currentUser.uid == widget.collectionUserId);
                   bool isAdmin = false;
+
                   if (isOwner || isAdmin) {
-                    return IconButton(
-                      icon: Icon(Icons.edit),
-                      onPressed: () {
-                        showCreateCollectionDialog(
-                          context,
-                          initialName: widget.collectionName,
-                          initialIcon: widget.collectionEmoji,
-                          initialVisibility: widget.collectionVisibility,
-                          collectionId: widget.collectionId,
-                        );
+                    return PopupMenuButton<String>(
+                      onSelected: (value) {
+                        if (value == 'edit') {
+                          showCreateCollectionDialog(
+                            context,
+                            initialName: widget.collectionName,
+                            initialIcon: widget.collectionEmoji,
+                            initialVisibility: widget.collectionVisibility,
+                            collectionId: widget.collectionId,
+                          );
+                        } else if (value == 'manage') {
+                          showManageContributorsDialog(
+                            context: context,
+                            ownerUid: widget.collectionUserId!,
+                            collectionId: widget.collectionId!,
+                            existingContributors:
+                                widget.collectionContributers ?? [],
+                          );
+                        }
                       },
+                      icon: Icon(Icons.more_vert),
+                      itemBuilder: (context) => [
+                        PopupMenuItem(
+                          value: 'edit',
+                          child: ListTile(
+                            leading: Icon(Icons.edit),
+                            title: Text('Edit'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'manage',
+                          child: ListTile(
+                            leading: Icon(Icons.group),
+                            title: Text('Manage Contributors'),
+                          ),
+                        ),
+                      ],
                     );
                   }
                 }
@@ -521,12 +594,21 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
             ),
         ],
       ),
+      floatingActionButton:
+          (widget.isCollection == true && widget.collectionVisibility == true)
+              ? FloatingActionButton(
+                  onPressed: () {
+                    final shareUrl =
+                        'https://foodfellas.app/collections/${widget.collectionId}';
+                    Share.share('Check out this collection: $shareUrl');
+                  },
+                  child: Icon(Icons.share),
+                )
+              : null,
       body: Column(
         children: [
           if (selectedFilters.isNotEmpty) _buildActiveFilters(),
-          Expanded(
-            child: _buildRecipeList(),
-          ),
+          Expanded(child: _buildRecipeList()),
         ],
       ),
     );
@@ -534,7 +616,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
 
   Widget _buildRecipeList() {
     if (widget.isCollection) {
-      // show collection loading or empty state
+      // Handle collection loading or empty states
       if (isLoadingCollection && allMergedData.isEmpty) {
         return Center(child: CircularProgressIndicator());
       }
@@ -542,7 +624,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         return Center(child: Text('No recipes in this collection.'));
       }
     } else {
-      // subcollection approach
+      // Handle subcollection loading or empty states
       if (isLoadingMore && allMergedData.isEmpty) {
         return Center(child: CircularProgressIndicator());
       }
@@ -551,21 +633,31 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       }
     }
 
+    // Calculate the total item count
+    final totalItemCount = visibleData.length +
+        ((isLoadingMore || isLoadingCollection) && hasMore ? 1 : 0) +
+        (widget.isCollection ? 1 : 0); // Add 1 for the rating section
+
     return ListView.builder(
       controller: _scrollController,
-      itemCount: visibleData.length +
-          ((isLoadingMore || isLoadingCollection) && hasMore ? 1 : 0),
+      itemCount: totalItemCount,
       itemBuilder: (context, index) {
         if (index < visibleData.length) {
+          // Render recipe cards
           final recipeMap = visibleData[index];
           final recipeId = recipeMap['id'] as String;
           return RecipeCard(
             big: true,
             recipeId: recipeId,
-            // Possibly pass data along if needed
           );
+        } else if (widget.isCollection &&
+            index == visibleData.length &&
+            !isLoadingCollection &&
+            allCollectionRecipeIds.isNotEmpty) {
+          // Render the rating section as the last item for collections
+          return _buildRatingSection();
         } else {
-          // show loading indicator at bottom
+          // Show loading indicator for pagination
           return Center(child: CircularProgressIndicator());
         }
       },
@@ -652,6 +744,80 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       child: ListView(
         scrollDirection: Axis.horizontal,
         children: chips,
+      ),
+    );
+  }
+
+  Widget _buildRatingSection() {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final isOwner = widget.collectionUserId == currentUser?.uid;
+    final isContributor =
+        widget.collectionContributers?.contains(currentUser?.uid) ?? false;
+
+    if (isOwner || isContributor || allCollectionRecipeIds.isEmpty) {
+      return SizedBox.shrink(); // Hide rating section for owners/contributors
+    }
+
+    return Card(
+      margin: const EdgeInsets.all(8.0),
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(16.0),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Rate this Collection!',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            FutureBuilder<DocumentSnapshot>(
+              future: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(widget.collectionUserId)
+                  .collection('collections')
+                  .doc(widget.collectionId)
+                  .collection('ratings')
+                  .doc(currentUser?.uid)
+                  .get(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return Center(child: CircularProgressIndicator());
+                }
+
+                double initialRating = 0;
+                if (snapshot.data != null && snapshot.data!.exists) {
+                  initialRating = (snapshot.data!['rating'] ?? 0).toDouble();
+                }
+
+                return Center(
+                  child: RatingBar.builder(
+                    initialRating: initialRating,
+                    minRating: 1,
+                    direction: Axis.horizontal,
+                    allowHalfRating: false,
+                    itemCount: 5,
+                    itemSize: 40.0,
+                    itemBuilder: (context, _) => const Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                    ),
+                    onRatingUpdate: (rating) async {
+                      await rateCollection(
+                        collectionOwnerUid: widget.collectionUserId!,
+                        collectionId: widget.collectionId!,
+                        rating: rating,
+                      );
+                      setState(() {}); // Rebuild to reflect the updated rating
+                    },
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
       ),
     );
   }

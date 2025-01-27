@@ -3,6 +3,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:provider/provider.dart';
 
 Future<String> _createCollection(
     String name, String icon, bool isPublic) async {
@@ -26,28 +28,198 @@ Future<String> _createCollection(
   return collectionRef.id;
 }
 
-void toggleRecipeInCollection(
-    String collectionId, bool add, String recipeId) async {
+Future<void> toggleRecipeInCollection({
+  required String collectionOwnerUid,
+  required String collectionId,
+  required bool add,
+  required String recipeId,
+}) async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) return;
 
   final collectionRef = FirebaseFirestore.instance
       .collection('users')
-      .doc(user.uid)
+      .doc(collectionOwnerUid) // <-- owner of the collection
       .collection('collections')
       .doc(collectionId);
 
+  // 1) Fetch the collection to see if the user is allowed to add recipes
+  final doc = await collectionRef.get();
+  if (!doc.exists) {
+    print('Collection does not exist!');
+    return;
+  }
+  final data = doc.data() as Map<String, dynamic>;
+  final ownerUid = collectionOwnerUid;
+  final contributors = (data['contributors'] ?? []) as List;
+
+  // 2) Check if current user is the owner or a contributor
+  final isOwner = (user.uid == ownerUid);
+  final isContributor = contributors.contains(user.uid);
+
+  if (!isOwner && !isContributor) {
+    // Not allowed
+    print('User is neither owner nor contributor. Abort.');
+    return;
+  }
+
+  // 3) Proceed with add/remove
   if (add) {
-    // Add the recipe to the collection
     await collectionRef.update({
       'recipes': FieldValue.arrayUnion([recipeId]),
     });
   } else {
-    // Remove the recipe from the collection
     await collectionRef.update({
       'recipes': FieldValue.arrayRemove([recipeId]),
     });
   }
+}
+
+Future<void> toggleFollowCollection({
+  required String collectionOwnerUid,
+  required String collectionId,
+  required bool currentlyFollowing, // is the user currently following?
+}) async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return; // not logged in
+
+  final batch = FirebaseFirestore.instance.batch();
+
+  // Collection doc reference
+  final ownerCollectionDoc = FirebaseFirestore.instance
+      .collection('users')
+      .doc(collectionOwnerUid)
+      .collection('collections')
+      .doc(collectionId);
+
+  // The subcollection doc: who is following
+  final followerDoc =
+      ownerCollectionDoc.collection('followers').doc(currentUser.uid);
+
+  // In the follower’s user document
+  final userFollowedCollectionDoc = FirebaseFirestore.instance
+      .collection('users')
+      .doc(currentUser.uid)
+      .collection('followedCollections')
+      .doc(collectionId);
+
+  if (currentlyFollowing) {
+    // == UNFOLLOW ==
+    batch.delete(followerDoc);
+    batch.delete(userFollowedCollectionDoc);
+    // Decrement the followersCount
+    batch.update(ownerCollectionDoc, {
+      'followersCount': FieldValue.increment(-1),
+    });
+  } else {
+    // == FOLLOW ==
+    batch.set(followerDoc, {
+      'followerUid': currentUser.uid,
+      'followedAt': FieldValue.serverTimestamp(),
+    });
+    batch.set(userFollowedCollectionDoc, {
+      'collectionId': collectionId,
+      'collectionOwnerUid': collectionOwnerUid,
+      'followedAt': FieldValue.serverTimestamp(),
+    });
+    // Increment the followersCount
+    batch.update(ownerCollectionDoc, {
+      'followersCount': FieldValue.increment(1),
+    });
+  }
+
+  await batch.commit();
+}
+
+Future<void> rateCollection({
+  required String collectionOwnerUid,
+  required String collectionId,
+  required double rating,
+}) async {
+  final currentUser = FirebaseAuth.instance.currentUser;
+  if (currentUser == null) return; // Ensure user is logged in
+
+  final collectionRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(collectionOwnerUid)
+      .collection('collections')
+      .doc(collectionId);
+
+  final ratingDocRef = collectionRef.collection('ratings').doc(currentUser.uid);
+
+  await FirebaseFirestore.instance.runTransaction((transaction) async {
+    // Fetch all existing ratings
+    final allRatingsSnap = await collectionRef.collection('ratings').get();
+
+    // Get the user's current rating, if any
+    final existingRatingSnapshot = await transaction.get(ratingDocRef);
+    double existingRating = 0;
+    if (existingRatingSnapshot.exists) {
+      existingRating = (existingRatingSnapshot['rating'] ?? 0).toDouble();
+    }
+
+    // Calculate the new average rating
+    final allRatings = allRatingsSnap.docs.map((doc) {
+      return (doc['rating'] ?? 0.0) as double;
+    }).toList();
+
+    // Adjust the ratings list by removing the user's old rating (if any)
+    if (existingRating > 0) {
+      allRatings.remove(existingRating);
+    }
+
+    // Add the new rating
+    final newRatings = [...allRatings, rating];
+    final newCount = newRatings.length;
+    final newAverage = newRatings.reduce((a, b) => a + b) / newCount;
+
+    // Save or update the user's rating
+    transaction.set(ratingDocRef, {
+      'rating': rating,
+      'ratedAt': FieldValue.serverTimestamp(),
+    });
+
+    // Update the collection's average rating and rating count
+    transaction.update(collectionRef, {
+      'averageRating': newAverage,
+      'ratingsCount': newCount,
+    });
+
+    print(
+        "Rating successfully updated: Average = $newAverage, Count = $newCount");
+  });
+}
+
+Future<void> addContributorToCollection({
+  required String ownerUid,
+  required String collectionId,
+  required String contributorUid,
+}) async {
+  final collectionRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(ownerUid)
+      .collection('collections')
+      .doc(collectionId);
+
+  await collectionRef.update({
+    'contributors': FieldValue.arrayUnion([contributorUid])
+  });
+}
+
+Future<void> removeContributorFromCollection({
+  required String ownerUid,
+  required String collectionId,
+  required String contributorUid,
+}) async {
+  final collectionRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(ownerUid)
+      .collection('collections')
+      .doc(collectionId);
+
+  await collectionRef.update({
+    'contributors': FieldValue.arrayRemove([contributorUid])
+  });
 }
 
 Future<void> showCreateCollectionDialog(BuildContext context,
@@ -170,7 +342,11 @@ Future<void> showCreateCollectionDialog(BuildContext context,
                           newCollectionName, selectedIcon.value, isPublic);
                       if (autoAddRecipe && recipeId != null) {
                         toggleRecipeInCollection(
-                            newCollectionId, true, recipeId);
+                          collectionOwnerUid: user.uid,
+                          collectionId: newCollectionId,
+                          add: true,
+                          recipeId: recipeId,
+                        );
                       }
                     } else {
                       // Update existing collection
@@ -260,6 +436,126 @@ void _showEmojiPicker(
             ),
           ),
         ),
+      );
+    },
+  );
+}
+
+Future<void> showManageContributorsDialog({
+  required BuildContext context,
+  required String ownerUid,
+  required String collectionId,
+  required List<String> existingContributors,
+}) async {
+  final searchProvider = Provider.of<SearchProvider>(context, listen: false);
+
+  String query = '';
+
+  showDialog(
+    context: context,
+    builder: (ctx) {
+      return StatefulBuilder(
+        builder: (context, setStateDialog) {
+          final users = searchProvider.users;
+
+          Future<void> doSearch(String q) async {
+            query = q;
+            await searchProvider.fetchUsers(q);
+            setStateDialog(() {});
+          }
+
+          return AlertDialog(
+            title: Text('Manage Contributors'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  TextField(
+                    decoration: InputDecoration(
+                      labelText: 'Search users...',
+                      border: OutlineInputBorder(),
+                    ),
+                    onChanged: (val) {
+                      doSearch(val);
+                    },
+                  ),
+                  SizedBox(height: 8),
+                  Expanded(
+                    child: searchProvider.isLoading
+                        ? Center(child: CircularProgressIndicator())
+                        : ListView.builder(
+                            itemCount: users.length,
+                            itemBuilder: (context, index) {
+                              final userData = users[index];
+                              final userUid = userData['uid'] ?? '';
+                              final displayName =
+                                  userData['display_name'] ?? 'User';
+                              final profilePicture =
+                                  userData['profile_url'] ?? '';
+                              final isContributor =
+                                  existingContributors.contains(userUid);
+                              print('profilePicture: $profilePicture');
+                              return ListTile(
+                                leading: CircleAvatar(
+                                  backgroundImage: profilePicture.isNotEmpty
+                                      ? NetworkImage(profilePicture)
+                                      : null,
+                                  child: profilePicture.isEmpty
+                                      ? Icon(Icons.person)
+                                      : null,
+                                ),
+                                title: Text(displayName),
+                                trailing: isContributor
+                                    ? IconButton(
+                                        icon: Icon(Icons.remove_circle,
+                                            color: Colors.red),
+                                        onPressed: () async {
+                                          await removeContributorFromCollection(
+                                            ownerUid: ownerUid,
+                                            collectionId: collectionId,
+                                            contributorUid: userUid,
+                                          );
+                                          existingContributors.remove(userUid);
+                                          setStateDialog(() {});
+                                        },
+                                      )
+                                    : IconButton(
+                                        icon: Icon(Icons.add_circle,
+                                            color: Colors.green),
+                                        onPressed: () async {
+                                          await addContributorToCollection(
+                                            ownerUid: ownerUid,
+                                            collectionId: collectionId,
+                                            contributorUid: userUid,
+                                          );
+                                          existingContributors.add(userUid);
+                                          setStateDialog(() {});
+                                        },
+                                      ),
+                              );
+                            },
+                          ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: Text('Cancel'),
+                onPressed: () => Navigator.pop(context),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                ),
+                child: Text('Done'),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          );
+        },
       );
     },
   );

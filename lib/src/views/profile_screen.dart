@@ -304,6 +304,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildRecipesSection(context, theme, userData),
             // Collections Section
             _buildCollectionsSection(context, theme, userData, isCurrentUser),
+            // Followed Collections Section
+            _buildFollowedCollectionsSection(context),
             SizedBox(height: 20),
           ],
         ),
@@ -558,7 +560,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         SizedBox(height: 10),
         Container(
-          height: 170,
+          height: 200,
           child: StreamBuilder<QuerySnapshot>(
             stream: collectionStream,
             builder: (context, snapshot) {
@@ -615,16 +617,108 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  Widget _buildFollowedCollectionsSection(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (!isCurrentUser || currentUser == null) {
+      return SizedBox(); // Only show this if it's the current user's profile
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        SizedBox(height: 20),
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 16.0),
+          child: Text(
+            'Followed Collections',
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+        ),
+        SizedBox(height: 10),
+        Container(
+          height: 200,
+          child: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('users')
+                .doc(currentUser.uid)
+                .collection('followedCollections')
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(
+                    child: Text('Error loading followed collections'));
+              }
+              if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                return Center(child: Text('No followed collections.'));
+              }
+              final followedDocs = snapshot.data!.docs;
+              return ListView.builder(
+                scrollDirection: Axis.horizontal,
+                itemCount: followedDocs.length,
+                itemBuilder: (context, index) {
+                  final data =
+                      followedDocs[index].data() as Map<String, dynamic>;
+                  final ownerUid = data['collectionOwnerUid'];
+                  final colId = data['collectionId'];
+                  // fetch the actual collection doc
+                  return FutureBuilder<DocumentSnapshot>(
+                    future: FirebaseFirestore.instance
+                        .collection('users')
+                        .doc(ownerUid)
+                        .collection('collections')
+                        .doc(colId)
+                        .get(),
+                    builder: (context, colSnapshot) {
+                      if (!colSnapshot.hasData) {
+                        return Center(child: CircularProgressIndicator());
+                      }
+                      if (!colSnapshot.data!.exists) {
+                        return SizedBox(
+                          width: 120,
+                          child: Center(child: Text('Not found')),
+                        );
+                      }
+                      final colData =
+                          colSnapshot.data!.data() as Map<String, dynamic>;
+                      return _buildCollectionCard(
+                        context,
+                        Theme.of(context),
+                        ownerUid,
+                        colId,
+                        colData,
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          ),
+        ),
+      ],
+    );
+  }
+
 // Collection Card
-  Widget _buildCollectionCard(BuildContext context, ThemeData theme,
-      String userId, String collectionId, Map<String, dynamic> collectionData) {
+  Widget _buildCollectionCard(
+    BuildContext context,
+    ThemeData theme,
+    String userId, // The collection's owner
+    String collectionId,
+    Map<String, dynamic> collectionData,
+  ) {
     String name = collectionData['name'] ?? 'Unnamed';
     String icon = collectionData['icon'] ?? '🍽';
     List<dynamic> recipes = collectionData['recipes'] ?? [];
     bool isPublic = collectionData['isPublic'] ?? false;
+    int followersCount = collectionData['followersCount'] ?? 0;
+    double averageRating = (collectionData['averageRating'] ?? 0.0).toDouble();
+    int ratingsCount = collectionData['ratingsCount'] ?? 0;
+    List<String> contributers =
+        collectionData['contributers']?.cast<String>() ?? [];
 
     return GestureDetector(
       onTap: () {
+        // Navigate to that collection
         Navigator.push(
           context,
           MaterialPageRoute(
@@ -635,6 +729,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               collectionName: name,
               collectionEmoji: icon,
               collectionVisibility: isPublic,
+              collectionContributers: contributers,
             ),
           ),
         );
@@ -647,11 +742,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              // Display the emoji icon
-              Text(
-                icon,
-                style: TextStyle(fontSize: 40),
-              ),
+              Text(icon, style: TextStyle(fontSize: 40)),
               SizedBox(height: 8),
               Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -668,10 +759,33 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 ],
               ),
               SizedBox(height: 4),
-              Text(
-                '${recipes.length} recipes',
-                style: TextStyle(color: Colors.grey),
-              ),
+              Text('${recipes.length} recipes',
+                  style: theme.textTheme.titleSmall),
+              // NEW: show followers
+              if (isPublic) ...[
+                SizedBox(height: 8),
+                Text('$followersCount followers',
+                    style: theme.textTheme.bodySmall),
+              ],
+              // NEW: show average rating
+              if (ratingsCount > 0) ...[
+                SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                      size: 16,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '${averageRating.toStringAsFixed(1)} ($ratingsCount)',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
             ],
           ),
         ),
