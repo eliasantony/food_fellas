@@ -117,7 +117,7 @@ class Recipe {
       'imageUrl': imageUrl,
       'createdAt': createdAt?.millisecondsSinceEpoch,
       'updatedAt': updatedAt?.millisecondsSinceEpoch,
-      'embedding': embeddings,
+      'embeddings': embeddings,
     };
   }
 

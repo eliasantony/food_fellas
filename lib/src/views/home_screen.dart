@@ -122,7 +122,6 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Decide on an icon based on time of day
   Widget _getTimeOfDayIcon() {
     final hour = DateTime.now().hour;
     if (hour < 11) {

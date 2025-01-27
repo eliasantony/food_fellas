@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
+import 'package:food_fellas/src/views/addRecipeForm/importRecipes_screen.dart';
 import 'package:food_fellas/src/widgets/settings_notificationPreferences_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -72,7 +73,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     // E.g., update a field in Firestore to mark the account as disabled
   }
 
-    void _showInstagram() {
+  void _showInstagram() {
     // Open the browser to show the Privacy Policy link
     var url = Uri(
         scheme: 'https',
@@ -121,7 +122,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-           ListTile(
+          if (widget.userData['role'] == 'admin')
+            ListTile(
+              leading: Icon(Icons.edit_document),
+              title: Text('Batch Import for Admins'),
+              trailing: Icon(Icons.arrow_forward),
+              onTap: () async {
+                // Navigate to Import Recipes Screen
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => ImportRecipesPage(),
+                  ),
+                );
+              },
+            ),
+          Divider(),
+          ListTile(
             leading: Icon(Icons.notifications),
             title: Text('Manage Notifications'),
             trailing: Icon(Icons.arrow_forward),
