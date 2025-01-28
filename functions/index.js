@@ -27,6 +27,17 @@ const admin = require("firebase-admin");
 const axios = require("axios");
 const uuidv4 = require("uuid").v4;
 const Sentiment = require("sentiment");
+const { getMessaging } = require("firebase-admin/messaging");
+const fs = require("fs");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+const { GoogleAIFileManager } = require("@google/generative-ai/server");
+const apiKey = functions.config().gemini.api_key;
+if (!apiKey) {
+  console.error("GEMINI_API_KEY is missing!");
+  throw new Error("GEMINI_API_KEY is not set in Firebase functions config.");
+}
+const genAI = new GoogleGenerativeAI(apiKey);
+const fileManager = new GoogleAIFileManager(apiKey);
 
 admin.initializeApp();
 const sentiment = new Sentiment();
@@ -117,7 +128,17 @@ exports.calculateWeeklyRecommendations = functions
       }));
 
       if (messages.length > 0) {
-        const response = await admin.messaging().sendAll(messages);
+        const sendMessages = async () => {
+          for (const msg of messages) {
+            try {
+              const response = await getMessaging().send(msg);
+              console.log(`Message sent successfully to ${msg.token}:`, response);
+            } catch (error) {
+              console.error(`Error sending to ${msg.token}:`, error);
+            }
+          }
+        };
+        sendMessages(); 
         console.log(`${response.successCount} weekly recommendation notifications sent.`);
       }
     } catch (error) {
@@ -324,19 +345,26 @@ exports.analyzeCommentSentiment = functions
 
     if (!notificationsEnabled || !authorToken) return;
 
-    // 4. Send push notification
-    const title = "New Comment on Your Recipe!";
-    const body = `Someone commented: "${commentText}"`;
-    
-    await admin.messaging().sendToDevice(authorToken, {
-      notification: { title, body },
+    const message = {
       data: {
         type: "new_comment",
         recipeId: recipeId,
         commentId: context.params.commentId,
-        click_action: "FLUTTER_NOTIFICATION_CLICK",
       },
-    });
+      notification: {
+        title: "New Comment on Your Recipe!",
+        body: `Someone commented: "${commentText}"`,
+      },
+      token: authorToken,
+    };
+
+    getMessaging().send(message)
+      .then((response) => {
+        console.log("Successfully sent message:", response);
+      })
+      .catch((error) => {
+        console.error("Error sending message:", error);
+      });
   });
 
 // Function to update recipe's average rating when a rating is altered
@@ -534,34 +562,44 @@ exports.notifyOnNewFollower = functions
         : "Someone";
 
       // 5. Construct the notification
-      const title = "New Follower Alert!";
-      const body = `${followerName} is now following you.`;
-
-      // 6. Send the push
-      await admin.messaging().sendToDevice(fcmToken, {
-        notification: { title, body },
+      const message = {
         data: {
           type: "new_follower",
           followerUid: followerUid,
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
+        notification: {
+          title: "New Follower!",
+          body: `${followerName} started following you.`,
+        },
+        token: fcmToken,
+      };
+
+      // 6. Send the push
+      getMessaging().send(message)
+      .then((response) => {
+        console.log("Successfully sent message:", response);
+      })
+      .catch((error) => {
+        console.error("Error sending message:", error);
       });
     } catch (error) {
       console.error("Error sending new follower notification:", error);
     }
   });
 
-  exports.notifyOnNewRecipe = functions
+exports.notifyOnNewRecipe = functions
   .region("europe-west1")
   .firestore
   .document("recipes/{recipeId}")
   .onCreate(async (snap, context) => {
     const newRecipe = snap.data();
     const authorId = newRecipe.authorId;
+    const authorDoc = await admin.firestore().collection("users").doc(authorId).get();
+    const authorName = authorDoc.exists ? authorDoc.data().display_name || "Someone" : "Someone";
 
     try {
       // 1. Fetch all the followers of this author
-      //    e.g. if you store them as "users/{authorId}/followers/{followerId}"
       const followersSnap = await admin.firestore()
         .collection("users")
         .doc(authorId)
@@ -570,7 +608,7 @@ exports.notifyOnNewFollower = functions
 
       if (followersSnap.empty) return;
 
-      // 2. For each follower, check "notifications.newRecipeFromFollowing" & fcmToken
+      // 2. For each follower, check notifications setting & FCM token
       const tokensToSend = [];
       for (const doc of followersSnap.docs) {
         const followerId = doc.id;
@@ -586,29 +624,265 @@ exports.notifyOnNewFollower = functions
         const token = followerData.fcmToken;
 
         if (notifyEnabled && token) {
-          tokensToSend.push({ token, followerData });
+          tokensToSend.push(token);
         }
       }
 
       if (tokensToSend.length === 0) return;
 
-      // 3. Build your notification content
-      const title = "New Recipe Posted!";
-      const body = `Check out a new recipe from someone you follow.`;
+      // 3. Build and send notifications individually
+      const sendNotifications = async () => {
+        for (const token of tokensToSend) {
+          try {
+            const message = {
+              token,
+              notification: {
+              title: "New Recipe Posted!",
+              body: `A new recipe from ${authorName} just got posted.`,
+              },
+              data: {
+              type: "new_recipe",
+              recipeId: snap.id,
+              click_action: "FLUTTER_NOTIFICATION_CLICK",
+              },
+            };
 
-      // 4. Send to each token (or use sendMulticast for better performance)
-      const messages = tokensToSend.map(({ token, followerData }) => ({
-        token,
-        notification: { title, body },
-        data: {
-          type: "new_recipe",
-          recipeId: snap.id,  // let the app know which recipe to open
-          click_action: "FLUTTER_NOTIFICATION_CLICK",
-        },
-      }));
+            const response = await getMessaging().send(message);
+            console.log(`Notification sent successfully to ${token}:`, response);
+          } catch (error) {
+            console.error(`Error sending notification to ${token}:`, error);
+          }
+        }
+      };
 
-      await admin.messaging().sendAll(messages);
+      await sendNotifications();
     } catch (error) {
       console.error("Error sending new recipe notification:", error);
     }
   });
+
+async function uploadToGemini(path, mimeType) {
+  const uploadResult = await fileManager.uploadFile(path, { mimeType, displayName: path });
+  const file = uploadResult.file;
+  console.log(`Uploaded file ${file.displayName} as: ${file.name}`);
+  return file;
+}
+
+async function waitForFilesActive(files) {
+  console.log("Waiting for file processing...");
+  for (const name of files.map((file) => file.name)) {
+    let file = await fileManager.getFile(name);
+    while (file.state === "PROCESSING") {
+      process.stdout.write(".");
+      await new Promise((resolve) => setTimeout(resolve, 10000)); // 10 seconds delay
+      file = await fileManager.getFile(name);
+    }
+    if (file.state !== "ACTIVE") {
+      throw Error(`File ${file.name} failed to process`);
+    }
+  }
+  console.log("...all files ready\n");
+}
+
+exports.processPdfForRecipes = functions
+  .region("europe-west1")
+  .storage.object()
+  .onFinalize(async (object) => {
+    const filePath = object.name;
+    if (!filePath || !filePath.startsWith("pdf_uploads/") || !filePath.endsWith(".pdf")) {
+      console.log("Not a PDF in pdf_uploads folder. Skipping.");
+      return;
+    }
+
+    const bucketName = object.bucket;
+    const bucket = admin.storage().bucket(bucketName);
+    const tempFilePath = `/tmp/${Date.now()}-temp.pdf`;
+
+    // Step 1: Download the PDF
+    await bucket.file(filePath).download({ destination: tempFilePath });
+
+    // Step 2: Upload the PDF to Gemini
+    const uploadedFile = await uploadToGemini(tempFilePath, "application/pdf");
+
+    // Step 3: Wait for the file to be active
+    await waitForFilesActive([uploadedFile]);
+
+    // Step 4: Start a chat session and process the PDF
+    const model = genAI.getGenerativeModel({
+      model: "gemini-1.5-flash",
+      systemInstruction: `
+      You are a smart cooking assistant for FoodFellas. The user will provide one or more PDF Files of recipes. Your goal is to accurately translate them to english, extract the recipe and transform them into one json Object! Provide a valid JSON response in the following format:
+
+      {
+      "title": "String",
+      "description": "String",
+      "cookTime": int,
+      "prepTime": int,
+      "totalTime": int,
+      "ingredients": [
+        {
+        "ingredient": {
+          "ingredientName": "String",
+          "category": "String"
+        },
+        "baseAmount": int,
+        "unit": "String",
+        "servings": int
+        }
+      ],
+      "calories": int,
+      "protein": int,
+      "carbs": int,
+      "fat": int,
+      "initialServings": int,
+      "cookingSteps": [
+        "String"
+      ],
+      "tags": [
+        {"id": "String", "name": "String", "icon": "Emoji", "category": "String"}
+      ],
+      }
+
+      Example of one Full Recipe JSON:
+
+      {
+      "title": "Chicken Alfredo Pasta 🍲",
+      "description": "A creamy and delicious pasta dish with grilled chicken and Alfredo sauce.",
+      "cookTime": 10,
+      "prepTime": 20,
+      "totalTime": 30,
+      "ingredients": [
+        {
+        "ingredient": {
+          "ingredientName": "Penne Pasta",
+          "category": "Pasta"
+        },
+        "baseAmount": 250,
+        "unit": "g",
+        "servings": 2
+        },
+        {
+        "ingredient": {
+          "ingredientName": "Chicken Breast",
+          "category": "Poultry"
+        },
+        "baseAmount": 200,
+        "unit": "g",
+        "servings": 2
+        },
+        ...
+      ],
+      "calories": 550,
+      "protein": 31,
+      "carbs": 46,
+      "fat": 13,
+      "initialServings": 2,
+      "cookingSteps": [
+        "Cook the penne pasta according to package instructions.",
+        ...
+      ],
+      "tags": [
+        {"id": "tag1", "name": "Vegetarian", "icon": "🥕", "category": "Dietary Preferences"},
+        {"id": "tag2", "name": "Italian", "icon": "🍕", "category": "Cuisines"}
+      ],
+      }
+
+      If the user provided multiple recipes in one PDF file, you should return an array of JSON objects, one for each recipe.
+
+      Additional Requirements:
+      • Make sure the recipe is in English.
+      • Use metric units (grams, milliliters, etc.).
+      • Use spices and seasonings accurately.
+      • Try to make the recipe as good tasting as possible.
+      • If the macro values (calories (kcal), protein, carbs, fat) are not stated in the recipe, try to figure them out exactly for 1 serving by looking at the ingredients.
+      • You have a list of Tags you can use to label the recipe (dietary preferences, difficulty, cuisine, etc.):
+      "Breakfast", "Lunch", "Dinner", "Snack", "Dessert", "Appetizer", "Beverage", "Brunch", "Side Dish", "Soup", "Salad", "Under 15 minutes", "Under 30 minutes", "Under 1 hour", "Over 1 hour", "Slow Cook", "Quick & Easy", "Easy", "Medium", "Hard", "Beginner Friendly", "Intermediate", "Expert", "Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Nut-Free", "Halal", "Kosher", "Paleo", "Keto", "Pescatarian", "Low-Carb", "Low-Fat", "High-Protein", "Sugar-Free", "Italian", "Mexican", "Chinese", "Indian", "Japanese", "Mediterranean", "American", "Thai", "French", "Greek", "Korean", "Vietnamese", "Spanish", "Middle Eastern", "Caribbean", "African", "German", "Brazilian", "Peruvian", "Turkish", "Other", "Grilling", "Baking", "Stir-Frying", "Steaming", "Roasting", "Slow Cooking", "Raw", "Frying", "Pressure Cooking", "No-Cook", "Party", "Picnic", "Holiday", "Casual", "Formal", "Date Night", "Family Gathering", "Game Day", "BBQ", "Healthy", "Comfort Food", "Spicy", "Sweet", "Savory", "Budget-Friendly", "Kids Friendly", "High Fiber", "Low Sodium", "Seasonal", "Organic", "Gourmet".
+      Try to add as many relevant tags as possible to make the recipe more discoverable.
+      `,
+    });
+
+    const chatSession = model.startChat({
+      history: [
+        {
+          role: "user",
+          parts: [
+            {
+              fileData: {
+                mimeType: uploadedFile.mimeType,
+                fileUri: uploadedFile.uri,
+              },
+            },
+          ],
+        },
+      ],
+    });
+
+    const result = await chatSession.sendMessage("Process the uploaded PDF and extract recipes.");
+    let responseText = result.response.text();
+    responseText = responseText.replace(/^```json\s*/i, "").replace(/\s*```$/, "").trim();
+
+    // Step 5: Parse and save the response to Firestore
+    let parsedJson;
+    try {
+      parsedJson = JSON.parse(responseText);
+    } catch (err) {
+      console.error("Could not parse model response as JSON:", err);
+      return;
+    }
+
+    const recipeArray = Array.isArray(parsedJson) ? parsedJson : [parsedJson];
+
+    const metadata = object.metadata || {};
+    const batchId = metadata.batchId || "defaultBatch";
+
+    const resultsRef = admin
+      .firestore()
+      .collection("pdfProcessingResults")
+      .doc(batchId)
+      .collection("files")
+      .doc(object.name.replace(/\//g, "_"));
+
+    await resultsRef.set({
+      fileName: filePath,
+      processedAt: admin.firestore.FieldValue.serverTimestamp(),
+      recipes: recipeArray,
+      imported: false,
+    });
+
+    console.log("Recipes saved successfully!");
+
+    // Step 6: Notify the user
+    const uploaderUid = object.metadata?.uploaderUid;
+    if (uploaderUid) {
+      await notifyUserPdfDone(uploaderUid, filePath);
+    }
+  });
+
+async function notifyUserPdfDone(uploaderUid, fileName) {
+  const userDoc = await admin.firestore().collection("users").doc(uploaderUid).get();
+  if (!userDoc.exists) return;
+  const userData = userDoc.data();
+
+  const fcmToken = userData.fcmToken;
+  if (!fcmToken) return;
+
+  try {
+    const message = {
+      token: fcmToken,
+      notification: {
+        title: "PDF Processed",
+        body: `Your PDF ${fileName} has been converted to recipes!`,
+      },
+      data: {
+        type: "pdf_processing_done",
+        fileName: fileName,
+        click_action: "FLUTTER_NOTIFICATION_CLICK",
+      },
+    };
+
+    const response = await getMessaging().send(message);
+    console.log(`PDF notification sent successfully to ${fcmToken}:`, response);
+  } catch (error) {
+    console.error(`Error sending PDF notification to ${fcmToken}:`, error);
+  }
+}

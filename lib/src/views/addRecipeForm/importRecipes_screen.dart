@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -22,6 +23,7 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
   bool isLoading = false;
   String statusMessage = '';
   String _userRole = 'user';
+  String? _lastBatchId;
 
   /// We'll keep references to the success/failure lists
   List<Recipe> _successList = [];
@@ -45,6 +47,72 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
     if (userDoc.exists) {
       setState(() {
         _userRole = userDoc['role'] ?? 'user';
+      });
+    }
+  }
+
+  Future<void> pickAndUploadPdfs() async {
+    final result = await FilePicker.platform.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf'],
+      allowMultiple: true, // Let user pick multiple PDFs at once
+    );
+
+    if (result == null || result.files.isEmpty) {
+      // User canceled or no file selected
+      return;
+    }
+
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      // Not logged in or not admin
+      return;
+    }
+
+    setState(() {
+      isLoading = true;
+      statusMessage = 'Uploading PDFs...';
+    });
+
+    try {
+      // Example: create a "batchId" if you want to group these PDFs together
+      final batchId = DateTime.now().millisecondsSinceEpoch.toString();
+
+      // Upload each PDF to `pdf_uploads/{batchId}/{filename}`
+      for (final pickedFile in result.files) {
+        if (pickedFile.path == null) continue;
+
+        final filePath = pickedFile.path!;
+        final fileName = pickedFile.name;
+        final localFile = File(filePath);
+
+        final storagePath = 'pdf_uploads/$batchId/$fileName';
+        final ref = FirebaseStorage.instance.ref().child(storagePath);
+
+        // Provide custom metadata so the CF knows the user
+        await ref.putFile(
+          localFile,
+          SettableMetadata(
+            contentType: 'application/pdf',
+            customMetadata: {
+              'uploaderUid': user.uid,
+              'batchId': batchId,
+            },
+          ),
+        );
+      }
+
+      setState(() {
+        statusMessage = 'PDFs uploaded. The server is extracting recipes...';
+        _lastBatchId = batchId;
+      });
+    } catch (e) {
+      setState(() {
+        statusMessage = 'Error uploading PDFs: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
       });
     }
   }
@@ -174,6 +242,109 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
     }
   }
 
+  Future<List<String>> fetchBatchIds() async {
+    final snap = await FirebaseFirestore.instance
+        .collection('pdfProcessingResults')
+        .get();
+
+    // Each doc in pdfProcessingResults is a "batchId"
+    return snap.docs.map((doc) => doc.id).toList();
+  }
+
+  Future<List<Map<String, dynamic>>> fetchPdfProcessedRecipes(
+      String batchId) async {
+    // e.g., read all "files" for that batch
+    final snap = await FirebaseFirestore.instance
+        .collection('pdfProcessingResults')
+        .doc(batchId)
+        .collection('files')
+        .where('imported', isEqualTo: false)
+        .get();
+
+    final allRecipes = <Map<String, dynamic>>[];
+    for (final doc in snap.docs) {
+      final data = doc.data();
+      final recipes = data['recipes'] as List? ?? [];
+      for (final recipe in recipes) {
+        // Each "recipe" is a Map<String,dynamic> presumably
+        allRecipes.add(Map<String, dynamic>.from(recipe));
+      }
+    }
+    return allRecipes;
+  }
+
+  Future<void> _loadAndImportProcessedRecipes(String batchId) async {
+    setState(() {
+      isLoading = true;
+      statusMessage = 'Loading processed PDF recipes...';
+    });
+
+    try {
+      // 1) Fetch the docs for "imported: false"
+      final snap = await FirebaseFirestore.instance
+          .collection('pdfProcessingResults')
+          .doc(batchId)
+          .collection('files')
+          .where('imported', isEqualTo: false)
+          .get();
+
+      // 2) Gather all the docs & parse recipes
+      final List<Map<String, dynamic>> allRecipesData = [];
+      final List<DocumentSnapshot> docRefs = [];
+
+      for (final doc in snap.docs) {
+        docRefs.add(doc); // keep reference for later
+        final data = doc.data();
+        final recipes = data['recipes'] as List? ?? [];
+        for (final recipe in recipes) {
+          allRecipesData.add(Map<String, dynamic>.from(recipe));
+        }
+      }
+
+      if (allRecipesData.isEmpty) {
+        setState(() {
+          statusMessage = 'No unimported recipes found.';
+        });
+        return;
+      }
+
+      // 3) Convert each map to a `Recipe` object
+      final importedRecipes =
+          allRecipesData.map((map) => Recipe.fromJson(map)).toList();
+
+      final user = FirebaseAuth.instance.currentUser;
+      final adminUid = user?.uid ?? 'unknownAdmin';
+
+      // Clear old success/failure
+      _successList.clear();
+      _failureList.clear();
+
+      // 4) Import them with `_uploadRecipes`
+      await _uploadRecipes(importedRecipes, adminUid);
+
+      // 5) Mark each doc as imported
+      for (final docSnap in docRefs) {
+        await docSnap.reference.update({'imported': true});
+      }
+
+      // 6) Show success
+      setState(() {
+        statusMessage = 'Imported ${importedRecipes.length} recipes!';
+      });
+
+      // If you want the summary screen:
+      _showSummaryScreen();
+    } catch (e) {
+      setState(() {
+        statusMessage = 'Error: $e';
+      });
+    } finally {
+      setState(() {
+        isLoading = false;
+      });
+    }
+  }
+
   /// Simple helper to navigate to the summary screen
   void _showSummaryScreen() {
     Navigator.push(
@@ -218,7 +389,7 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
                   Text(statusMessage),
                   const SizedBox(height: 16),
                   ElevatedButton.icon(
-                    onPressed: importRecipesFromDevice,
+                    onPressed: pickAndUploadPdfs,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.secondary,
                       padding:
@@ -227,7 +398,46 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
                     ),
                     icon: Icon(Icons.upload_file,
                         color: Theme.of(context).colorScheme.onPrimary),
-                    label: Text('Import from device',
+                    label: Text('Upload PDF(s) to Gemini',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary)),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: () {
+                      if (_lastBatchId == null) {
+                        setState(() {
+                          statusMessage =
+                              'No batch ID found. Please upload PDFs first.';
+                        });
+                        return;
+                      }
+                      _loadAndImportProcessedRecipes(_lastBatchId!);
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      textStyle: TextStyle(fontSize: 18),
+                    ),
+                    icon: Icon(Icons.downloading_outlined,
+                        color: Theme.of(context).colorScheme.onPrimary),
+                    label: Text('Load Processed PDF Recipes',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary)),
+                  ),
+                  const SizedBox(height: 16),
+                  ElevatedButton.icon(
+                    onPressed: importRecipesFromDevice,
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.secondary,
+                      padding:
+                          EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                      textStyle: TextStyle(fontSize: 18),
+                    ),
+                    icon: Icon(Icons.data_object,
+                        color: Theme.of(context).colorScheme.onPrimary),
+                    label: Text('Import JSON File from device',
                         style: TextStyle(
                             color: Theme.of(context).colorScheme.onPrimary)),
                   ),

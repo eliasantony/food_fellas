@@ -53,39 +53,41 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      children: [
-        Align(
-          alignment: Alignment.centerLeft,
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-            child: Text(
-              'Here you can either upload a picture of your dish...',
-              style: TextStyle(fontWeight: FontWeight.bold),
-              textAlign: TextAlign.left,
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Here you can either upload a picture of your dish...',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.left,
+                ),
+                SizedBox(height: 16),
+                Form(
+                  key: widget.formKey,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_isLoading)
+                          _buildLoadingIndicator()
+                        else
+                          _buildImageDisplay(),
+                        SizedBox(height: 20),
+                        if (!_isLoading) _buildButtons(),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
             ),
           ),
         ),
-        Form(
-          key: widget.formKey,
-          child: Center(
-            child: SingleChildScrollView(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  if (_isLoading)
-                    _buildLoadingIndicator()
-                  else
-                    _buildImageDisplay(),
-                  SizedBox(height: 20),
-                  _isLoading ? Container() : _buildButtons(),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ],
+      ),
     );
   }
 
@@ -109,14 +111,24 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   }
 
   Widget _buildImageDisplay() {
+    // Check if the recipe has a locally selected image
     if (widget.recipe.imageFile != null) {
       return _displaySelectedImage(widget.recipe.imageFile!);
-    } else if (widget.recipe.imageUrl != null) {
-      return _displayNetworkImage(widget.recipe.imageUrl!);
-    } else {
-      widget.recipe.imageUrl = 'https://placehold.co/200';
+    }
+
+    // Check if the recipe has a valid imageUrl
+    if (widget.recipe.imageUrl != null &&
+        _isValidUrl(widget.recipe.imageUrl!)) {
       return _displayNetworkImage(widget.recipe.imageUrl!);
     }
+
+    // Fallback to a local placeholder image
+    return Image.asset(
+      'lib/assets/images/dinner-placeholder.png', // Local placeholder
+      width: double.infinity,
+      height: 200,
+      fit: BoxFit.cover,
+    );
   }
 
   Widget _displaySelectedImage(File imageFile) {
@@ -133,16 +145,25 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   }
 
   Widget _displayNetworkImage(String imageUrl) {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: CachedNetworkImageProvider(imageUrl),
-          fit: BoxFit.cover,
-        ),
-        borderRadius: BorderRadius.circular(8),
+    return CachedNetworkImage(
+      imageUrl: imageUrl,
+      progressIndicatorBuilder: (context, url, downloadProgress) =>
+          CircularProgressIndicator(value: downloadProgress.progress),
+      errorWidget: (context, url, error) => Image.asset(
+        'lib/assets/images/dinner-placeholder.png', // Local fallback
+        width: double.infinity,
+        height: 200,
+        fit: BoxFit.cover,
       ),
+      width: double.infinity,
+      height: 200,
+      fit: BoxFit.cover,
     );
+  }
+
+  bool _isValidUrl(String url) {
+    return url.isNotEmpty &&
+        (url.startsWith('http') || url.startsWith('https'));
   }
 
   Widget _buildButtons() {
@@ -235,7 +256,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
     );
   }
 
-Future<void> _pickImage() async {
+  Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
       final pickedImage = await picker.pickImage(source: ImageSource.gallery);

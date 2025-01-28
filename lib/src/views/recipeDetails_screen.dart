@@ -477,18 +477,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-      content: Row(
-        children: [
-        const Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
-        const SizedBox(width: 8),
-        Expanded(
-          child: Text(
-          '$ingredientName added to your shopping list.',
-          overflow: TextOverflow.ellipsis,
-          ),
+        content: Row(
+          children: [
+            const Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                '$ingredientName added to your shopping list.',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
         ),
-        ],
-      ),
       ),
     );
   }
@@ -1185,7 +1185,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   }
 
   Widget _buildImageSection(Map<String, dynamic> recipeData) {
-    String imageUrl = recipeData['imageUrl'] ?? '';
+    String? imageUrl = recipeData['imageUrl']; // Allow null to validate later
     String title = recipeData['title'] ?? '';
     String authorId = recipeData['authorId'] ?? '';
     String authorName = _authorName ?? 'Loading author...';
@@ -1193,31 +1193,45 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     int stepsCount = recipeData['cookingSteps']?.length ?? 0;
     int cookingTime = recipeData['totalTime'] ?? 0;
 
+    // Validate the imageUrl
+    bool isValidImageUrl(String? url) {
+      return url != null &&
+          url.isNotEmpty &&
+          (url.startsWith('http') || url.startsWith('https'));
+    }
+
     return Stack(
       children: [
         // Recipe Image
         GestureDetector(
-          onTap: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(
-                builder: (context) => PhotoViewScreen(imageUrl: imageUrl),
-              ),
-            );
-          },
-          child: imageUrl.startsWith('http')
+          onTap: isValidImageUrl(imageUrl)
+              ? () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          PhotoViewScreen(imageUrl: imageUrl!),
+                    ),
+                  );
+                }
+              : null,
+          child: isValidImageUrl(imageUrl)
               ? CachedNetworkImage(
-                  imageUrl: imageUrl,
+                  imageUrl: imageUrl!,
                   progressIndicatorBuilder: (context, url, downloadProgress) =>
                       CircularProgressIndicator(
                           value: downloadProgress.progress),
-                  errorWidget: (context, url, error) => const Icon(Icons.error),
+                  errorWidget: (context, url, error) => const Icon(
+                    Icons.broken_image,
+                    size: 80,
+                    color: Colors.grey,
+                  ),
                   width: double.infinity,
                   height: 350,
                   fit: BoxFit.cover,
                 )
               : Image.asset(
-                  imageUrl,
+                  'lib/assets/images/dinner-placeholder.png', // Your placeholder image asset
                   width: double.infinity,
                   height: 350,
                   fit: BoxFit.cover,

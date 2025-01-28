@@ -189,26 +189,29 @@ class _RecipeCardState extends State<RecipeCard> {
     );
   }
 
-  Widget _buildRecipeImage(String thumbnailUrl) {
-    if (thumbnailUrl.isEmpty) {
+Widget _buildRecipeImage(String? thumbnailUrl) {
+    // Validate the thumbnail URL
+    bool isValidUrl(String? url) {
+      return url != null &&
+          url.isNotEmpty &&
+          (url.startsWith('http') || url.startsWith('https'));
+    }
+
+    if (isValidUrl(thumbnailUrl)) {
       return CachedNetworkImage(
-        imageUrl: 'https://via.placeholder.com/400x225',
+        imageUrl: thumbnailUrl!,
         progressIndicatorBuilder: (context, url, downloadProgress) =>
             CircularProgressIndicator(value: downloadProgress.progress),
-        errorWidget: (context, url, error) => Icon(Icons.error),
-        fit: BoxFit.cover,
-      );
-    } else if (thumbnailUrl.startsWith('http')) {
-      return CachedNetworkImage(
-        imageUrl: thumbnailUrl,
-        progressIndicatorBuilder: (context, url, downloadProgress) =>
-            CircularProgressIndicator(value: downloadProgress.progress),
-        errorWidget: (context, url, error) => Icon(Icons.error),
+        errorWidget: (context, url, error) => Image.asset(
+          'lib/assets/images/dinner-placeholder.png',
+          fit: BoxFit.cover,
+        ),
         fit: BoxFit.cover,
       );
     } else {
+      // Fallback to local asset placeholder
       return Image.asset(
-        thumbnailUrl,
+        'lib/assets/images/dinner-placeholder.png',
         fit: BoxFit.cover,
       );
     }
