@@ -30,21 +30,30 @@ class ImportSummaryPage extends StatelessWidget {
           padding: const EdgeInsets.all(16.0),
           child: Column(
             children: [
-              Text(
-                'Successfully imported: ${successList.length}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Successfully imported: ${successList.length}',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
+              SizedBox(height: 8),
               for (var recipe in successList)
                 ListTile(
                   title: Text(recipe.title.isEmpty ? 'No Title' : recipe.title),
                   subtitle: Text('ID: ${recipe.id ?? 'N/A'}'),
                   leading: Icon(Icons.check_circle, color: Colors.green),
                 ),
+              SizedBox(height: 8),
               Divider(height: 32),
-              Text(
-                'Failures: ${failureList.length}',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: Text(
+                  'Failures: ${failureList.length}',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                ),
               ),
+              SizedBox(height: 8),
               for (var failure in failureList)
                 ListTile(
                   title: Text(failure.recipe.title.isEmpty

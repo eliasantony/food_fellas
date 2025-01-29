@@ -157,11 +157,25 @@ void _handleIncomingLink(Uri uri) {
             );
             break;
           case 'collection':
+            final userId = uri.queryParameters['userId'] ?? '';
+            final name =
+                Uri.decodeComponent(uri.queryParameters['name'] ?? 'Unnamed');
+            final emoji =
+                Uri.decodeComponent(uri.queryParameters['emoji'] ?? '🍽');
+            final visibility = uri.queryParameters['visibility'] == 'true';
+            final contributors =
+                (uri.queryParameters['contributors'] ?? '').split(',');
+
             nav.push(
               MaterialPageRoute(
                 builder: (_) => RecipesListScreen(
                   isCollection: true,
                   collectionId: contentId,
+                  collectionUserId: userId,
+                  collectionName: name,
+                  collectionEmoji: emoji,
+                  collectionVisibility: visibility,
+                  collectionContributers: contributors,
                 ),
               ),
             );
@@ -194,8 +208,6 @@ void _showError(String message) {
     );
   }
 }
-
-
 
 class MainApp extends StatefulWidget {
   @override

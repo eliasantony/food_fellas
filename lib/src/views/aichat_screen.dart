@@ -18,6 +18,7 @@ import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
+import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
@@ -153,7 +154,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
             }
           },
           child: Text(
-            "FoodFellas' AI Chef",
+            "AI Chef",
             style: GoogleFonts.poppins(
               color: Colors.white,
               fontWeight: FontWeight.w600,
@@ -171,7 +172,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
               if (value == 'preferences') {
                 _togglePreferences();
               } else if (value == 'feedback') {
-                _openFeedbackForm();
+                FeedbackModal();
               } else if (value == 'clear_chat') {
                 _confirmClearChat();
               }
@@ -411,136 +412,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
     });
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
     chatProvider.reinitializeModel(preferencesEnabled);
-  }
-
-  void _openFeedbackForm() {
-    showDialog(
-      context: context,
-      builder: (context) {
-        String feedback = '';
-        String selectedCategory = 'Suggestion';
-        int rating = 5;
-        final _formKey = GlobalKey<FormState>();
-
-        return AlertDialog(
-          title: Text('Provide Feedback'),
-          content: SingleChildScrollView(
-            child: Form(
-              key: _formKey,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  // Feedback Categories Dropdown
-                  DropdownButtonFormField<String>(
-                    value: selectedCategory,
-                    decoration: InputDecoration(
-                      labelText: 'Category',
-                      border: OutlineInputBorder(),
-                    ),
-                    items: [
-                      'Urgent',
-                      'Bug Report',
-                      'Suggestion',
-                      'Praise',
-                      'Other',
-                    ].map((category) {
-                      return DropdownMenuItem(
-                        value: category,
-                        child: Text(category),
-                      );
-                    }).toList(),
-                    onChanged: (value) {
-                      if (value != null) {
-                        selectedCategory = value;
-                      }
-                    },
-                  ),
-                  SizedBox(height: 8),
-                  Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text('Rate your experience:'),
-                  ),
-                  SizedBox(height: 8),
-                  // Rating System
-                  RatingBar.builder(
-                    initialRating: rating.toDouble(),
-                    minRating: 1,
-                    direction: Axis.horizontal,
-                    allowHalfRating: false,
-                    itemCount: 5,
-                    itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
-                    itemBuilder: (context, _) => const Icon(
-                      Icons.star,
-                      color: Colors.amber,
-                    ),
-                    onRatingUpdate: (newRating) {
-                      setState(() {
-                        rating = newRating.toInt();
-                      });
-                    },
-                  ),
-                  SizedBox(height: 8),
-                  // Multi-line Feedback TextField
-                  TextFormField(
-                    maxLines: 5,
-                    minLines: 3,
-                    onChanged: (value) {
-                      feedback = value;
-                    },
-                    decoration: InputDecoration(
-                      labelText: 'Your Feedback',
-                      hintText: 'Enter detailed feedback here...',
-                      border: OutlineInputBorder(),
-                    ),
-                    validator: (value) {
-                      if (value == null || value.trim().isEmpty) {
-                        return 'Please enter your feedback.';
-                      }
-                      return null;
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: Text('Cancel'),
-            ),
-            ElevatedButton(
-              onPressed: () {
-                if (_formKey.currentState!.validate()) {
-                  Navigator.of(context).pop();
-                  _submitFeedback(feedback, selectedCategory, rating);
-                }
-              },
-              child: Text('Submit'),
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  void _submitFeedback(String feedback, String category, int rating) {
-    FirebaseFirestore.instance.collection('feedback').add({
-      'feedback': feedback,
-      'category': category,
-      'rating': rating,
-      'timestamp': FieldValue.serverTimestamp(),
-      'userId': FirebaseAuth.instance.currentUser?.uid ?? 'anonymous',
-    });
-
-    // For demonstration, we'll show a success message.
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text('Thank you for your feedback!'),
-        duration: Duration(seconds: 2),
-      ),
-    );
   }
 
   // Handle quick replies

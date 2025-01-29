@@ -371,7 +371,7 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
 
     return Scaffold(
       appBar: AppBar(
-        title: Text('Bulk Import Recipes'),
+        title: Text('Batch Import for Admins'),
       ),
       body: Center(
         child: isLoading
@@ -386,60 +386,75 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
             : Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Text(statusMessage),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: pickAndUploadPdfs,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      textStyle: TextStyle(fontSize: 18),
+                  Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: Column(
+                      children: [
+                        Text(statusMessage),
+                        const SizedBox(height: 16),
+                        Divider(),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: pickAndUploadPdfs,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            textStyle: TextStyle(fontSize: 18),
+                          ),
+                          icon: Icon(Icons.upload_file,
+                              color: Theme.of(context).colorScheme.onPrimary),
+                          label: Text('Upload PDF(s) to Gemini',
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary)),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: () {
+                            if (_lastBatchId == null) {
+                              setState(() {
+                                statusMessage =
+                                    'No batch ID found. Please upload PDFs first.';
+                              });
+                              return;
+                            }
+                            _loadAndImportProcessedRecipes(_lastBatchId!);
+                          },
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            textStyle: TextStyle(fontSize: 18),
+                          ),
+                          icon: Icon(Icons.downloading_outlined,
+                              color: Theme.of(context).colorScheme.onPrimary),
+                          label: Text('Load Processed PDF Recipes',
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary)),
+                        ),
+                        const SizedBox(height: 16),
+                        ElevatedButton.icon(
+                          onPressed: importRecipesFromDevice,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor:
+                                Theme.of(context).colorScheme.primary,
+                            padding: EdgeInsets.symmetric(
+                                horizontal: 24, vertical: 16),
+                            textStyle: TextStyle(fontSize: 18),
+                          ),
+                          icon: Icon(Icons.data_object,
+                              color: Theme.of(context).colorScheme.onPrimary),
+                          label: Text('Import JSON File from device',
+                              style: TextStyle(
+                                  color:
+                                      Theme.of(context).colorScheme.onPrimary)),
+                        ),
+                      ],
                     ),
-                    icon: Icon(Icons.upload_file,
-                        color: Theme.of(context).colorScheme.onPrimary),
-                    label: Text('Upload PDF(s) to Gemini',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary)),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: () {
-                      if (_lastBatchId == null) {
-                        setState(() {
-                          statusMessage =
-                              'No batch ID found. Please upload PDFs first.';
-                        });
-                        return;
-                      }
-                      _loadAndImportProcessedRecipes(_lastBatchId!);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      textStyle: TextStyle(fontSize: 18),
-                    ),
-                    icon: Icon(Icons.downloading_outlined,
-                        color: Theme.of(context).colorScheme.onPrimary),
-                    label: Text('Load Processed PDF Recipes',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary)),
-                  ),
-                  const SizedBox(height: 16),
-                  ElevatedButton.icon(
-                    onPressed: importRecipesFromDevice,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).colorScheme.secondary,
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                      textStyle: TextStyle(fontSize: 18),
-                    ),
-                    icon: Icon(Icons.data_object,
-                        color: Theme.of(context).colorScheme.onPrimary),
-                    label: Text('Import JSON File from device',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary)),
                   ),
                 ],
               ),

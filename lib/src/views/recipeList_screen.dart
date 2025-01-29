@@ -599,8 +599,15 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
               ? FloatingActionButton(
                   onPressed: () {
                     final shareUrl =
-                        'https://foodfellas.app/share/collections/${widget.collectionId}';
-                    Share.share('Check out this collection: $shareUrl');
+                        'https://foodfellas.app/share/collection/${widget.collectionId}'
+                        '?userId=${widget.collectionUserId}'
+                        '&name=${Uri.encodeComponent(widget.collectionName ?? '')}'
+                        '&emoji=${Uri.encodeComponent(widget.collectionEmoji ?? '')}'
+                        '&visibility=${widget.collectionVisibility}'
+                        '&contributors=${widget.collectionContributers?.join(",")}';
+
+                    Share.share(
+                        'Check out this collection "${widget.collectionName} ${widget.collectionEmoji}": $shareUrl');
                   },
                   child: Icon(Icons.share),
                 )

@@ -3,8 +3,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/src/views/addRecipeForm/importRecipes_screen.dart';
+import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/settings_notificationPreferences_screen.dart';
 import 'package:provider/provider.dart';
+import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -66,11 +68,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
       // Navigate to login screen or root
       Navigator.of(context).popUntil((route) => route.isFirst);
     }
-  }
-
-  void _disableAccount() {
-    // Implement account disabling logic
-    // E.g., update a field in Firestore to mark the account as disabled
   }
 
   void _showInstagram() {
@@ -173,6 +170,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(),
           ListTile(
+            leading: Icon(Icons.feedback_outlined),
+            title: Text('Send Feedback'),
+            onTap: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => FeedbackModal(),
+                ),
+              );
+            },
+          ),
+          Divider(),
+          ListTile(
             leading: Icon(Icons.description),
             title: Text('Terms of Service'),
             onTap: _showTermsOfService,
@@ -192,7 +202,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.share),
             title: Text('Share Food Fellas'),
             onTap: () {
-              // Implement share logic
+              Share.share(
+                  'Check out Food Fellas, the best app for food lovers! 🍔🍕🍝 Visit us at https://foodfellas.app');
             },
           ),
           ListTile(
@@ -213,11 +224,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.logout),
             title: Text('Log Out'),
             onTap: _logOut,
-          ),
-          ListTile(
-            leading: Icon(Icons.disabled_by_default),
-            title: Text('Disable Account'),
-            onTap: _disableAccount,
           ),
         ],
       ),
