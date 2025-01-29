@@ -60,9 +60,12 @@ class SearchProvider with ChangeNotifier {
   List<Map<String, dynamic>> _recommendedCached = [];
   List<Map<String, dynamic>> get recommendedCached => _recommendedCached;
 
+  final Map<String, Map<String, dynamic>> _userCache = {};
+  Map<String, Map<String, dynamic>> get userCache => _userCache;
+
   bool _homeRowsFetched = false;
 
-void updateQuery(String query) {
+  void updateQuery(String query) {
     _query = query;
     _recipes = [];
     _users = [];
@@ -212,7 +215,10 @@ void updateQuery(String query) {
     notifyListeners();
   }
 
-  Future<void> fetchUsers(String query) async {
+// Inside the SearchProvider class
+
+  Future<void> fetchUsers(String query,
+      {int perPage = 20, List<String> excludeUids = const []}) async {
     _isLoading = true;
     _users = [];
     notifyListeners();
@@ -222,16 +228,27 @@ void updateQuery(String query) {
         'q': query.isNotEmpty ? query : '*',
         'query_by': 'display_name',
         'page': '1',
-        'per_page': '5',
+        'per_page': perPage.toString(),
       };
+
+      if (excludeUids.isNotEmpty) {
+        // Build the filter_by string to exclude the UIDs
+        final filterBy = excludeUids.map((uid) => 'id:!=$uid').join(' && ');
+        queryParams['filter_by'] = filterBy;
+        print('Fetching users with filter_by: $filterBy'); // Debug statement
+      }
 
       final response = await TypesenseHttpClient.get(
         '/collections/users/documents/search',
         queryParams,
       );
+
       final hits = response['hits'] as List<dynamic>;
-      _users =
-          hits.map((hit) => hit['document'] as Map<String, dynamic>).toList();
+      _users = hits.map((hit) {
+        final userData = hit['document'] as Map<String, dynamic>;
+        userData['uid'] = userData['id']; // Map 'id' to 'uid'
+        return userData;
+      }).toList();
     } catch (e) {
       print('Error fetching users: $e');
       _users = [];
@@ -239,6 +256,30 @@ void updateQuery(String query) {
 
     _isLoading = false;
     notifyListeners();
+  }
+
+  Future<Map<String, dynamic>?> fetchUserByUid(String uid) async {
+    if (_userCache.containsKey(uid)) {
+      return _userCache[uid];
+    }
+
+    try {
+      final userDoc =
+          await FirebaseFirestore.instance.collection('users').doc(uid).get();
+      if (userDoc.exists) {
+        final data = userDoc.data()!;
+        data['uid'] = userDoc.id; // Add this line to include uid
+        _userCache[uid] = data;
+        return data;
+      }
+    } catch (e) {
+      print('Error fetching user by UID: $e');
+    }
+    return null;
+  }
+
+  Map<String, dynamic>? getCachedUserByUid(String uid) {
+    return _userCache[uid];
   }
 
   /// Example method to fetch top chefs by averageRating desc or recipeCount desc
@@ -423,7 +464,6 @@ void updateQuery(String query) {
     _isLoadingSimilarRecipes = true;
     notifyListeners();
 
-    print('fetchSimilarRecipes');
     try {
       _similarRecipes = await TypesenseHttpClient.fetchSimilarRecipes(
           embedding, 3); // Fetch top 3 similar recipes
@@ -439,7 +479,6 @@ void updateQuery(String query) {
   Future<void> fetchSimilarRecipesById(String recipeId) async {
     _isLoadingSimilarRecipes = true;
     notifyListeners();
-    print('fetchSimilarRecipesById with recipeId: $recipeId');
     try {
       _similarRecipes = await TypesenseHttpClient.fetchSimilarRecipesById(
           recipeId); // Fetch top 4 similar recipes

@@ -118,8 +118,8 @@ exports.calculateWeeklyRecommendations = functions
       const messages = usersWithRecsEnabled.map((u) => ({
         token: u.fcmToken,
         notification: {
-          title: "Your Weekly Recommendations Are Here!",
-          body: "Check out your new recipe recommendations."
+          title: "FoodFellas'",
+          body: "Check out your new weekly recipe recommendations. 📆"
         },
         data: {
           type: "weekly_recommendations",
@@ -312,6 +312,7 @@ exports.analyzeCommentSentiment = functions
   .onCreate(async (snap, context) => {
     const commentData = snap.data();
     const commentText = commentData.comment;
+    const commentAuthorName = commentData.userName;
     const recipeId = context.params.recipeId;
 
     // 1. Sentiment analysis (already in your code)
@@ -352,8 +353,8 @@ exports.analyzeCommentSentiment = functions
         commentId: context.params.commentId,
       },
       notification: {
-        title: "New Comment on Your Recipe!",
-        body: `Someone commented: "${commentText}"`,
+        title: "FoodFellas'",
+        body: `${commentAuthorName} just left a comment for one of your recipes: "${commentText}"`,
       },
       token: authorToken,
     };
@@ -569,8 +570,8 @@ exports.notifyOnNewFollower = functions
           click_action: "FLUTTER_NOTIFICATION_CLICK",
         },
         notification: {
-          title: "New Follower!",
-          body: `${followerName} started following you.`,
+          title: "FoodFellas'",
+          body: `You got a new Fella! ${followerName} just started following you. 🎉`,
         },
         token: fcmToken,
       };
@@ -637,8 +638,8 @@ exports.notifyOnNewRecipe = functions
             const message = {
               token,
               notification: {
-              title: "New Recipe Posted!",
-              body: `A new recipe from ${authorName} just got posted.`,
+              title: "FoodFellas'",
+              body: `${authorName} just posted a new recipe. Take a look! 🍽️`,
               },
               data: {
               type: "new_recipe",
@@ -870,7 +871,7 @@ async function notifyUserPdfDone(uploaderUid, fileName) {
     const message = {
       token: fcmToken,
       notification: {
-        title: "PDF Processed",
+        title: "FoodFellas'",
         body: `Your PDF ${fileName} has been converted to recipes!`,
       },
       data: {

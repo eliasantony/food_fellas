@@ -191,7 +191,7 @@ class _UserFollowerListItemState extends State<UserFollowerListItem> {
       onTap: _navigateToProfile,
       leading: CircleAvatar(
         radius: 25,
-        backgroundImage: NetworkImage(widget.userData['photo_url'] ?? ''),
+        backgroundImage: NetworkImage(widget.userData['photo_url'] ?? 'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690'),
         backgroundColor: Colors.transparent,
       ),
       title: name(),
@@ -240,7 +240,7 @@ class _UserFollowerListItemState extends State<UserFollowerListItem> {
     return Row(
       children: [
         Text(
-          'Recipes: ${widget.userData['recipesCount'] ?? 0}',
+          'Recipes: ${widget.userData['recipeCount'] ?? 0}',
           style: TextStyle(fontSize: 14),
         ),
         SizedBox(width: 4),

@@ -173,11 +173,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.feedback_outlined),
             title: Text('Send Feedback'),
             onTap: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => FeedbackModal(),
-                ),
+              showDialog(
+                context: context,
+                builder: (context) => FeedbackModal(),
               );
             },
           ),

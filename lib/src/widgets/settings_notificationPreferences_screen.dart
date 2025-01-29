@@ -1,4 +1,7 @@
+import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/src/services/firebase_messaging_service.dart';
+import 'package:food_fellas/src/widgets/notificationPreferences.dart';
 
 class SettingsNotificationPreferencesScreen extends StatefulWidget {
   final bool notificationsEnabled;
@@ -18,20 +21,62 @@ class SettingsNotificationPreferencesScreen extends StatefulWidget {
 class _SettingsNotificationPreferencesScreenState
     extends State<SettingsNotificationPreferencesScreen> {
   late bool allNotificationsEnabled;
-  late bool newFollowerEnabled;
-  late bool newRecipeEnabled;
-  late bool newCommentEnabled;
-  late bool weeklyRecommendationsEnabled;
+  late Map<String, bool> notifications;
 
   @override
   void initState() {
     super.initState();
     allNotificationsEnabled = widget.notificationsEnabled;
-    newFollowerEnabled = widget.notifications['newFollower'] ?? true;
-    newRecipeEnabled = widget.notifications['newRecipeFromFollowing'] ?? true;
-    newCommentEnabled = widget.notifications['newComment'] ?? true;
-    weeklyRecommendationsEnabled =
-        widget.notifications['weeklyRecommendations'] ?? true;
+    notifications = widget.notifications
+        .map((key, value) => MapEntry(key, value is bool ? value : true));
+  }
+
+  // This method updates the local state when switches are toggled
+  void _handlePreferencesChange(bool enabled, Map<String, bool> prefs) {
+    setState(() {
+      allNotificationsEnabled = enabled;
+      notifications = prefs;
+    });
+  }
+
+  // This method handles saving preferences when the button is pressed
+  Future<void> _savePreferences() async {
+    if (allNotificationsEnabled) {
+      // Request notification permissions
+      NotificationSettings settings =
+          await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        // Permissions granted
+        await initLocalNotifications();
+        await saveTokenToDatabase();
+      } else {
+        // Permissions denied
+        // Update the state to reflect that notifications are disabled
+        setState(() {
+          allNotificationsEnabled = false;
+        });
+      }
+    } else {
+      // Notifications being disabled
+      await removeTokenFromDatabase();
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notifications disabled.'),
+        ),
+      );
+    }
+
+    // After saving, pop the screen and pass the updated preferences
+    Navigator.pop(context, {
+      'notificationsEnabled': allNotificationsEnabled,
+      'notifications': notifications,
+    });
   }
 
   @override
@@ -45,67 +90,11 @@ class _SettingsNotificationPreferencesScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            SwitchListTile(
-              title: Text('Enable Notifications'),
-              value: allNotificationsEnabled,
-              onChanged: (bool value) {
-                setState(() {
-                  allNotificationsEnabled = value;
-                  if (!value) {
-                    newFollowerEnabled = false;
-                    newRecipeEnabled = false;
-                    newCommentEnabled = false;
-                    weeklyRecommendationsEnabled = false;
-                  } else {
-                    newFollowerEnabled = true;
-                    newRecipeEnabled = true;
-                    newCommentEnabled = true;
-                    weeklyRecommendationsEnabled = true;
-                  }
-                });
-              },
+            NotificationPreferencesWidget(
+              notificationsEnabled: allNotificationsEnabled,
+              notifications: notifications,
+              onChanged: _handlePreferencesChange, // Updated callback
             ),
-            if (allNotificationsEnabled) ...[
-              Padding(
-                padding: const EdgeInsets.only(left: 16.0),
-                child: Column(
-                    children: [
-                    SwitchListTile(
-                      title: Text('New Follower'),
-                      value: newFollowerEnabled,
-                      onChanged: (bool value) {
-                      setState(() => newFollowerEnabled = value);
-                      },
-                      secondary: Icon(Icons.person_add),
-                    ),
-                    SwitchListTile(
-                      title: Text('New Recipe from Following'),
-                      value: newRecipeEnabled,
-                      onChanged: (bool value) {
-                      setState(() => newRecipeEnabled = value);
-                      },
-                      secondary: Icon(Icons.restaurant_menu),
-                    ),
-                    SwitchListTile(
-                      title: Text('New Comment'),
-                      value: newCommentEnabled,
-                      onChanged: (bool value) {
-                      setState(() => newCommentEnabled = value);
-                      },
-                      secondary: Icon(Icons.comment),
-                    ),
-                    SwitchListTile(
-                      title: Text('Weekly Recommendations'),
-                      value: weeklyRecommendationsEnabled,
-                      onChanged: (bool value) {
-                      setState(() => weeklyRecommendationsEnabled = value);
-                      },
-                      secondary: Icon(Icons.recommend),
-                    ),
-                  ],
-                ),
-              ),
-            ],
             Spacer(),
             Padding(
               padding:
@@ -113,24 +102,16 @@ class _SettingsNotificationPreferencesScreenState
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Return updated preferences to the settings screen
-                    Navigator.pop(context, {
-                      'notificationsEnabled': allNotificationsEnabled,
-                      'notifications': {
-                        'newFollower': newFollowerEnabled,
-                        'newRecipeFromFollowing': newRecipeEnabled,
-                        'newComment': newCommentEnabled,
-                        'weeklyRecommendations': weeklyRecommendationsEnabled,
-                      },
-                    });
-                  },
+                  onPressed: _savePreferences, // Handle saving here
                   style: ElevatedButton.styleFrom(
                     backgroundColor: Theme.of(context).colorScheme.primary,
                   ),
-                  child: Text('Save Preferences',
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.onPrimary)),
+                  child: Text(
+                    'Save Preferences',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary,
+                    ),
+                  ),
                 ),
               ),
             ),

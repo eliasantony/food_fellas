@@ -59,8 +59,8 @@ void main() async {
   }
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  await requestNotificationPermissions();
-  await initLocalNotifications();
+  //await requestNotificationPermissions();
+  //await initLocalNotifications();
 
   if (Platform.isAndroid) {
     // On Android, it's safe to call getToken() right away
@@ -165,7 +165,8 @@ void _handleIncomingLink(Uri uri) {
             final visibility = uri.queryParameters['visibility'] == 'true';
             final contributors =
                 (uri.queryParameters['contributors'] ?? '').split(',');
-
+            print('CollectionId: $contentId');
+            print('trying to push collection screen with params: $userId, $name, $emoji, $visibility, $contributors');
             nav.push(
               MaterialPageRoute(
                 builder: (_) => RecipesListScreen(

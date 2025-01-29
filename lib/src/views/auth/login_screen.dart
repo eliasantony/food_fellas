@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_signin_button/button_list.dart';
 import 'package:flutter_signin_button/button_view.dart';
+import 'package:food_fellas/src/utils/auth_utils.dart';
 import 'package:food_fellas/src/views/auth/forgot_password_screen.dart';
+import 'package:food_fellas/src/views/auth/signup_screen.dart';
 import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -112,12 +115,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Check if this is a new user (you can add additional onboarding logic here)
-      if (userCredential.additionalUserInfo?.isNewUser == true) {
-        print('New Google user signed up');
-      } else {
-        print('Existing Google user signed in');
-      }
+      await handlePostSignIn(context, userCredential.user);
     } catch (e) {
       print('Error signing in with Google: $e');
       setState(() {
@@ -143,12 +141,7 @@ class _LoginScreenState extends State<LoginScreen> {
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
 
-      // Check if this is a new user
-      if (userCredential.additionalUserInfo?.isNewUser == true) {
-        print('New Apple user signed up');
-      } else {
-        print('Existing Apple user signed in');
-      }
+      await handlePostSignIn(context, userCredential.user);
     } catch (e) {
       print('Error signing in with Apple: $e');
       setState(() {
@@ -192,9 +185,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              TextField(
+              TextFormField(
                 controller: _emailController,
-                autofillHints: [AutofillHints.username],
+                autofillHints: [AutofillHints.username, AutofillHints.email],
                 decoration: InputDecoration(
                   labelText: 'Your email address',
                   border: OutlineInputBorder(
@@ -209,7 +202,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              TextField(
+              TextFormField(
                 controller: _passwordController,
                 autofillHints: [AutofillHints.password],
                 decoration: InputDecoration(
@@ -251,7 +244,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 onPressed: () {
                   Navigator.push(
                     context,
-                    MaterialPageRoute(builder: (context) => const ForgotPasswordScreen()),
+                    MaterialPageRoute(
+                        builder: (context) => const ForgotPasswordScreen()),
                   );
                 },
                 child: Text(
@@ -265,7 +259,10 @@ class _LoginScreenState extends State<LoginScreen> {
               const SizedBox(height: 10),
               TextButton(
                 onPressed: () {
-                  Navigator.pop(context);
+                  Navigator.pushReplacementNamed(
+                    context,
+                    '/signup',
+                  );
                 },
                 child: Text(
                   'Don\'t have an account? Sign Up',

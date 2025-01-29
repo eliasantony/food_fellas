@@ -10,8 +10,7 @@ import 'package:food_fellas/src/models/user_data.dart';
 class FinalWelcomeScreen extends StatelessWidget {
   final UserData userData;
 
-  const FinalWelcomeScreen({Key? key, required this.userData})
-      : super(key: key);
+  const FinalWelcomeScreen({super.key, required this.userData});
 
   void _navigateToHome(BuildContext context) async {
     User? user = FirebaseAuth.instance.currentUser;
@@ -44,7 +43,8 @@ class FinalWelcomeScreen extends StatelessWidget {
         'display_name': userData.displayName,
         'email': user.email,
         'last_active_time': FieldValue.serverTimestamp(),
-        'photo_url': userData.photoUrl,
+        'photo_url': userData.photoUrl ??
+            'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690',
         'shortDescription': userData.shortDescription,
         'dietaryPreferences': userData.dietaryPreferences,
         'favoriteCuisines': userData.favoriteCuisines,
@@ -52,6 +52,8 @@ class FinalWelcomeScreen extends StatelessWidget {
         'preferredServings': userData.preferredServings,
         'notificationsEnabled': userData.allNotificationsEnabled,
         'notifications': userData.notifications, // Save preferences here
+        'averageRating': 0.0,
+        'recipeCount': 0,
         'onboardingComplete': true,
         'role': 'user',
         if (fcmToken != null) 'fcmToken': fcmToken,
@@ -105,16 +107,16 @@ class FinalWelcomeScreen extends StatelessWidget {
                     width: double.infinity,
                     child: ElevatedButton(
                       onPressed: () => _navigateToHome(context),
+                      style: ElevatedButton.styleFrom(
+                        padding:
+                            EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                      ),
                       child: Text(
                         'Explore Recipes',
                         style: TextStyle(
                           color: Theme.of(context).colorScheme.onPrimary,
                         ),
-                      ),
-                      style: ElevatedButton.styleFrom(
-                        padding:
-                            EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
                       ),
                     ),
                   ),

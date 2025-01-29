@@ -228,9 +228,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         break;
                       case 2:
                         // Share profile
+                        final currentUserId =
+                            FirebaseAuth.instance.currentUser!.uid;
                         final String profileUrl =
-                            'https://foodfellas.app/share/profile/${widget.userId}';
-                        Share.share('Check out my profile: $profileUrl');
+                            'https://foodfellas.app/share/profile/$currentUserId';
+                        Share.share(
+                            "Check out my profile on FoodFellas':\n$profileUrl");
                     }
                   },
                   itemBuilder: (context) => [
@@ -271,11 +274,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 IconButton(
                   icon: Icon(Icons.share, color: theme.iconTheme.color),
                   onPressed: () {
-                    final currentUserId =
-                        FirebaseAuth.instance.currentUser!.uid;
+                    final userId = userData['uid'] ?? 'user';
+                    final userName = userData['display_name'] ?? 'User';
                     final String profileUrl =
-                        'https://foodfellas.app/share/profile/$currentUserId';
-                    Share.share('Check out this profile: $profileUrl');
+                        'https://foodfellas.app/share/profile/$userId';
+                    Share.share(
+                        "Check out this profile from $userName on FoodFellas':\n$profileUrl");
                   },
                 ),
               ],
@@ -442,7 +446,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
             return FutureBuilder<QuerySnapshot>(
               future: FirebaseFirestore.instance
                   .collection('users')
-                  .doc(FirebaseAuth.instance.currentUser!.uid)
+                  .doc(userId)
                   .collection('following')
                   .get(),
               builder: (context, followingSnapshot) {
@@ -1006,7 +1010,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
-          print('Error fetching recipes: ${snapshot.error}');
           return const Center(child: Text('Error fetching recipes'));
         }
         if (snapshot.connectionState == ConnectionState.waiting) {

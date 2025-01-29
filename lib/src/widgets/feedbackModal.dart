@@ -11,7 +11,7 @@ class FeedbackModal extends StatefulWidget {
 class _FeedbackModalState extends State<FeedbackModal> {
   String feedback = '';
   String selectedCategory = 'Suggestion';
-    String selectedScreen = 'Home';
+  String selectedScreen = 'Home';
   int rating = 5;
   final _formKey = GlobalKey<FormState>();
 
@@ -27,7 +27,7 @@ class _FeedbackModalState extends State<FeedbackModal> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
-        content: Text('Thank you for your feedback!'),
+        content: Text('Thank you for your feedback! 🙏🏼'),
         duration: Duration(seconds: 2),
       ),
     );
@@ -45,6 +45,16 @@ class _FeedbackModalState extends State<FeedbackModal> {
             mainAxisSize: MainAxisSize.min,
             children: [
               // Feedback Categories Dropdown
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'What type of feedback do you have?',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               DropdownButtonFormField<String>(
                 value: selectedCategory,
                 decoration: InputDecoration(
@@ -72,6 +82,16 @@ class _FeedbackModalState extends State<FeedbackModal> {
                 },
               ),
               SizedBox(height: 8),
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Which screen were you on?',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               DropdownButtonFormField<String>(
                 value: selectedScreen,
                 decoration: InputDecoration(
@@ -84,7 +104,7 @@ class _FeedbackModalState extends State<FeedbackModal> {
                   'Search',
                   'Shopping List',
                   'AI Chat'
-                  'Profile',
+                      'Profile',
                   'Settings',
                   'Other',
                 ].map((screen) {
@@ -104,7 +124,10 @@ class _FeedbackModalState extends State<FeedbackModal> {
               SizedBox(height: 8),
               Align(
                 alignment: Alignment.centerLeft,
-                child: Text('Rate your experience:'),
+                child: Text(
+                  'How would you rate your experience?',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
               ),
               SizedBox(height: 8),
               // Rating System
@@ -127,6 +150,16 @@ class _FeedbackModalState extends State<FeedbackModal> {
               ),
               SizedBox(height: 8),
               // Multi-line Feedback TextField
+              Padding(
+                padding: const EdgeInsets.symmetric(vertical: 12.0),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    'Do you have any additional comments?',
+                    style: TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               TextFormField(
                 maxLines: 5,
                 minLines: 3,
@@ -167,7 +200,8 @@ class _FeedbackModalState extends State<FeedbackModal> {
           style: ElevatedButton.styleFrom(
             backgroundColor: Theme.of(context).colorScheme.primary,
           ),
-          child: Text('Submit', style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
+          child: Text('Submit',
+              style: TextStyle(color: Theme.of(context).colorScheme.onPrimary)),
         ),
       ],
     );

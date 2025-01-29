@@ -421,7 +421,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-Widget _buildSearchBar() {
+  Widget _buildSearchBar() {
     final TextEditingController searchController = TextEditingController();
     final searchProvider = Provider.of<SearchProvider>(context, listen: false);
     final bottomNavBarProvider =
@@ -596,7 +596,7 @@ Widget _buildSearchBar() {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (ctx) => ProfileScreen(userId: chef['uid']),
+            builder: (ctx) => ProfileScreen(userId: chef['id']),
           ),
         );
       },

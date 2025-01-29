@@ -8,11 +8,17 @@ import 'dart:developer';
 
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:food_fellas/main.dart';
+import 'package:food_fellas/src/views/home_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 
-/// Request notification permissions for iOS.
-Future<void> requestNotificationPermissions() async {
+final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
+    FlutterLocalNotificationsPlugin();
+final GlobalKey<NavigatorState> globalNavigatorKey =
+    GlobalKey<NavigatorState>();
+
+/// Request notification permissions for iOS and Android (if needed).
+Future<NotificationSettings> requestNotificationPermissions() async {
   print('Requesting notification permissions...');
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
@@ -23,9 +29,10 @@ Future<void> requestNotificationPermissions() async {
   );
 
   print('User granted permission: ${settings.authorizationStatus}');
+  return settings;
 }
 
-// This function must be a top-level function or static method.
+/// This function must be a top-level function or static method.
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background,
   // such as Firestore, you must call `initializeApp` again (only if not already initialized).
@@ -34,15 +41,38 @@ Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 Future<void> saveTokenToDatabase() async {
   final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    print('No user is currently signed in.');
+    return;
+  }
+  String? token = await FirebaseMessaging.instance.getToken();
+  if (token == null) {
+    print('Failed to obtain FCM token.');
+    return;
+  }
+
+  try {
+    await FirebaseFirestore.instance.collection('users').doc(user.uid).set(
+      {
+        'fcmToken': token,
+      },
+      SetOptions(
+          merge: true), // Merge with existing data or create the document
+    );
+    print('FCM Token saved/updated successfully.');
+  } catch (e) {
+    print('Error saving FCM Token: $e');
+  }
+}
+
+Future<void> removeTokenFromDatabase() async {
+  final user = FirebaseAuth.instance.currentUser;
   if (user != null) {
-    final token = await FirebaseMessaging.instance.getToken();
-    if (token != null) {
-      // Store the token
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .update({'fcmToken': token});
-    }
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .update({'fcmToken': FieldValue.delete()});
+    print("FCM Token removed from database.");
   }
 }
 
@@ -52,15 +82,19 @@ Future<void> initLocalNotifications() async {
       AndroidInitializationSettings('app_icon');
   final DarwinInitializationSettings initializationSettingsIOS =
       DarwinInitializationSettings(
-    requestAlertPermission: true,
-    requestBadgePermission: true,
-    requestSoundPermission: true,
+    requestAlertPermission: false,
+    requestBadgePermission: false,
+    requestSoundPermission: false,
   );
   final InitializationSettings initializationSettings = InitializationSettings(
     android: initializationSettingsAndroid,
     iOS: initializationSettingsIOS,
   );
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings);
+  await flutterLocalNotificationsPlugin.initialize(initializationSettings,
+      onDidReceiveNotificationResponse: (NotificationResponse response) {
+    // Handle notification tap
+    // You can navigate to a specific screen based on the notification payload
+  });
 
   // Only for Android:
   if (Platform.isAndroid) {
@@ -159,8 +193,11 @@ void handleNotificationNavigation(Map<String, dynamic> data) {
       break;
 
     case 'weekly_recommendations':
-      // Possibly navigate to a "Recommendations" screen
-      // nav.push(...)
+      nav.push(
+        MaterialPageRoute(
+          builder: (_) => HomeScreen(),
+        ),
+      );
       break;
 
     default:

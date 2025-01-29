@@ -515,16 +515,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ...shoppingListItemsNotifier.value..remove(ingredientName)
         };
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
+            SnackBar(
             content: Row(
               children: [
-                const Icon(Icons.remove_shopping_cart_outlined,
-                    color: Colors.red),
-                const SizedBox(width: 8),
-                Text('$ingredientName removed from your shopping list.'),
+              const Icon(Icons.remove_shopping_cart_outlined,
+                color: Colors.red),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                '$ingredientName removed from your shopping list.',
+                overflow: TextOverflow.ellipsis,
+                ),
+              ),
               ],
             ),
-          ),
+            ),
         );
       } else {
         await docRef.update({'amount': newAmount});

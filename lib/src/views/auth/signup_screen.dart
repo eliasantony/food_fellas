@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_signin_button/button_view.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
+import 'package:food_fellas/src/utils/auth_utils.dart';
 import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -58,7 +60,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
         return;
       }
 
-      // Create User
+      // Attempt to Create User
       UserCredential userCredential =
           await _auth.createUserWithEmailAndPassword(
         email: _emailController.text.trim(),
@@ -91,9 +93,22 @@ class _SignUpScreenState extends State<SignUpScreen> {
       );
     } on FirebaseAuthException catch (e) {
       if (e.code == 'email-already-in-use') {
-        setState(() {
-          _emailError = 'An account with this email already exists.';
-        });
+        // Prompt user to log in instead
+        bool shouldLogin = await _showLoginPrompt();
+        if (shouldLogin) {
+          // Attempt to sign in
+          bool signInSuccess = await _attemptSignInWithEmail();
+          if (!signInSuccess) {
+            setState(() {
+              _emailError =
+                  'An account with this email already exists. Please check your password or reset it.';
+            });
+          }
+        } else {
+          setState(() {
+            _emailError = 'An account with this email already exists.';
+          });
+        }
       } else if (e.code == 'weak-password') {
         setState(() {
           _passwordError = 'Password is too weak.';
@@ -107,6 +122,65 @@ class _SignUpScreenState extends State<SignUpScreen> {
       setState(() {
         _emailError = 'An unknown error occurred: $e';
       });
+    }
+  }
+
+  Future<bool> _showLoginPrompt() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Account Exists'),
+            content: const Text(
+                'An account with this email already exists. Would you like to log in instead?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text('Cancel'),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text('Log In'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
+  Future<bool> _attemptSignInWithEmail() async {
+    try {
+      await _auth.signInWithEmailAndPassword(
+        email: _emailController.text.trim(),
+        password: _passwordController.text,
+      );
+
+      User? user = _auth.currentUser;
+      if (user != null) {
+        // Use the common post sign-in handler
+        await handlePostSignIn(context, user);
+        return true;
+      }
+      return false;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'wrong-password') {
+        setState(() {
+          _passwordError = 'Incorrect password.';
+        });
+      } else if (e.code == 'user-not-found') {
+        setState(() {
+          _emailError = 'No user found for that email.';
+        });
+      } else {
+        setState(() {
+          _emailError = 'Sign in failed: ${e.message}';
+        });
+      }
+      return false;
+    } catch (e) {
+      setState(() {
+        _emailError = 'An unknown error occurred: $e';
+      });
+      return false;
     }
   }
 
@@ -125,6 +199,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
+
+      await handlePostSignIn(context, userCredential.user);
 
       // Check if this is a new user (you can add additional onboarding logic here)
       if (userCredential.additionalUserInfo?.isNewUser == true) {
@@ -156,6 +232,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       final userCredential =
           await FirebaseAuth.instance.signInWithCredential(credential);
+
+      await handlePostSignIn(context, userCredential.user);
 
       // Check if this is a new user
       if (userCredential.additionalUserInfo?.isNewUser == true) {
@@ -206,9 +284,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 30),
-              TextField(
+              TextFormField(
                 controller: _emailController,
-                  autofillHints: [AutofillHints.newUsername],
+                autofillHints: [AutofillHints.newUsername, AutofillHints.email],
                 decoration: InputDecoration(
                   labelText: 'Your email address',
                   border: OutlineInputBorder(
@@ -221,9 +299,9 @@ class _SignUpScreenState extends State<SignUpScreen> {
                 ),
               ),
               const SizedBox(height: 10),
-              TextField(
+              TextFormField(
                 controller: _passwordController,
-                  autofillHints: [AutofillHints.newPassword],
+                autofillHints: [AutofillHints.newPassword],
                 decoration: InputDecoration(
                   labelText: 'Create a password',
                   border: OutlineInputBorder(
@@ -260,7 +338,7 @@ class _SignUpScreenState extends State<SignUpScreen> {
               // Add a link to the LoginScreen
               TextButton(
                 onPressed: () {
-                  Navigator.pushNamed(context, '/login');
+                  Navigator.pushReplacementNamed(context, '/login');
                 },
                 child: const Text('Already have an account? Log in'),
               ),

@@ -1,7 +1,11 @@
-import 'package:flutter/material.dart';
-import 'package:food_fellas/src/views/auth/final_welcome_screen.dart';
+import 'dart:developer';
 
-import '../../models/user_data.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart';
+import 'package:food_fellas/src/models/user_data.dart';
+import 'package:food_fellas/src/services/firebase_messaging_service.dart';
+import 'package:food_fellas/src/views/auth/final_welcome_screen.dart';
+import 'package:food_fellas/src/widgets/notificationPreferences.dart';
 
 class NotificationPreferencesScreen extends StatefulWidget {
   final UserData userData;
@@ -17,22 +21,121 @@ class NotificationPreferencesScreen extends StatefulWidget {
 class _NotificationPreferencesScreenState
     extends State<NotificationPreferencesScreen> {
   bool allNotificationsEnabled = true;
-  bool newFollowerEnabled = true;
-  bool newRecipeEnabled = true;
-  bool newCommentEnabled = true;
-  bool weeklyRecommendationsEnabled = true;
+  Map<String, bool> notifications = {
+    'newFollower': true,
+    'newRecipeFromFollowing': true,
+    'newComment': true,
+    'weeklyRecommendations': true,
+  };
 
-  void _navigateToNext() {
-    // Update userData with notification preferences
+  @override
+  void initState() {
+    super.initState();
+    // Initialize from userData if available
+    allNotificationsEnabled = widget.userData.allNotificationsEnabled ?? true;
+
+    // Handle null notifications by providing default values
+    notifications = widget.userData.notifications != null
+        ? widget.userData.notifications!
+            .map((key, value) => MapEntry(key, value is bool ? value : true))
+        : {
+            'newFollower': true,
+            'newRecipeFromFollowing': true,
+            'newComment': true,
+            'weeklyRecommendations': true,
+          };
+  }
+
+  // This method updates the local state when switches are toggled
+  void _handlePreferencesChange(bool enabled, Map<String, bool> prefs) {
+    setState(() {
+      allNotificationsEnabled = enabled;
+      notifications = prefs;
+    });
+  }
+
+  Future<void> _navigateToNext() async {
+    log('Starting _navigateToNext');
+
+    if (allNotificationsEnabled) {
+      log('Requesting notification permissions...');
+      // Request notification permissions
+      NotificationSettings settings =
+          await FirebaseMessaging.instance.requestPermission(
+        alert: true,
+        badge: true,
+        sound: true,
+      );
+
+      log('Notification permission status: ${settings.authorizationStatus}');
+
+      if (settings.authorizationStatus == AuthorizationStatus.authorized) {
+        log('Permissions authorized.');
+        // Permissions granted
+        await initLocalNotifications();
+        log('Local notifications initialized.');
+
+        await saveTokenToDatabase();
+        log('Token saved to database.');
+
+        // Show confirmation
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Notifications enabled!'),
+          ),
+        );
+      } else if (settings.authorizationStatus ==
+          AuthorizationStatus.provisional) {
+        log('Provisional permissions granted.');
+        // Handle provisional permissions if needed
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Provisional notifications enabled!'),
+          ),
+        );
+      } else {
+        log('Permissions denied.');
+        // Permissions denied
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+                'Notification permissions denied. You can enable them in settings later.'),
+          ),
+        );
+
+        // Update the state to reflect that notifications are disabled
+        setState(() {
+          allNotificationsEnabled = false;
+        });
+      }
+    } else {
+      log('Notifications are being disabled.');
+      // Notifications being disabled
+      await removeTokenFromDatabase();
+      log('Token removed from database.');
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Notifications disabled.'),
+        ),
+      );
+    }
+
+    // Update userData with current preferences
     widget.userData.allNotificationsEnabled = allNotificationsEnabled;
+    widget.userData.notifications = notifications;
 
-    // Navigate to the next screen
-    Navigator.push(
+    log('Navigating to FinalWelcomeScreen');
+
+    // Navigate to the final welcome screen
+    Navigator.pushReplacement(
       context,
       MaterialPageRoute(
         builder: (context) => FinalWelcomeScreen(userData: widget.userData),
       ),
     );
+
+    log('Navigation to FinalWelcomeScreen initiated.');
   }
 
   @override
@@ -46,73 +149,46 @@ class _NotificationPreferencesScreenState
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              'Stay in the loop with the latest updates!',
-              style: TextStyle(fontSize: 18),
+            NotificationPreferencesWidget(
+              notificationsEnabled: allNotificationsEnabled,
+              notifications: notifications,
+              onChanged: _handlePreferencesChange, // Updated callback
             ),
-            SizedBox(height: 20),
-            SwitchListTile(
-              title: Text('Enable Notifications'),
-              value: allNotificationsEnabled,
-              onChanged: (bool value) {
-                setState(() {
-                  allNotificationsEnabled = value;
-                  if (!value) {
-                    newFollowerEnabled = false;
-                    newRecipeEnabled = false;
-                    newCommentEnabled = false;
-                    weeklyRecommendationsEnabled = false;
-                  }
-                });
-              },
-            ),
-            if (allNotificationsEnabled) ...[
-              SwitchListTile(
-                title: Text('New Follower'),
-                value: newFollowerEnabled,
-                onChanged: (bool value) {
-                  setState(() => newFollowerEnabled = value);
-                },
-              ),
-              SwitchListTile(
-                title: Text('New Recipe from Following'),
-                value: newRecipeEnabled,
-                onChanged: (bool value) {
-                  setState(() => newRecipeEnabled = value);
-                },
-              ),
-              SwitchListTile(
-                title: Text('New Comment'),
-                value: newCommentEnabled,
-                onChanged: (bool value) {
-                  setState(() => newCommentEnabled = value);
-                },
-              ),
-              SwitchListTile(
-                title: Text('Weekly Recommendations'),
-                value: weeklyRecommendationsEnabled,
-                onChanged: (bool value) {
-                  setState(() => weeklyRecommendationsEnabled = value);
-                },
-              ),
-            ],
             Spacer(),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  // Save preferences to userData
-                  widget.userData.allNotificationsEnabled =
-                      allNotificationsEnabled;
-                  widget.userData.notifications = {
-                    'newFollower': newFollowerEnabled,
-                    'newRecipeFromFollowing': newRecipeEnabled,
-                    'newComment': newCommentEnabled,
-                    'weeklyRecommendations': weeklyRecommendationsEnabled,
-                  };
-                  _navigateToNext();
-                },
-                child: Text('Finish up!'),
+            Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
+              child: SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _navigateToNext,
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        'Next',
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Icon(
+                        Icons.arrow_forward,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

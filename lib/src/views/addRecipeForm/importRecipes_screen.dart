@@ -390,68 +390,102 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
                     padding: const EdgeInsets.all(16.0),
                     child: Column(
                       children: [
-                        Text(statusMessage),
+                        SizedBox(
+                          width: double.infinity,
+                          child: Card(
+                          margin: const EdgeInsets.symmetric(vertical: 8.0),
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                              'Status Message:',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                              ),
+                              SizedBox(height: 8),
+                              Text(statusMessage),
+                            ],
+                            ),
+                          ),
+                          ),
+                        ),
                         const SizedBox(height: 16),
                         Divider(),
                         const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: pickAndUploadPdfs,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
-                            textStyle: TextStyle(fontSize: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: pickAndUploadPdfs,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 16),
+                              textStyle: TextStyle(fontSize: 18),
+                            ),
+                            icon: Icon(Icons.upload_file,
+                                color: Theme.of(context).colorScheme.onPrimary),
+                            label: Text('Upload PDF(s) to Gemini AI  ',
+                                style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary)),
                           ),
-                          icon: Icon(Icons.upload_file,
-                              color: Theme.of(context).colorScheme.onPrimary),
-                          label: Text('Upload PDF(s) to Gemini',
-                              style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary)),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: () {
-                            if (_lastBatchId == null) {
-                              setState(() {
-                                statusMessage =
-                                    'No batch ID found. Please upload PDFs first.';
-                              });
-                              return;
-                            }
-                            _loadAndImportProcessedRecipes(_lastBatchId!);
-                          },
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
-                            textStyle: TextStyle(fontSize: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: () {
+                              if (_lastBatchId == null) {
+                                setState(() {
+                                  statusMessage =
+                                      'No batch ID found. Please upload PDFs first.';
+                                });
+                                return;
+                              }
+                              _loadAndImportProcessedRecipes(_lastBatchId!);
+                            },
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 16),
+                              textStyle: TextStyle(fontSize: 18),
+                            ),
+                            icon: Icon(Icons.downloading_outlined,
+                                color: Theme.of(context).colorScheme.onPrimary),
+                            label: Text('Load Processed PDF Recipes',
+                                style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary)),
                           ),
-                          icon: Icon(Icons.downloading_outlined,
-                              color: Theme.of(context).colorScheme.onPrimary),
-                          label: Text('Load Processed PDF Recipes',
-                              style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary)),
                         ),
                         const SizedBox(height: 16),
-                        ElevatedButton.icon(
-                          onPressed: importRecipesFromDevice,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor:
-                                Theme.of(context).colorScheme.primary,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: 24, vertical: 16),
-                            textStyle: TextStyle(fontSize: 18),
+                        SizedBox(
+                          width: double.infinity,
+                          child: ElevatedButton.icon(
+                            onPressed: importRecipesFromDevice,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor:
+                                  Theme.of(context).colorScheme.primary,
+                              padding: EdgeInsets.symmetric(
+                                  horizontal: 24, vertical: 16),
+                              textStyle: TextStyle(fontSize: 18),
+                            ),
+                            icon: Icon(Icons.data_object,
+                                color: Theme.of(context).colorScheme.onPrimary),
+                            label: Text('Import JSON File from device',
+                                style: TextStyle(
+                                    color: Theme.of(context)
+                                        .colorScheme
+                                        .onPrimary)),
                           ),
-                          icon: Icon(Icons.data_object,
-                              color: Theme.of(context).colorScheme.onPrimary),
-                          label: Text('Import JSON File from device',
-                              style: TextStyle(
-                                  color:
-                                      Theme.of(context).colorScheme.onPrimary)),
                         ),
                       ],
                     ),

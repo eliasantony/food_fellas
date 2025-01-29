@@ -191,26 +191,47 @@ Future<void> rateCollection({
 }
 
 Future<void> addContributorToCollection({
+  required BuildContext context,
   required String ownerUid,
   required String collectionId,
   required String contributorUid,
+  required String contributorName,
 }) async {
+  if (contributorUid.isEmpty) {
+    print('Cannot add contributor: UID is empty.');
+    return;
+  }
+
   final collectionRef = FirebaseFirestore.instance
       .collection('users')
       .doc(ownerUid)
       .collection('collections')
       .doc(collectionId);
-
   await collectionRef.update({
     'contributors': FieldValue.arrayUnion([contributorUid])
   });
+
+  // Show Snackbar message to indicate the success of this operation
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('Added $contributorName as contributor!'),
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }
 
 Future<void> removeContributorFromCollection({
+  required BuildContext context,
   required String ownerUid,
   required String collectionId,
   required String contributorUid,
+  required String contributorName,
 }) async {
+  if (contributorUid.isEmpty) {
+    print('Cannot remove contributor: UID is empty.');
+    return;
+  }
+
   final collectionRef = FirebaseFirestore.instance
       .collection('users')
       .doc(ownerUid)
@@ -220,6 +241,14 @@ Future<void> removeContributorFromCollection({
   await collectionRef.update({
     'contributors': FieldValue.arrayRemove([contributorUid])
   });
+
+  // Show Snackbar message to indicate the success of this operation
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(
+      content: Text('Removed $contributorName as contributor!'),
+      duration: const Duration(seconds: 2),
+    ),
+  );
 }
 
 Future<void> showCreateCollectionDialog(BuildContext context,
@@ -441,6 +470,8 @@ void _showEmojiPicker(
   );
 }
 
+// Inside showManageContributorsDialog
+
 Future<void> showManageContributorsDialog({
   required BuildContext context,
   required String ownerUid,
@@ -449,7 +480,23 @@ Future<void> showManageContributorsDialog({
 }) async {
   final searchProvider = Provider.of<SearchProvider>(context, listen: false);
 
-  String query = '';
+  // Create a local copy of existingContributors to avoid modifying the original list directly
+  List<String> localContributors = List.from(existingContributors);
+
+  // Fetch contributor data asynchronously and store in a list
+  List<Map<String, dynamic>> contributorsData = [];
+  for (String uid in localContributors) {
+    if (uid.isNotEmpty) {
+      // Prevent fetching with empty uid
+      final data = await searchProvider.fetchUserByUid(uid);
+      if (data != null) {
+        contributorsData.add(data);
+      }
+    }
+  }
+
+  // Fetch initial list of users, excluding existing contributors
+  await searchProvider.fetchUsers('', excludeUids: localContributors);
 
   showDialog(
     context: context,
@@ -457,101 +504,251 @@ Future<void> showManageContributorsDialog({
       return StatefulBuilder(
         builder: (context, setStateDialog) {
           final users = searchProvider.users;
+          final query = searchProvider.query;
 
           Future<void> doSearch(String q) async {
-            query = q;
-            await searchProvider.fetchUsers(q);
+            if (q.isEmpty) {
+              await searchProvider.fetchUsers('',
+                  excludeUids: localContributors);
+            } else {
+              await searchProvider.fetchUsers(q,
+                  excludeUids: localContributors);
+            }
             setStateDialog(() {});
           }
 
           return AlertDialog(
             title: Text('Manage Contributors'),
             content: SizedBox(
-              width: double.maxFinite,
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  TextField(
-                    decoration: InputDecoration(
-                      labelText: 'Search users...',
-                      border: OutlineInputBorder(),
+                width: double.maxFinite,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    // Search Field
+                    TextField(
+                      decoration: InputDecoration(
+                        labelText: 'Search users...',
+                        border: OutlineInputBorder(),
+                      ),
+                      onChanged: (val) {
+                        doSearch(val);
+                      },
                     ),
-                    onChanged: (val) {
-                      doSearch(val);
-                    },
-                  ),
-                  SizedBox(height: 8),
-                  Expanded(
-                    child: searchProvider.isLoading
-                        ? Center(child: CircularProgressIndicator())
-                        : ListView.builder(
-                            itemCount: users.length,
-                            itemBuilder: (context, index) {
-                              final userData = users[index];
-                              final userUid = userData['uid'] ?? '';
-                              final displayName =
-                                  userData['display_name'] ?? 'User';
-                              final profilePicture =
-                                  userData['profile_url'] ?? '';
-                              final isContributor =
-                                  existingContributors.contains(userUid);
-                              print('profilePicture: $profilePicture');
-                              return ListTile(
-                                leading: CircleAvatar(
-                                  backgroundImage: profilePicture.isNotEmpty
-                                      ? NetworkImage(profilePicture)
-                                      : null,
-                                  child: profilePicture.isEmpty
-                                      ? Icon(Icons.person)
-                                      : null,
-                                ),
-                                title: Text(displayName),
-                                trailing: isContributor
-                                    ? IconButton(
+                    SizedBox(height: 8),
+                    // Contributors and Users List
+                    Expanded(
+                      child: searchProvider.isLoading
+                          ? Center(child: CircularProgressIndicator())
+                          : ListView.builder(
+                              itemCount: query.isEmpty
+                                  ? contributorsData.length + users.length
+                                  : users.length,
+                              itemBuilder: (context, index) {
+                                if (query.isEmpty) {
+                                  if (index < contributorsData.length) {
+                                    // Display existing contributors at the top
+                                    final contributorData =
+                                        contributorsData[index];
+                                    final displayName =
+                                        contributorData['display_name'] ??
+                                            'User';
+                                    final profilePicture =
+                                        contributorData['photo_url'] ?? '';
+                                    final contributorUid =
+                                        contributorData['uid'] ?? '';
+
+                                    return ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundImage:
+                                            profilePicture.isNotEmpty
+                                                ? NetworkImage(profilePicture)
+                                                : null,
+                                        backgroundColor: Colors.transparent,
+                                        child: profilePicture.isEmpty
+                                            ? Icon(Icons.person)
+                                            : null,
+                                      ),
+                                      title: Text(displayName),
+                                      trailing: IconButton(
                                         icon: Icon(Icons.remove_circle,
                                             color: Colors.red),
                                         onPressed: () async {
                                           await removeContributorFromCollection(
+                                            context: context,
                                             ownerUid: ownerUid,
                                             collectionId: collectionId,
-                                            contributorUid: userUid,
+                                            contributorUid: contributorUid,
+                                            contributorName: displayName,
                                           );
-                                          existingContributors.remove(userUid);
-                                          setStateDialog(() {});
-                                        },
-                                      )
-                                    : IconButton(
-                                        icon: Icon(Icons.add_circle,
-                                            color: Colors.green),
-                                        onPressed: () async {
-                                          await addContributorToCollection(
-                                            ownerUid: ownerUid,
-                                            collectionId: collectionId,
-                                            contributorUid: userUid,
-                                          );
-                                          existingContributors.add(userUid);
+                                          // Remove from local lists
+                                          int removeIndex = localContributors
+                                              .indexOf(contributorUid);
+                                          if (removeIndex != -1) {
+                                            localContributors
+                                                .removeAt(removeIndex);
+                                            contributorsData
+                                                .removeAt(removeIndex);
+                                            users.add(contributorData);
+                                          }
                                           setStateDialog(() {});
                                         },
                                       ),
-                              );
-                            },
-                          ),
-                  ),
-                ],
-              ),
-            ),
+                                    );
+                                  } else {
+                                    // Display other users
+                                    final userIndex =
+                                        index - contributorsData.length;
+                                    final userData = users[userIndex];
+                                    final userUid = userData['uid'] ?? '';
+                                    final displayName =
+                                        userData['display_name'] ?? 'User';
+                                    final profilePicture =
+                                        userData['photo_url'] ?? '';
+                                    final isContributor =
+                                        localContributors.contains(userUid);
+
+                                    return ListTile(
+                                      leading: CircleAvatar(
+                                        backgroundImage:
+                                            profilePicture.isNotEmpty
+                                                ? NetworkImage(profilePicture)
+                                                : null,
+                                        backgroundColor: Colors.transparent,
+                                        child: profilePicture.isEmpty
+                                            ? Icon(Icons.person)
+                                            : null,
+                                      ),
+                                      title: Text(displayName),
+                                      trailing: isContributor
+                                          ? IconButton(
+                                              icon: Icon(Icons.remove_circle,
+                                                  color: Colors.red),
+                                              onPressed: () async {
+                                                await removeContributorFromCollection(
+                                                  context: context,
+                                                  ownerUid: ownerUid,
+                                                  collectionId: collectionId,
+                                                  contributorUid: userUid,
+                                                  contributorName: displayName,
+                                                );
+                                                // Remove from local lists
+                                                int removeIndex =
+                                                    localContributors
+                                                        .indexOf(userUid);
+                                                if (removeIndex != -1) {
+                                                  localContributors
+                                                      .removeAt(removeIndex);
+                                                  contributorsData
+                                                      .removeAt(removeIndex);
+                                                  users.add(userData);
+                                                }
+                                                setStateDialog(() {});
+                                              },
+                                            )
+                                          : IconButton(
+                                              icon: Icon(Icons.add_circle,
+                                                  color: Colors.green),
+                                              onPressed: () async {
+                                                await addContributorToCollection(
+                                                  context: context,
+                                                  ownerUid: ownerUid,
+                                                  collectionId: collectionId,
+                                                  contributorUid: userUid,
+                                                  contributorName: displayName,
+                                                );
+                                                // Add to local lists and remove from users list
+                                                localContributors.add(userUid);
+                                                contributorsData.add(userData);
+                                                users.removeAt(userIndex);
+                                                setStateDialog(() {});
+                                              },
+                                            ),
+                                    );
+                                  }
+                                } else {
+                                  // When query is not empty, display search results (excluding contributors)
+                                  final userData = users[index];
+                                  final userUid = userData['uid'] ?? '';
+                                  final displayName =
+                                      userData['display_name'] ?? 'User';
+                                  final profilePicture =
+                                      userData['photo_url'] ?? '';
+                                  final isContributor =
+                                      localContributors.contains(userUid);
+
+                                  return ListTile(
+                                    leading: CircleAvatar(
+                                      backgroundImage: profilePicture.isNotEmpty
+                                          ? NetworkImage(profilePicture)
+                                          : null,
+                                      backgroundColor: Colors.transparent,
+                                      child: profilePicture.isEmpty
+                                          ? Icon(Icons.person)
+                                          : null,
+                                    ),
+                                    title: Text(displayName),
+                                    trailing: isContributor
+                                        ? IconButton(
+                                            icon: Icon(Icons.remove_circle,
+                                                color: Colors.red),
+                                            onPressed: () async {
+                                              await removeContributorFromCollection(
+                                                context: context,
+                                                ownerUid: ownerUid,
+                                                collectionId: collectionId,
+                                                contributorUid: userUid,
+                                                contributorName: displayName,
+                                              );
+                                              // Remove from local lists
+                                              int removeIndex =
+                                                  localContributors
+                                                      .indexOf(userUid);
+                                              if (removeIndex != -1) {
+                                                localContributors
+                                                    .removeAt(removeIndex);
+                                                contributorsData
+                                                    .removeAt(removeIndex);
+                                                users.add(userData);
+                                              }
+                                              setStateDialog(() {});
+                                            },
+                                          )
+                                        : IconButton(
+                                            icon: Icon(Icons.add_circle,
+                                                color: Colors.green),
+                                            onPressed: () async {
+                                              await addContributorToCollection(
+                                                context: context,
+                                                ownerUid: ownerUid,
+                                                collectionId: collectionId,
+                                                contributorUid: userUid,
+                                                contributorName: displayName,
+                                              );
+                                              // Add to local lists and remove from users list
+                                              localContributors.add(userUid);
+                                              contributorsData.add(userData);
+                                              users.removeAt(index);
+                                              setStateDialog(() {});
+                                            },
+                                          ),
+                                  );
+                                }
+                              },
+                            ),
+                    ),
+                  ],
+                )),
             actions: [
-              TextButton(
-                child: Text('Cancel'),
-                onPressed: () => Navigator.pop(context),
-              ),
               ElevatedButton(
+                onPressed: () {
+                  Navigator.of(context).pop(); // Close the dialog
+                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
-                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                 ),
-                child: Text('Done'),
-                onPressed: () => Navigator.pop(context),
+                child: Text('Done',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary)),
               ),
             ],
           );

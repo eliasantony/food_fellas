@@ -119,8 +119,9 @@ class _InitializerWidgetState extends State<InitializerWidget> {
         if (onboardingSnapshot.connectionState == ConnectionState.done) {
           final onboardingComplete = onboardingSnapshot.data ?? false;
           if (onboardingComplete) {
-            _fetchUserData(
-                user.uid); // Fetch user data when onboarding is complete
+            _fetchUserData(user.uid).then((_) {
+              user.uid;
+            });
             return MainPage();
           } else {
             return const WelcomeScreen();
