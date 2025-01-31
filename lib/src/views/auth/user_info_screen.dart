@@ -1,8 +1,10 @@
+import 'dart:io';
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../models/user_data.dart';
 import 'dietary_preferences_screen.dart';
+import 'package:screenshot/screenshot.dart';
 import 'avatar_builder_screen.dart';
 
 class UserInfoScreen extends StatefulWidget {
@@ -30,7 +32,6 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
       Uint8List imageBytes = await pickedFile.readAsBytes();
       setState(() {
         _profileImage = imageBytes;
-        _profileImageError = null; // Clear the error when an image is selected
       });
     }
   }
@@ -59,6 +60,12 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     }
   }
 
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
+  }
+
   void _navigateToAvatarBuilder() async {
     final Uint8List? avatarImage = await Navigator.push(
       context,
@@ -70,7 +77,6 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     if (avatarImage != null) {
       setState(() {
         _profileImage = avatarImage;
-        _profileImageError = null; // Clear the error
       });
     }
   }
@@ -83,10 +89,42 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
     super.dispose();
   }
 
+  void _showImageSourceDialog() {
+    showModalBottomSheet(
+      context: context,
+      builder: (context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.photo_library),
+                title: Text('Upload a Picture'),
+                onTap: () {
+                  _pickImage();
+                  Navigator.pop(context);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.person),
+                title: Text('Create an Avatar'),
+                onTap: () {
+                  _navigateToAvatarBuilder();
+                  Navigator.pop(context);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Profile Infos')),
+      appBar: AppBar(
+        title: const Text('Profile Infos'),
+      ),
       body: Form(
         key: _formKey,
         child: Column(
@@ -101,7 +139,7 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                       child: Column(
                         children: [
                           GestureDetector(
-                            onTap: _pickImage,
+                            onTap: _showImageSourceDialog,
                             child: CircleAvatar(
                               radius: 70,
                               backgroundImage: _profileImage != null
@@ -109,11 +147,13 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                                   : null,
                               backgroundColor: Colors.transparent,
                               child: _profileImage == null
-                                  ? Icon(Icons.person,
+                                  ? Icon(
+                                      Icons.person,
                                       size: 60,
                                       color: Theme.of(context)
                                           .colorScheme
-                                          .onSurfaceVariant)
+                                          .onSurfaceVariant,
+                                    )
                                   : null,
                             ),
                           ),
@@ -121,24 +161,59 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                           Text(
                             'Tap to Upload Photo',
                             style: const TextStyle(
-                                fontSize: 16,
-                                color: Colors.grey,
-                                fontWeight: FontWeight.w500),
-                          ),
-                          if (_profileImageError !=
-                              null) // Show error if image is not selected
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8.0),
-                              child: Text(
-                                _profileImageError!,
-                                style:
-                                    TextStyle(color: Colors.red, fontSize: 14),
-                              ),
+                              fontSize: 16,
+                              color: Colors.grey,
+                              fontWeight: FontWeight.w500,
                             ),
+                          ),
                         ],
                       ),
                     ),
                     const SizedBox(height: 20),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        ElevatedButton.icon(
+                          onPressed: () => _pickImage(),
+                          icon: const Icon(Icons.add_a_photo),
+                          label: const Text('Upload Photo'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                        ElevatedButton.icon(
+                          onPressed: () => _navigateToAvatarBuilder(),
+                          icon: const Icon(Icons.person),
+                          label: const Text('Create Avatar'),
+                          style: ElevatedButton.styleFrom(
+                            padding: const EdgeInsets.all(16),
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                    if (_profileImageError !=
+                        null) // Show error if image is not selected
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8.0),
+                        child: Text(
+                          _profileImageError!,
+                          style: TextStyle(color: Colors.red, fontSize: 14),
+                        ),
+                      ),
+                    const SizedBox(height: 30),
+                    Text(
+                      'Tell us about yourself',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _displayNameController,
                       decoration: InputDecoration(
@@ -158,7 +233,7 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                         return null;
                       },
                     ),
-                    const SizedBox(height: 8),
+                    const SizedBox(height: 4),
                     TextFormField(
                       controller: _shortDescriptionController,
                       decoration: InputDecoration(
@@ -180,6 +255,13 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                       },
                     ),
                     const SizedBox(height: 20),
+                    Text(
+                      'For how many people do you usually cook?',
+                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                    ),
+                    const SizedBox(height: 10),
                     TextFormField(
                       controller: _preferredServingsController,
                       keyboardType: TextInputType.number,
@@ -216,9 +298,12 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                   onPressed: _navigateToNext,
                   style: ElevatedButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 30, vertical: 15),
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
                     shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     backgroundColor: Theme.of(context).colorScheme.primary,
                   ),
                   child: Row(
@@ -227,11 +312,14 @@ class _UserInfoScreenState extends State<UserInfoScreen> {
                       Text(
                         'Next',
                         style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary),
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
                       ),
                       const SizedBox(width: 8),
-                      Icon(Icons.arrow_forward,
-                          color: Theme.of(context).colorScheme.onPrimary),
+                      Icon(
+                        Icons.arrow_forward,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
                     ],
                   ),
                 ),

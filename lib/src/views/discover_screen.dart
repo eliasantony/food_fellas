@@ -252,6 +252,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ...searchProvider.users.map((userDoc) {
               return _buildUserTile(context, userDoc);
             }).toList(),
+          SizedBox(height: 16),
 
           // 2) Then show the recipes
           if (searchProvider.recipes.isNotEmpty)
@@ -286,7 +287,7 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
       title: Text(userData['display_name'] ?? 'Unknown'),
       subtitle: Text(
         userData['shortDescription'] ?? '',
-        maxLines: 2,
+        maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
     );

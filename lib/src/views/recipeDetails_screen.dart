@@ -9,7 +9,6 @@ import 'package:food_fellas/src/widgets/similarRecipes_section.dart';
 import 'package:marquee/marquee.dart';
 import 'package:provider/provider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
-
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -28,7 +27,6 @@ class RecipeDetailScreen extends StatefulWidget {
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Recipe? _currentRecipe;
-  bool isRecipeSaved = false;
   String? _authorName;
   String _userRole = 'user';
   Future<DocumentSnapshot>? _authorFuture;
@@ -52,7 +50,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     shoppingListItemsNotifier.value = Set<String>();
     _fetchUserRating();
     _fetchShoppingListItems();
-    _checkIfRecipeIsSaved();
     _fetchUserRole();
     _logRecipeView();
   }
@@ -160,7 +157,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _handleMenuOption(String value) {
     switch (value) {
       case 'save':
-        _showSaveDialog();
+        showSaveRecipeDialog(context, recipeId: widget.recipeId);
         break;
       case 'edit':
         _editRecipe();
@@ -288,32 +285,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           },
         ) ??
         false;
-  }
-
-  void _checkIfRecipeIsSaved() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
-
-    QuerySnapshot collectionsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('collections')
-        .get();
-
-    bool saved = false;
-
-    for (var collection in collectionsSnapshot.docs) {
-      List<dynamic> recipes = collection['recipes'] ?? [];
-      if (recipes.contains(widget.recipeId)) {
-        saved = true;
-        break;
-      }
-    }
-
-    if (!mounted) return;
-    setState(() {
-      isRecipeSaved = saved;
-    });
   }
 
   void _fetchShoppingListItems() async {
@@ -515,21 +486,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           ...shoppingListItemsNotifier.value..remove(ingredientName)
         };
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
+          SnackBar(
             content: Row(
               children: [
-              const Icon(Icons.remove_shopping_cart_outlined,
-                color: Colors.red),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Text(
-                '$ingredientName removed from your shopping list.',
-                overflow: TextOverflow.ellipsis,
+                const Icon(Icons.remove_shopping_cart_outlined,
+                    color: Colors.red),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Text(
+                    '$ingredientName removed from your shopping list.',
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
               ],
             ),
-            ),
+          ),
         );
       } else {
         await docRef.update({'amount': newAmount});
@@ -554,178 +525,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
   }
 
-  void _showSaveDialog() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('You must be logged in to save recipes.')),
-      );
-      return;
-    }
-
-    try {
-      // Fetch the user's own collections
-      QuerySnapshot ownedCollectionsSnapshot = await FirebaseFirestore.instance
-          .collection('users')
-          .doc(user.uid)
-          .collection('collections')
-          .get();
-
-      List<DocumentSnapshot> ownedCollections = ownedCollectionsSnapshot.docs;
-
-      // Fetch collections where the user is a contributor using a collection group query
-      QuerySnapshot contributedCollectionsSnapshot = await FirebaseFirestore
-          .instance
-          .collectionGroup('collections')
-          .where('contributors', arrayContains: user.uid)
-          .get();
-
-      // Exclude collections already owned by the user to avoid duplicates
-      List<DocumentSnapshot> contributedCollections =
-          contributedCollectionsSnapshot.docs
-              .where((doc) => doc.reference.parent.parent?.id != user.uid)
-              .toList();
-
-      // Combine owned and contributed collections
-      List<DocumentSnapshot> allCollections = [
-        ...ownedCollections,
-        ...contributedCollections,
-      ];
-
-      Map<String, bool> collectionSelection = {};
-
-      // For each collection, check if the recipe is already in it
-      for (var collection in allCollections) {
-        List<dynamic> recipes = collection['recipes'] ?? [];
-        collectionSelection[collection.id] = recipes.contains(widget.recipeId);
-      }
-
-      await showDialog(
-        context: context,
-        builder: (context) {
-          return StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: const Text('Save Recipe to Collections'),
-                content: SizedBox(
-                  width: double.maxFinite,
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // List of collections
-                      Expanded(
-                        child: ListView.builder(
-                          shrinkWrap: true,
-                          itemCount: allCollections.length + 1,
-                          itemBuilder: (context, index) {
-                            if (index == allCollections.length) {
-                              // Create New Collection
-                              return ListTile(
-                                leading: const Icon(Icons.add),
-                                title: const Text('Create New Collection'),
-                                onTap: () {
-                                  Navigator.pop(context);
-                                  showCreateCollectionDialog(context,
-                                      autoAddRecipe: true,
-                                      recipeId: widget.recipeId);
-                                },
-                              );
-                            } else {
-                              var collection = allCollections[index];
-                              bool isSelected =
-                                  collectionSelection[collection.id] ?? false;
-                              bool isOwned =
-                                  collection.reference.parent.parent?.id ==
-                                      user.uid;
-                              return CheckboxListTile(
-                                value: isSelected,
-                                title: Row(
-                                  children: [
-                                    Text(
-                                      collection['icon'] ?? '🍽',
-                                      style: const TextStyle(fontSize: 24),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Text(collection['name'] ?? 'Unnamed'),
-                                    if (isOwned)
-                                      const Padding(
-                                        padding: EdgeInsets.only(left: 8.0),
-                                        child: Icon(
-                                          Icons.star,
-                                          color: Colors.orange,
-                                          size: 16,
-                                        ),
-                                      ),
-                                  ],
-                                ),
-                                subtitle: isOwned
-                                    ? const Text('Owned')
-                                    : const Text('Contributor'),
-                                onChanged: (bool? value) {
-                                  if (!mounted) return;
-                                  setState(() {
-                                    collectionSelection[collection.id] =
-                                        value ?? false;
-                                  });
-                                  if (value == true) {
-                                    toggleRecipeInCollection(
-                                      collectionOwnerUid: collection
-                                          .reference.parent.parent!.id,
-                                      collectionId: collection.id,
-                                      add: true,
-                                      recipeId: widget.recipeId,
-                                    );
-                                  } else {
-                                    toggleRecipeInCollection(
-                                      collectionOwnerUid: collection
-                                          .reference.parent.parent!.id,
-                                      collectionId: collection.id,
-                                      add: false,
-                                      recipeId: widget.recipeId,
-                                    );
-                                  }
-                                },
-                              );
-                            }
-                          },
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text('Cancel'),
-                  ),
-                  ElevatedButton(
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Theme.of(context).primaryColor,
-                    ),
-                    onPressed: () => Navigator.pop(context),
-                    child: const Text(
-                      'Done',
-                      style: TextStyle(color: Colors.white),
-                    ),
-                  ),
-                ],
-              );
-            },
-          );
-        },
-      );
-      _checkIfRecipeIsSaved();
-    } catch (e) {
-      // Handle errors appropriately
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching collections: $e')),
-      );
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
-    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+    final recipeProvider = Provider.of<RecipeProvider>(context);
+    bool isSaved = recipeProvider.isRecipeSaved(widget.recipeId);
 
     return Scaffold(
       floatingActionButton: FloatingActionButton(
@@ -840,18 +643,27 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                           return [
                                             PopupMenuItem<String>(
                                               value: 'save',
-                                              child: ListTile(
-                                                leading: Icon(
-                                                  isRecipeSaved
-                                                      ? Icons.bookmark
-                                                      : Icons.bookmark_border,
-                                                  color: isRecipeSaved
-                                                      ? Colors.green
-                                                      : Colors.black,
-                                                ),
-                                                title: Text(isRecipeSaved
-                                                    ? 'Unsave Recipe'
-                                                    : 'Save Recipe'),
+                                              child: Consumer<RecipeProvider>(
+                                                builder: (context,
+                                                    recipeProvider, child) {
+                                                  bool isSaved = recipeProvider
+                                                      .isRecipeSaved(
+                                                          widget.recipeId);
+                                                  return ListTile(
+                                                    leading: Icon(
+                                                      isSaved
+                                                          ? Icons.bookmark
+                                                          : Icons
+                                                              .bookmark_border,
+                                                      color: isSaved
+                                                          ? Colors.green
+                                                          : Colors.black,
+                                                    ),
+                                                    title: Text(isSaved
+                                                        ? 'Unsave Recipe'
+                                                        : 'Save Recipe'),
+                                                  );
+                                                },
                                               ),
                                             ),
                                             PopupMenuItem<String>(
@@ -877,21 +689,30 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                       )
                                     else
                                       // Save Button for regular users
-                                      CircleAvatar(
-                                        backgroundColor: Colors.white70,
-                                        child: IconButton(
-                                          icon: Icon(
-                                            isRecipeSaved
-                                                ? Icons.bookmark
-                                                : Icons.bookmark_border,
-                                          ),
-                                          color: isRecipeSaved
-                                              ? Colors.green
-                                                  .withOpacity(1.0 - opacity)
-                                              : Colors.white
-                                                  .withOpacity(1.0 - opacity),
-                                          onPressed: _showSaveDialog,
-                                        ),
+                                      Selector<RecipeProvider, bool>(
+                                        selector: (_, provider) => provider
+                                            .isRecipeSaved(widget.recipeId),
+                                        builder: (context, isSaved, child) {
+                                          return CircleAvatar(
+                                            backgroundColor: Colors.white70,
+                                            child: IconButton(
+                                              icon: Icon(
+                                                isSaved
+                                                    ? Icons.bookmark
+                                                    : Icons.bookmark_border,
+                                              ),
+                                              color: isSaved
+                                                  ? Colors.green.withOpacity(
+                                                      1.0 - opacity)
+                                                  : Colors.black.withOpacity(
+                                                      1.0 - opacity),
+                                              onPressed: () =>
+                                                  showSaveRecipeDialog(context,
+                                                      recipeId:
+                                                          widget.recipeId),
+                                            ),
+                                          );
+                                        },
                                       ),
                                   ],
                                 ),
@@ -1020,18 +841,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                           value: 'save',
                                                           child: ListTile(
                                                             leading: Icon(
-                                                              isRecipeSaved
+                                                              isSaved
                                                                   ? Icons
                                                                       .bookmark
                                                                   : Icons
                                                                       .bookmark_border,
-                                                              color: isRecipeSaved
+                                                              color: isSaved
                                                                   ? Colors.green
-                                                                  : Theme.of(context).brightness == Brightness.dark
-                                                                      ? Colors.white
-                                                                      : Colors.black,
+                                                                  : Theme.of(context)
+                                                                              .brightness ==
+                                                                          Brightness
+                                                                              .dark
+                                                                      ? Colors
+                                                                          .white
+                                                                      : Colors
+                                                                          .black,
                                                             ),
-                                                            title: Text(isRecipeSaved
+                                                            title: Text(isSaved
                                                                 ? 'Unsave Recipe'
                                                                 : 'Save Recipe'),
                                                           ),
@@ -1063,15 +889,23 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                   // Save Button for regular users
                                                   IconButton(
                                                     icon: Icon(
-                                                      isRecipeSaved
+                                                      isSaved
                                                           ? Icons.bookmark
                                                           : Icons
                                                               .bookmark_border,
                                                     ),
-                                                    color: isRecipeSaved
+                                                    color: isSaved
                                                         ? Colors.green
-                                                        : Colors.black,
-                                                    onPressed: _showSaveDialog,
+                                                        : Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Colors.white
+                                                            : Colors.black,
+                                                    onPressed: () =>
+                                                        showSaveRecipeDialog(
+                                                            context,
+                                                            recipeId: widget
+                                                                .recipeId),
                                                   ),
                                               ],
                                             ),

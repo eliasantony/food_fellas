@@ -172,7 +172,12 @@ class _AIChatScreenState extends State<AIChatScreen> {
               if (value == 'preferences') {
                 _togglePreferences();
               } else if (value == 'feedback') {
-                FeedbackModal();
+                showDialog(
+                  context: context,
+                  builder: (BuildContext context) {
+                    return FeedbackModal();
+                  },
+                );
               } else if (value == 'clear_chat') {
                 _confirmClearChat();
               }

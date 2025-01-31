@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
+import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:provider/provider.dart';
 
@@ -207,11 +208,34 @@ Future<void> addContributorToCollection({
       .doc(ownerUid)
       .collection('collections')
       .doc(collectionId);
+
+  // 1) Update the owner's doc
   await collectionRef.update({
     'contributors': FieldValue.arrayUnion([contributorUid])
   });
 
-  // Show Snackbar message to indicate the success of this operation
+  // 2) (New) Also create a doc in the contributor’s sharedCollections subcoll
+  final contributorSharedDocRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(contributorUid)
+      .collection('sharedCollections')
+      .doc(collectionId);
+
+  // optionally fetch the collection name/icon to store them
+  final collectionSnap = await collectionRef.get();
+  final data = collectionSnap.data() ?? {};
+  final name = data['name'] ?? 'Unnamed';
+  final icon = data['icon'] ?? '🍽';
+
+  await contributorSharedDocRef.set({
+    'collectionOwnerUid': ownerUid,
+    'collectionId': collectionId,
+    'name': name,
+    'icon': icon,
+    'addedAt': FieldValue.serverTimestamp(),
+  });
+
+  // Show Snackbar
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text('Added $contributorName as contributor!'),
@@ -238,11 +262,21 @@ Future<void> removeContributorFromCollection({
       .collection('collections')
       .doc(collectionId);
 
+  // 1) Remove from the owners doc
   await collectionRef.update({
     'contributors': FieldValue.arrayRemove([contributorUid])
   });
 
-  // Show Snackbar message to indicate the success of this operation
+  // 2) Also delete from the contributor’s subcollection
+  final contributorSharedDocRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(contributorUid)
+      .collection('sharedCollections')
+      .doc(collectionId);
+
+  await contributorSharedDocRef.delete();
+
+  // Show Snackbar
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(
       content: Text('Removed $contributorName as contributor!'),
@@ -749,6 +783,201 @@ Future<void> showManageContributorsDialog({
                 child: Text('Done',
                     style: TextStyle(
                         color: Theme.of(context).colorScheme.onPrimary)),
+              ),
+            ],
+          );
+        },
+      );
+    },
+  );
+}
+
+/// Call this from anywhere (RecipeCard or RecipeDetailScreen):
+Future<void> showSaveRecipeDialog(
+  BuildContext context, {
+  required String recipeId,
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('You must be logged in to save recipes.')),
+    );
+    return;
+  }
+
+  // 1) Fetch Owned Collections
+  List<QueryDocumentSnapshot> ownedDocs = [];
+  try {
+    final ownedSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('collections')
+        .get();
+    ownedDocs = ownedSnap.docs;
+  } catch (e) {
+    debugPrint('Error fetching owned collections: $e');
+  }
+
+  // 2) Fetch Shared Collections
+  //    i.e. /users/{currentUser}/sharedCollections/
+  //    Each doc should contain e.g. {"collectionOwnerUid":..., "collectionId":..., "name":..., "icon":..., ...}
+  List<Map<String, dynamic>> sharedList = [];
+  try {
+    final sharedSnap = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .collection('sharedCollections')
+        .get();
+
+    // Option A: If you only store a "reference" or minimal fields, you might
+    //           need to fetch the real doc to see its "recipes" array.
+    for (var sharedDoc in sharedSnap.docs) {
+      final data = sharedDoc.data();
+      final ownerUid = data['collectionOwnerUid'];
+      final colId = data['collectionId'];
+
+      // fetch the actual doc to see 'recipes', 'contributors', etc.
+      final colRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(ownerUid)
+          .collection('collections')
+          .doc(colId);
+
+      final colSnap = await colRef.get();
+      if (colSnap.exists) {
+        final colData = colSnap.data()!;
+        sharedList.add({
+          'ref': colRef, // we can store the reference
+          'id': colSnap.id,
+          'ownerUid': ownerUid,
+          ...colData,
+        });
+      }
+    }
+
+    // Option B (alternative):
+    // If you stored the entire doc data in sharedCollections,
+    // you wouldn't need to fetch colSnap again.
+    // In that case, just add the sharedDoc data to the list.
+  } catch (e) {
+    debugPrint('Error fetching sharedCollections: $e');
+  }
+
+  // 3) Combine Owned + Shared
+  // We'll unify them into a single List<Map<String,dynamic>> for the dialog
+  // For "ownedDocs", we can convert them similarly:
+  List<Map<String, dynamic>> ownedList = [];
+  for (var doc in ownedDocs) {
+    final docData = doc.data() as Map<String, dynamic>;
+    ownedList.add({
+      'ref': doc.reference,
+      'id': doc.id,
+      'ownerUid': user.uid,
+      ...docData,
+    });
+  }
+
+  // Put them together
+  List<Map<String, dynamic>> allCollections = [
+    ...ownedList,
+    ...sharedList,
+  ];
+
+  // 4) Check whether the recipe is already in each collection
+  Map<String, bool> collectionSelection = {};
+  for (var c in allCollections) {
+    final recipes = (c['recipes'] as List?) ?? [];
+    collectionSelection[c['id']] = recipes.contains(recipeId);
+  }
+
+  final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+
+  // 5) Show the AlertDialog
+  await showDialog(
+    context: context,
+    builder: (dialogCtx) {
+      return StatefulBuilder(
+        builder: (ctx, setState) {
+          return AlertDialog(
+            title: const Text('Save Recipe to Collections'),
+            content: SizedBox(
+              width: double.maxFinite,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      itemCount:
+                          allCollections.length + 1, // +1 for "Create New"
+                      itemBuilder: (ctx, index) {
+                        if (index == allCollections.length) {
+                          // "Create new collection" tile
+                          return ListTile(
+                            leading: const Icon(Icons.add),
+                            title: const Text('Create New Collection'),
+                            onTap: () {
+                              Navigator.pop(ctx);
+                              showCreateCollectionDialog(context,
+                                  autoAddRecipe: true, recipeId: recipeId);
+                            },
+                          );
+                        }
+
+                        final c = allCollections[index];
+                        final colId = c['id'];
+                        final icon = c['icon'] ?? '🍽';
+                        final name = c['name'] ?? 'Unnamed';
+                        final isOwned = (c['ownerUid'] == user.uid);
+                        final isSelected = collectionSelection[colId] ?? false;
+
+                        return CheckboxListTile(
+                          value: isSelected,
+                          title: Row(
+                            children: [
+                              Text(icon, style: const TextStyle(fontSize: 24)),
+                              const SizedBox(width: 8),
+                              Text(name),
+                            ],
+                          ),
+                          subtitle: Text(isOwned ? 'Owned' : 'Contributor'),
+                          onChanged: (bool? value) async {
+                            final add = (value ?? false);
+
+                            setState(() {
+                              collectionSelection[colId] = add;
+                            });
+
+                            // Figure out the real ownerUid
+                            final ownerUid = c['ownerUid'] as String;
+
+                            // Call your toggleRecipeInCollection
+                            await toggleRecipeInCollection(
+                              collectionOwnerUid: ownerUid,
+                              collectionId: colId,
+                              add: add,
+                              recipeId: recipeId,
+                            );
+                          },
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).primaryColor,
+                ),
+                onPressed: () =>
+                    {recipeProvider.refreshSavedRecipes(), Navigator.pop(ctx)},
+                child:
+                    const Text('Done', style: TextStyle(color: Colors.white)),
               ),
             ],
           );

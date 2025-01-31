@@ -12,6 +12,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
+import 'package:food_fellas/providers/feedbackProvider.dart';
 import 'package:food_fellas/providers/ingredientProvider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
@@ -116,6 +117,7 @@ void main() async {
         ChangeNotifierProvider(create: (_) => SearchProvider()),
         ChangeNotifierProvider(create: (_) => UserDataProvider()),
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
+        ChangeNotifierProvider(create: (_) => FeedbackProvider()),
       ],
       child: MainApp(),
     ),
@@ -166,7 +168,8 @@ void _handleIncomingLink(Uri uri) {
             final contributors =
                 (uri.queryParameters['contributors'] ?? '').split(',');
             print('CollectionId: $contentId');
-            print('trying to push collection screen with params: $userId, $name, $emoji, $visibility, $contributors');
+            print(
+                'trying to push collection screen with params: $userId, $name, $emoji, $visibility, $contributors');
             nav.push(
               MaterialPageRoute(
                 builder: (_) => RecipesListScreen(
@@ -176,7 +179,7 @@ void _handleIncomingLink(Uri uri) {
                   collectionName: name,
                   collectionEmoji: emoji,
                   collectionVisibility: visibility,
-                  collectionContributers: contributors,
+                  collectionContributors: contributors,
                 ),
               ),
             );
@@ -324,6 +327,15 @@ class _MainPageState extends State<MainPage> {
   Widget build(BuildContext context) {
     int _selectedIndex =
         Provider.of<BottomNavBarProvider>(context).selectedIndex;
+    final userData = Provider.of<UserDataProvider>(context).userData;
+
+    if (userData == null) {
+      return Scaffold(
+        body: Center(
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
     return Scaffold(
       body: Center(
         child: _widgetOptions.elementAt(_selectedIndex),

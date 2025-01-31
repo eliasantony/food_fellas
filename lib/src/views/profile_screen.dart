@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:flutter/services.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
+import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
@@ -62,7 +63,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? displayUserId = widget.userId ?? currentUser?.uid;
 
     if (currentUser == null) {
-      // Handle unauthenticated user
       return;
     }
 
@@ -308,6 +308,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
             _buildRecipesSection(context, theme, userData),
             // Collections Section
             _buildCollectionsSection(context, theme, userData, isCurrentUser),
+            // Contributed Collections Section
+            _buildContributedCollectionsSection(
+                context, theme, userData, isCurrentUser),
             // Followed Collections Section
             _buildFollowedCollectionsSection(context),
             SizedBox(height: 20),
@@ -702,14 +705,61 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-// Collection Card
-  Widget _buildCollectionCard(
-    BuildContext context,
-    ThemeData theme,
-    String userId, // The collection's owner
-    String collectionId,
-    Map<String, dynamic> collectionData,
-  ) {
+  // profile_screen.dart
+
+  Widget _buildContributedCollectionsSection(BuildContext context,
+      ThemeData theme, Map<String, dynamic> userData, bool isCurrentUser) {
+    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+    final userId = userData['uid'];
+
+    return FutureBuilder<List<Map<String, dynamic>>>(
+      future: recipeProvider.getContributedCollections(),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return SizedBox(
+            height: 200,
+            child: Center(child: CircularProgressIndicator()),
+          );
+        } else if (snapshot.hasError) {
+          return Center(child: Text('Error fetching contributed collections'));
+        } else if (!snapshot.hasData || snapshot.data!.isEmpty) {
+          return SizedBox(); // No contributed collections to show
+        } else {
+          final contributedCollections = snapshot.data!;
+
+          return Column(
+            children: [
+              SizedBox(height: 20),
+              Container(
+                alignment: Alignment.centerLeft,
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: Text(
+                  'Contributed Collections',
+                  style: theme.textTheme.titleLarge,
+                ),
+              ),
+              SizedBox(height: 10),
+              Container(
+                height: 200,
+                child: ListView.builder(
+                  scrollDirection: Axis.horizontal,
+                  itemCount: contributedCollections.length,
+                  itemBuilder: (context, index) {
+                    final collection = contributedCollections[index];
+                    return _buildContributedCollectionCard(
+                        context, theme, collection);
+                  },
+                ),
+              ),
+            ],
+          );
+        }
+      },
+    );
+  }
+
+  Widget _buildContributedCollectionCard(BuildContext context, ThemeData theme,
+      Map<String, dynamic> collectionData) {
     String name = collectionData['name'] ?? 'Unnamed';
     String icon = collectionData['icon'] ?? '🍽';
     List<dynamic> recipes = collectionData['recipes'] ?? [];
@@ -717,23 +767,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
     int followersCount = collectionData['followersCount'] ?? 0;
     double averageRating = (collectionData['averageRating'] ?? 0.0).toDouble();
     int ratingsCount = collectionData['ratingsCount'] ?? 0;
-    List<String> contributers =
-        collectionData['contributers']?.cast<String>() ?? [];
+    List<String> contributors =
+        collectionData['contributors']?.cast<String>() ?? [];
+
+    String ownerUid = collectionData['ownerUid'] ?? '';
 
     return GestureDetector(
       onTap: () {
-        // Navigate to that collection
+        // Navigate to the collection's detail screen
         Navigator.push(
           context,
           MaterialPageRoute(
             builder: (context) => RecipesListScreen(
               isCollection: true,
-              collectionUserId: userId,
-              collectionId: collectionId,
+              collectionUserId: ownerUid,
+              collectionId: collectionData['id'],
               collectionName: name,
               collectionEmoji: icon,
               collectionVisibility: isPublic,
-              collectionContributers: contributers,
+              collectionContributors: contributors,
             ),
           ),
         );
@@ -755,10 +807,111 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     Icon(Icons.lock_outline_rounded,
                         size: 16, color: Colors.grey),
                   SizedBox(width: 4),
-                  Text(
-                    name,
-                    textAlign: TextAlign.center,
-                    style: theme.textTheme.titleMedium,
+                  Flexible(
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                ],
+              ),
+              SizedBox(height: 4),
+              Text('${recipes.length} recipes',
+                  style: theme.textTheme.titleSmall),
+              // Show followers
+              if (isPublic) ...[
+                SizedBox(height: 8),
+                Text('$followersCount followers',
+                    style: theme.textTheme.bodySmall),
+              ],
+              // Show average rating
+              if (ratingsCount > 0) ...[
+                SizedBox(height: 4),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      Icons.star,
+                      color: Colors.amber,
+                      size: 16,
+                    ),
+                    SizedBox(width: 4),
+                    Text(
+                      '${averageRating.toStringAsFixed(1)} ($ratingsCount)',
+                      style: theme.textTheme.bodySmall,
+                    ),
+                  ],
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+// Collection Card
+  Widget _buildCollectionCard(
+    BuildContext context,
+    ThemeData theme,
+    String userId, // The collection's owner
+    String collectionId,
+    Map<String, dynamic> collectionData,
+  ) {
+    String name = collectionData['name'] ?? 'Unnamed';
+    String icon = collectionData['icon'] ?? '🍽';
+    List<dynamic> recipes = collectionData['recipes'] ?? [];
+    bool isPublic = collectionData['isPublic'] ?? false;
+    int followersCount = collectionData['followersCount'] ?? 0;
+    double averageRating = (collectionData['averageRating'] ?? 0.0).toDouble();
+    int ratingsCount = collectionData['ratingsCount'] ?? 0;
+    List<String> contributors =
+        collectionData['contributors']?.cast<String>() ?? [];
+
+    return GestureDetector(
+      onTap: () {
+        // Navigate to that collection
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => RecipesListScreen(
+              isCollection: true,
+              collectionUserId: userId,
+              collectionId: collectionId,
+              collectionName: name,
+              collectionEmoji: icon,
+              collectionVisibility: isPublic,
+              collectionContributors: contributors,
+            ),
+          ),
+        );
+      },
+      child: Card(
+        margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        child: Container(
+          width: 120,
+          padding: EdgeInsets.all(8),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(icon, style: TextStyle(fontSize: 40)),
+              SizedBox(height: 8),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  if (!isPublic)
+                    Icon(Icons.lock_outline_rounded,
+                        size: 16, color: Colors.grey),
+                  SizedBox(width: 4),
+                  Flexible(
+                    child: Text(
+                      name,
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.titleMedium,
+                      overflow: TextOverflow.ellipsis,
+                    ),
                   ),
                 ],
               ),
@@ -914,10 +1067,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
           context,
           MaterialPageRoute(
             builder: (context) => RecipesListScreen(
-              baseQuery: FirebaseFirestore.instance
-                  .collection('recipes')
-                  .where('authorId', isEqualTo: widget.userId),
+              baseQuery: FirebaseFirestore.instance.collection('recipes').where(
+                  'authorId',
+                  isEqualTo: isCurrentUser
+                      ? FirebaseAuth.instance.currentUser!.uid
+                      : widget.userId),
               title: titleForRecipes,
+              isCollection: false,
             ),
           ),
         );

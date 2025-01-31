@@ -25,9 +25,6 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  Map<String, dynamic>? _currentUser;
-  String _displayName = '';
-  String? _photoUrl;
   List<Tag> _mealTypeTags = [];
   final ScrollController _scrollController = ScrollController();
   final ValueNotifier<bool> _isExpandedNotifier = ValueNotifier(true);
@@ -52,11 +49,6 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoading = true;
     });
-    // Grab the user from your UserDataProvider, if it exists:
-    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
-    _currentUser = userProvider.userData; // if not null
-    _displayName = _currentUser?['display_name'] ?? 'Guest';
-    _photoUrl = _currentUser?['photo_url'];
 
     await _fetchRows();
     setState(() {
@@ -80,17 +72,9 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  Future<void> _fetchCurrentUser() async {
-    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
-    _currentUser = userProvider.userData;
-    _displayName = _currentUser?['display_name'] ?? 'Guest';
-    _photoUrl = _currentUser?['photo_url'];
-  }
-
   Future<void> _fetchRows() async {
     final searchProvider = Provider.of<SearchProvider>(context, listen: false);
     final userId = FirebaseAuth.instance.currentUser!.uid;
-    print('Fetching home rows for $userId');
     await searchProvider.fetchHomeRowsOnce(userId);
   }
 
@@ -139,16 +123,16 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  String _getGreetingMessage() {
+  String _getGreetingMessage(String displayName) {
     DateTime now = DateTime.now();
     int hour = now.hour;
 
     if (hour < 12) {
-      return 'Good Morning, $_displayName!';
+      return 'Good Morning, $displayName!';
     } else if (hour < 18) {
-      return 'Good Afternoon, $_displayName!';
+      return 'Good Afternoon, $displayName!';
     } else {
-      return 'Good Evening, $_displayName!';
+      return 'Good Evening, $displayName!';
     }
   }
 
@@ -167,13 +151,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final userProvider = Provider.of<UserDataProvider>(context);
-    final userData = userProvider.userData;
-
-    if (userData == null) {
-      return const Center(child: CircularProgressIndicator());
-    }
-
     return Scaffold(
       body: _buildBody(),
       floatingActionButton: _buildFAB(),
@@ -342,18 +319,23 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        GestureDetector(
-          onTap: () {
-            Provider.of<BottomNavBarProvider>(context, listen: false)
-                .setIndex(4);
+        Selector<UserDataProvider, String?>(
+          selector: (context, provider) => provider.userData?['photo_url'],
+          builder: (context, photoUrl, child) {
+            return GestureDetector(
+              onTap: () {
+                Provider.of<BottomNavBarProvider>(context, listen: false)
+                    .setIndex(4);
+              },
+              child: CircleAvatar(
+                backgroundColor: Colors.transparent,
+                backgroundImage: photoUrl != null
+                    ? NetworkImage(photoUrl)
+                    : AssetImage('lib/assets/images/DefaultAvatar.png')
+                        as ImageProvider,
+              ),
+            );
           },
-          child: CircleAvatar(
-            backgroundColor: Colors.transparent,
-            backgroundImage: _photoUrl != null
-                ? NetworkImage(_photoUrl!)
-                : AssetImage('lib/assets/images/DefaultAvatar.png')
-                    as ImageProvider,
-          ),
         ),
       ],
     );
@@ -383,31 +365,37 @@ class _HomeScreenState extends State<HomeScreen> {
           children: [
             // Column for greeting + meal-time prompt
             Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  // Greet the user first
-                  Text(
-                    _getGreetingMessage(),
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.white.withOpacity(0.9),
-                      fontWeight: FontWeight.w400,
-                    ),
-                  ),
-                  SizedBox(height: 8),
-                  // Then meal time prompt
-                  Text(
-                    _getMealTimePrompt(),
-                    style: TextStyle(
-                      fontSize: 22,
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ],
+              child: Selector<UserDataProvider, Map<String, dynamic>?>(
+                selector: (context, provider) => provider.userData,
+                builder: (context, userData, child) {
+                  String displayName = userData?['display_name'] ?? 'Guest';
+                  return Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      // Greet the user first
+                      Text(
+                        _getGreetingMessage(displayName),
+                        style: TextStyle(
+                          fontSize: 18,
+                          color: Colors.white.withOpacity(0.9),
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                      SizedBox(height: 8),
+                      // Then meal time prompt
+                      Text(
+                        _getMealTimePrompt(),
+                        style: TextStyle(
+                          fontSize: 22,
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
+                  );
+                },
               ),
             ),
             // On the right side, show an icon

@@ -25,7 +25,7 @@ class RecipesListScreen extends StatefulWidget {
   final String? collectionName;
   final String? collectionEmoji;
   final bool? collectionVisibility;
-  final List<String>? collectionContributers;
+  final List<String>? collectionContributors;
 
   RecipesListScreen({
     Key? key,
@@ -37,7 +37,7 @@ class RecipesListScreen extends StatefulWidget {
     this.collectionName,
     this.collectionEmoji,
     this.collectionVisibility,
-    this.collectionContributers,
+    this.collectionContributors,
   }) : super(key: key);
 
   @override
@@ -157,7 +157,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       recipeIds.add(rid);
       // keep the subDoc data for merging
       subDataList.add({
-        'subDocId': doc.id,
+        'recipeId': doc.id,
         ...data,
       });
     }
@@ -565,7 +565,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                             ownerUid: widget.collectionUserId!,
                             collectionId: widget.collectionId!,
                             existingContributors:
-                                widget.collectionContributers ?? [],
+                                widget.collectionContributors ?? [],
                           );
                         }
                       },
@@ -604,7 +604,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                         '&name=${Uri.encodeComponent(widget.collectionName ?? '')}'
                         '&emoji=${Uri.encodeComponent(widget.collectionEmoji ?? '')}'
                         '&visibility=${widget.collectionVisibility}'
-                        '&contributors=${widget.collectionContributers?.join(",")}';
+                        '&contributors=${widget.collectionContributors?.join(",")}';
 
                     Share.share(
                         'Check out this collection "${widget.collectionName} ${widget.collectionEmoji}": $shareUrl');
@@ -759,7 +759,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     final currentUser = FirebaseAuth.instance.currentUser;
     final isOwner = widget.collectionUserId == currentUser?.uid;
     final isContributor =
-        widget.collectionContributers?.contains(currentUser?.uid) ?? false;
+        widget.collectionContributors?.contains(currentUser?.uid) ?? false;
 
     if (isOwner || isContributor || allCollectionRecipeIds.isEmpty) {
       return SizedBox.shrink(); // Hide rating section for owners/contributors

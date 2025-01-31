@@ -101,22 +101,49 @@ class RecipeProvider extends ChangeNotifier {
     }
   }
 
-  // Fetch saved recipes for the current user
   Future<void> _fetchSavedRecipes() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
 
-    QuerySnapshot collectionsSnapshot = await FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('collections')
-        .get();
+    final userRef =
+        FirebaseFirestore.instance.collection('users').doc(user.uid);
 
-    Set<String> savedRecipeIds = Set<String>();
+    // 1) Owned
+    final ownedSnap = await userRef.collection('collections').get();
+    Set<String> savedRecipeIds = {};
 
-    for (var collection in collectionsSnapshot.docs) {
-      List<dynamic> recipes = collection['recipes'] ?? [];
+    for (var doc in ownedSnap.docs) {
+      final data = doc.data();
+      final recipes = data['recipes'] ?? [];
       savedRecipeIds.addAll(recipes.cast<String>());
+    }
+
+    // 2) Shared
+    final sharedSnap = await userRef.collection('sharedCollections').get();
+    if (sharedSnap.docs.isEmpty) {
+      _savedRecipes = savedRecipeIds;
+      notifyListeners();
+      return;
+    }
+
+    for (var sharedDoc in sharedSnap.docs) {
+      final sharedData = sharedDoc.data();
+      final ownerUid = sharedData['collectionOwnerUid'];
+      final colId = sharedData['collectionId'];
+
+      // Fetch the actual doc to see its 'recipes'
+      final colRef = FirebaseFirestore.instance
+          .collection('users')
+          .doc(ownerUid)
+          .collection('collections')
+          .doc(colId);
+
+      final colSnap = await colRef.get();
+      if (colSnap.exists) {
+        final colData = colSnap.data()!;
+        final recipes = (colData['recipes'] as List?) ?? [];
+        savedRecipeIds.addAll(recipes.cast<String>());
+      }
     }
 
     _savedRecipes = savedRecipeIds;
@@ -128,30 +155,48 @@ class RecipeProvider extends ChangeNotifier {
     return _savedRecipes.contains(recipeId);
   }
 
-  // Update saved state when a recipe is saved or unsaved
-  Future<void> toggleRecipeSavedState(String recipeId, bool isSaved) async {
+  // Method to fetch collections where the user is a contributor
+  Future<List<Map<String, dynamic>>> getContributedCollections() async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return;
+    if (user == null) return [];
 
-    // Update the saved state in Firestore
-    // For simplicity, let's assume we have a 'favorites' collection
-    final favoritesRef = FirebaseFirestore.instance
-        .collection('users')
-        .doc(user.uid)
-        .collection('favorites');
+    try {
+      final sharedSnap = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .collection('sharedCollections')
+          .get();
 
-    if (isSaved) {
-      await favoritesRef.doc(recipeId).set({
-        'recipeId': recipeId,
-        'timestamp': FieldValue.serverTimestamp(),
-      });
-      _savedRecipes.add(recipeId);
-    } else {
-      await favoritesRef.doc(recipeId).delete();
-      _savedRecipes.remove(recipeId);
+      List<Map<String, dynamic>> contributedCollections = [];
+
+      for (var sharedDoc in sharedSnap.docs) {
+        final data = sharedDoc.data();
+        final ownerUid = data['collectionOwnerUid'];
+        final colId = data['collectionId'];
+
+        // Fetch the actual collection document
+        final colSnap = await FirebaseFirestore.instance
+            .collection('users')
+            .doc(ownerUid)
+            .collection('collections')
+            .doc(colId)
+            .get();
+
+        if (colSnap.exists) {
+          final colData = colSnap.data()!;
+          contributedCollections.add({
+            'id': colSnap.id,
+            'ownerUid': ownerUid,
+            ...colData,
+          });
+        }
+      }
+
+      return contributedCollections;
+    } catch (e) {
+      print('Error fetching contributed collections: $e');
+      return [];
     }
-
-    notifyListeners();
   }
 
   // Refresh saved recipes (e.g., after login)

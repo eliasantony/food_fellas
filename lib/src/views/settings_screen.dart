@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/src/views/addRecipeForm/importRecipes_screen.dart';
+import 'package:food_fellas/src/views/admin_dashboard.dart';
 import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/settings_notificationPreferences_screen.dart';
 import 'package:provider/provider.dart';
@@ -119,7 +120,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ),
       body: ListView(
         children: [
-          if (widget.userData['role'] == 'admin')
+          if (widget.userData['role'] == 'admin') ...[
             ListTile(
               leading: Icon(Icons.edit_document),
               title: Text('Batch Import for Admins'),
@@ -134,7 +135,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 );
               },
             ),
-          Divider(),
+            ListTile(
+              leading: Icon(Icons.dashboard),
+              title: Text('Admin Dashboard'),
+              trailing: Icon(Icons.arrow_forward),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => AdminDashboardScreen()),
+                );
+              },
+            ),
+            Divider(),
+          ],
           ListTile(
             leading: Icon(Icons.notifications),
             title: Text('Manage Notifications'),

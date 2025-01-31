@@ -103,16 +103,11 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
             ),
           ),
         ),
-        leading: Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
-          child: SizedBox(
-            width: 8,
-            height: 8,
-            child: Image.asset(
-              'lib/assets/brand/hat.png',
-              fit: BoxFit.contain,
-            ),
-          ),
+        leading: IconButton(
+          icon: Icon(Icons.arrow_back),
+          onPressed: () {
+            Navigator.pop(context);
+          },
         ),
       ),
       body: Stack(
@@ -160,9 +155,16 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                   ),
                 ),
                 SizedBox(height: 20),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: _pickImage,
-                  child: Text('Upload Photo'),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  icon: Icon(Icons.upload,
+                      color: Theme.of(context).colorScheme.onPrimary),
+                  label: Text('Upload Photo',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary)),
                 ),
                 Padding(
                   padding: const EdgeInsets.all(16.0),
@@ -187,7 +189,11 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                       IconButton(
                         icon: Icon(
                           _isListening ? Icons.mic : Icons.mic_none,
-                          color: _isListening ? Colors.red : Colors.black,
+                          color: _isListening
+                              ? Colors.red
+                              : (Theme.of(context).brightness == Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black),
                         ),
                         onPressed: _listen,
                       ),
@@ -205,9 +211,17 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                   ),
                 ),
                 SizedBox(height: 20),
-                ElevatedButton(
+                ElevatedButton.icon(
                   onPressed: _canSubmit() ? _startProcessing : null,
-                  child: Text('Identify Recipe'),
+                  style: ElevatedButton.styleFrom(
+                    padding: EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                  ),
+                  icon: Icon(Icons.auto_awesome,
+                      color: Theme.of(context).colorScheme.onPrimary),
+                  label: Text('Identify Recipe',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary)),
                 ),
                 SizedBox(height: 20),
               ],
@@ -248,7 +262,11 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
           listenFor: Duration(minutes: 1),
           pauseFor: Duration(seconds: 10),
           localeId: 'en_US',
-          partialResults: true, // Enable partial results
+          listenOptions: stt.SpeechListenOptions(
+            partialResults: true,
+            enableHapticFeedback: true,
+            // Enable partial results
+          ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(

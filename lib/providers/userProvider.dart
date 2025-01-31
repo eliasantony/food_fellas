@@ -11,7 +11,7 @@ class UserDataProvider with ChangeNotifier {
     notifyListeners();
   }
 
-  void updateUserData(String uid) async {
+  Future<void> updateUserData(String uid) async {
     try {
       final userDoc =
           await FirebaseFirestore.instance.collection('users').doc(uid).get();

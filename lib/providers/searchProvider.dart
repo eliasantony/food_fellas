@@ -69,7 +69,15 @@ class SearchProvider with ChangeNotifier {
     _query = query;
     _recipes = [];
     _users = [];
-    fetchRecipes();
+
+    if (_searchMode == SearchMode.recipes) {
+      fetchRecipes();
+    } else if (_searchMode == SearchMode.users) {
+      fetchUsers(query);
+    } else if (_searchMode == SearchMode.both) {
+      fetchMultiSearch(query);
+    }
+
     notifyListeners();
   }
 
@@ -80,6 +88,16 @@ class SearchProvider with ChangeNotifier {
 
   void setSearchMode(SearchMode mode) {
     _searchMode = mode;
+
+    // Perform search based on the new mode
+    if (_searchMode == SearchMode.recipes) {
+      fetchRecipes();
+    } else if (_searchMode == SearchMode.users) {
+      fetchUsers(_query);
+    } else if (_searchMode == SearchMode.both) {
+      fetchMultiSearch(_query);
+    }
+
     notifyListeners();
   }
 
@@ -361,7 +379,7 @@ class SearchProvider with ChangeNotifier {
 
   Future<void> fetchHomeRowsOnce(String userId) async {
     if (_homeRowsFetched) return;
-
+    print('refreshing home rows...');
     // 1) fetch row recipes:
     await fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
     await fetchRowRecipes('topRated', sortBy: 'averageRating:desc');

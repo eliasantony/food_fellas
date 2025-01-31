@@ -108,20 +108,25 @@ class _InitializerWidgetState extends State<InitializerWidget> {
     );
   }
 
+  Future<bool> _checkOnboardingAndFetchUserData(String uid) async {
+    bool onboardingComplete = await checkOnboardingComplete(uid);
+    if (onboardingComplete) {
+      await _fetchUserData(uid);
+    }
+    return onboardingComplete;
+  }
+
   Widget _checkOnboarding(User user) {
     return FutureBuilder<bool>(
-      future: checkOnboardingComplete(user.uid),
-      builder: (context, onboardingSnapshot) {
-        if (onboardingSnapshot.hasError) {
+      future: _checkOnboardingAndFetchUserData(user.uid),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) {
           return _buildErrorScreen();
         }
 
-        if (onboardingSnapshot.connectionState == ConnectionState.done) {
-          final onboardingComplete = onboardingSnapshot.data ?? false;
+        if (snapshot.connectionState == ConnectionState.done) {
+          final onboardingComplete = snapshot.data ?? false;
           if (onboardingComplete) {
-            _fetchUserData(user.uid).then((_) {
-              user.uid;
-            });
             return MainPage();
           } else {
             return const WelcomeScreen();

@@ -1,3 +1,4 @@
+// importRecipes_screen.dart
 import 'dart:convert';
 import 'dart:io';
 
@@ -6,7 +7,6 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/services.dart' show rootBundle;
 
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/models/textEmbedding_model.dart';
@@ -25,7 +25,7 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
   String _userRole = 'user';
   String? _lastBatchId;
 
-  /// We'll keep references to the success/failure lists
+  /// References to the success/failure lists
   List<Recipe> _successList = [];
   List<RecipeImportError> _failureList = [];
 
@@ -75,7 +75,7 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
     });
 
     try {
-      // Example: create a "batchId" if you want to group these PDFs together
+      // Create a "batchId" to group these PDFs together
       final batchId = DateTime.now().millisecondsSinceEpoch.toString();
 
       // Upload each PDF to `pdf_uploads/{batchId}/{filename}`
@@ -89,7 +89,7 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
         final storagePath = 'pdf_uploads/$batchId/$fileName';
         final ref = FirebaseStorage.instance.ref().child(storagePath);
 
-        // Provide custom metadata so the CF knows the user
+        // Provide custom metadata so the Cloud Function knows the user
         await ref.putFile(
           localFile,
           SettableMetadata(
@@ -361,19 +361,12 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
   @override
   Widget build(BuildContext context) {
     if (_userRole != 'admin') {
-      return Scaffold(
-        appBar: AppBar(
-          title: Text('Bulk Import Recipes'),
-        ),
-        body: Center(child: Text('Not authorized')),
-      );
+      return Center(child: Text('Not authorized'));
     }
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Batch Import for Admins'),
-      ),
-      body: Center(
+    return Padding(
+      padding: const EdgeInsets.all(16.0),
+      child: Center(
         child: isLoading
             ? Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -383,114 +376,110 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
                   Text(statusMessage),
                 ],
               )
-            : Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          width: double.infinity,
-                          child: Card(
-                          margin: const EdgeInsets.symmetric(vertical: 8.0),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16.0),
-                            child: Column(
+            : SingleChildScrollView(
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    SizedBox(
+                      width: double.infinity,
+                      child: Card(
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                              'Status Message:',
-                              style: TextStyle(
-                                fontWeight: FontWeight.bold,
-                                fontSize: 16,
+                                'Status Message:',
+                                style: TextStyle(
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 16,
+                                ),
                               ),
-                              ),
+                              Divider(),
                               SizedBox(height: 8),
                               Text(statusMessage),
                             ],
-                            ),
-                          ),
                           ),
                         ),
-                        const SizedBox(height: 16),
-                        Divider(),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: pickAndUploadPdfs,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 16),
-                              textStyle: TextStyle(fontSize: 18),
-                            ),
-                            icon: Icon(Icons.upload_file,
-                                color: Theme.of(context).colorScheme.onPrimary),
-                            label: Text('Upload PDF(s) to Gemini AI  ',
-                                style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary)),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: () {
-                              if (_lastBatchId == null) {
-                                setState(() {
-                                  statusMessage =
-                                      'No batch ID found. Please upload PDFs first.';
-                                });
-                                return;
-                              }
-                              _loadAndImportProcessedRecipes(_lastBatchId!);
-                            },
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 16),
-                              textStyle: TextStyle(fontSize: 18),
-                            ),
-                            icon: Icon(Icons.downloading_outlined,
-                                color: Theme.of(context).colorScheme.onPrimary),
-                            label: Text('Load Processed PDF Recipes',
-                                style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary)),
-                          ),
-                        ),
-                        const SizedBox(height: 16),
-                        SizedBox(
-                          width: double.infinity,
-                          child: ElevatedButton.icon(
-                            onPressed: importRecipesFromDevice,
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor:
-                                  Theme.of(context).colorScheme.primary,
-                              padding: EdgeInsets.symmetric(
-                                  horizontal: 24, vertical: 16),
-                              textStyle: TextStyle(fontSize: 18),
-                            ),
-                            icon: Icon(Icons.data_object,
-                                color: Theme.of(context).colorScheme.onPrimary),
-                            label: Text('Import JSON File from device',
-                                style: TextStyle(
-                                    color: Theme.of(context)
-                                        .colorScheme
-                                        .onPrimary)),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                    const SizedBox(height: 16),
+                    Divider(),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: pickAndUploadPdfs,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
+                          textStyle: TextStyle(fontSize: 18),
+                        ),
+                        icon: Icon(Icons.upload_file,
+                            color: Theme.of(context).colorScheme.onPrimary),
+                        label: Text(
+                          'Upload PDF(s) to Gemini AI',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          if (_lastBatchId == null) {
+                            setState(() {
+                              statusMessage =
+                                  'No batch ID found. Please upload PDFs first.';
+                            });
+                            return;
+                          }
+                          _loadAndImportProcessedRecipes(_lastBatchId!);
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
+                          textStyle: TextStyle(fontSize: 18),
+                        ),
+                        icon: Icon(Icons.downloading_outlined,
+                            color: Theme.of(context).colorScheme.onPrimary),
+                        label: Text(
+                          'Load Processed PDF Recipes',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: importRecipesFromDevice,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: EdgeInsets.symmetric(
+                              horizontal: 24, vertical: 16),
+                          textStyle: TextStyle(fontSize: 18),
+                        ),
+                        icon: Icon(Icons.data_object,
+                            color: Theme.of(context).colorScheme.onPrimary),
+                        label: Text(
+                          'Import JSON File from Device',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onPrimary),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
               ),
       ),
     );
