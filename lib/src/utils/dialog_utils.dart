@@ -936,7 +936,12 @@ Future<void> showSaveRecipeDialog(
                             children: [
                               Text(icon, style: const TextStyle(fontSize: 24)),
                               const SizedBox(width: 8),
-                              Text(name),
+                                Expanded(
+                                child: Text(
+                                  name,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                                ),
                             ],
                           ),
                           subtitle: Text(isOwned ? 'Owned' : 'Contributor'),

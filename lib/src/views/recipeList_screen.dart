@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
@@ -193,6 +194,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
   // Flow B: Collection approach
   // =========================
   Future<void> _fetchCollectionInitial() async {
+    log('Fetching collection initial data...');
     if (widget.collectionUserId == null || widget.collectionId == null) return;
 
     setState(() => isLoadingCollection = true);
@@ -600,12 +602,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                   onPressed: () {
                     final shareUrl =
                         'https://foodfellas.app/share/collection/${widget.collectionId}'
-                        '?userId=${widget.collectionUserId}'
-                        '&name=${Uri.encodeComponent(widget.collectionName ?? '')}'
-                        '&emoji=${Uri.encodeComponent(widget.collectionEmoji ?? '')}'
-                        '&visibility=${widget.collectionVisibility}'
-                        '&contributors=${widget.collectionContributors?.join(",")}';
-
+                        '?userId=${widget.collectionUserId}';
                     Share.share(
                         'Check out this collection "${widget.collectionName} ${widget.collectionEmoji}": $shareUrl');
                   },

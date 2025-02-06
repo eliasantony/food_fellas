@@ -4,6 +4,7 @@ import 'dart:typed_data';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:dash_chat_2/dash_chat_2.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
@@ -14,6 +15,7 @@ import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
@@ -30,7 +32,7 @@ import 'package:provider/provider.dart';
 ChatUser currentUser = ChatUser(id: "0", firstName: "User");
 ChatUser geminiUser = ChatUser(
   id: "1",
-  firstName: "FoodFella Assist",
+  firstName: "FoodFellas AI Assist",
   profileImage:
       "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/FoodFellas_Assistant.png?alt=media&token=a6f11228-1b4f-42f7-9dbb-5844e3093431",
 );
@@ -95,6 +97,33 @@ List<String> extractOptions(String text) {
   }
 
   return options;
+}
+
+bool isValidRecipeJson(Map<String, dynamic> json) {
+  // Check that required keys exist and are of the expected types.
+  if (!json.containsKey('title') ||
+      !json.containsKey('description') ||
+      !json.containsKey('ingredients') ||
+      !json.containsKey('cookingSteps') ||
+      !json.containsKey('tags')) {
+    return false;
+  }
+
+  // You might also want to validate the structure of ingredients.
+  final ingredients = json['ingredients'];
+  if (ingredients is! List) return false;
+  for (var ingredient in ingredients) {
+    // Expecting each ingredient to be a Map with a nested structure.
+    if (ingredient is! Map ||
+        ingredient['ingredient'] == null ||
+        !(ingredient['ingredient'] is Map) ||
+        !ingredient['ingredient'].containsKey('ingredientName')) {
+      return false;
+    }
+  }
+  // Additional validations can be added here.
+
+  return true;
 }
 
 class AIChatScreen extends StatefulWidget {
@@ -354,6 +383,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
                           ChatRecipeCard(
                             recipe: recipeJson,
                             onAddRecipe: () {
+                              AnalyticsService.logEvent(
+                                  name: "ai_chat_recipe_started");
                               _navigateToAddRecipeForm(context, recipeJson);
                             },
                           ),
@@ -456,15 +487,27 @@ class _AIChatScreenState extends State<AIChatScreen> {
     }
     try {
       //setState(() => isLoading = true);
-
+      int startTime = DateTime.now().millisecondsSinceEpoch; // Start timing
       // 1) Send a single request to the AI, retrieve response + usage
+
       final response = await chatProvider.chatInstance?.sendMessage(
         Content.text(chatMessage.text),
       );
+      int endTime = DateTime.now().millisecondsSinceEpoch; // End timing
+      int responseTime = endTime - startTime;
+
       if (response == null) {
         throw Exception('No response from AI');
       }
       final responseText = response.text ?? '';
+
+      AnalyticsService.logEvent(
+        name: "ai_chat_response_time",
+        parameters: {
+          "duration_ms": responseTime,
+          "message_length": chatMessage.text.length,
+        },
+      );
 
       // 2) Track usage tokens
       final usedTokens = response.usageMetadata?.totalTokenCount ?? 0;
@@ -619,6 +662,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
       // Save the recipeJson to a local JSON file
       // final directory = await getApplicationDocumentsDirectory();
       recipe.createdByAI = true; // Set the AI-created flag
+      recipe.source = 'ai_chat';
 
       // Check and add missing ingredients
       await _checkAndAddIngredients(recipe);

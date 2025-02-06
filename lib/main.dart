@@ -1,3 +1,4 @@
+import 'dart:developer';
 import 'dart:io';
 
 import 'package:app_links/app_links.dart';
@@ -160,26 +161,14 @@ void _handleIncomingLink(Uri uri) {
             break;
           case 'collection':
             final userId = uri.queryParameters['userId'] ?? '';
-            final name =
-                Uri.decodeComponent(uri.queryParameters['name'] ?? 'Unnamed');
-            final emoji =
-                Uri.decodeComponent(uri.queryParameters['emoji'] ?? '🍽');
-            final visibility = uri.queryParameters['visibility'] == 'true';
-            final contributors =
-                (uri.queryParameters['contributors'] ?? '').split(',');
-            print('CollectionId: $contentId');
-            print(
-                'trying to push collection screen with params: $userId, $name, $emoji, $visibility, $contributors');
+            log('CollectionId: $contentId');
+            log('trying to push collection screen with params: $contentId, $userId');
             nav.push(
               MaterialPageRoute(
                 builder: (_) => RecipesListScreen(
                   isCollection: true,
                   collectionId: contentId,
                   collectionUserId: userId,
-                  collectionName: name,
-                  collectionEmoji: emoji,
-                  collectionVisibility: visibility,
-                  collectionContributors: contributors,
                 ),
               ),
             );

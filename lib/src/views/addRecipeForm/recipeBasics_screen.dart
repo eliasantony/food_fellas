@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../../models/recipe.dart';
 
 class RecipeBasicsPage extends StatefulWidget {
@@ -150,24 +151,27 @@ class _RecipeBasicsPageState extends State<RecipeBasicsPage> {
             child: TextFormField(
               initialValue: timeValue,
               decoration: InputDecoration(
-                labelText: label,
-                border: OutlineInputBorder(),
-                contentPadding:
-                    EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+              labelText: label,
+              border: OutlineInputBorder(),
+              contentPadding:
+                EdgeInsets.symmetric(vertical: 12, horizontal: 16),
               ),
               keyboardType: TextInputType.number,
+              inputFormatters: <TextInputFormatter>[
+              FilteringTextInputFormatter.digitsOnly
+              ],
               validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Please enter $label';
-                }
-                if (int.tryParse(value) == null) {
-                  return 'Please enter a valid number';
-                }
-                return null;
+              if (value == null || value.isEmpty) {
+                return 'Please enter $label';
+              }
+              if (int.tryParse(value) == null) {
+                return 'Please enter a valid number';
+              }
+              return null;
               },
               onChanged: onValueChanged,
               onSaved: (value) {
-                onValueChanged(value!);
+              onValueChanged(value!);
               },
             ),
           ),

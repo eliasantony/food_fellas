@@ -26,6 +26,7 @@ class Recipe {
   DateTime? updatedAt;
   File? imageFile;
   List<double>? embeddings;
+  String? source;
 
   Recipe({
     this.id,
@@ -50,6 +51,7 @@ class Recipe {
     this.updatedAt,
     this.imageFile,
     this.embeddings,
+    this.source,
   })  : ingredients = ingredients ?? [],
         cookingSteps = cookingSteps ?? [],
         tags = tags ?? [];

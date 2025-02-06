@@ -27,9 +27,6 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
     'tbsp',
     'tsp',
     'pinch',
-    'cup',
-    'oz',
-    'lb',
     'Other',
   ];
 
@@ -82,8 +79,7 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                                       vertical: 5.0, horizontal: 10),
                                   border: OutlineInputBorder(),
                                 ),
-                                keyboardType:
-                                    TextInputType.text, // Allow text input
+                                keyboardType: TextInputType.text,
                                 onChanged: (newValue) {
                                   setState(() {
                                     if (newValue.isNotEmpty) {
@@ -112,51 +108,36 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                             const SizedBox(width: 12),
                             Expanded(
                               flex: 1,
-                              child: showCustomUnitField
-                                  ? TextFormField(
-                                      decoration: const InputDecoration(
-                                        labelText: 'Unit',
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 5.0, horizontal: 10),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      initialValue: recipeIngredient.unit,
-                                      onChanged: (newValue) {
-                                        setState(() {
-                                          recipeIngredient.unit = newValue;
-                                          widget.onDataChanged('ingredients',
-                                              widget.recipe.ingredients);
-                                        });
-                                      },
-                                    )
-                                  : DropdownButtonFormField<String>(
-                                      decoration: const InputDecoration(
-                                        labelText: 'Unit',
-                                        contentPadding: EdgeInsets.symmetric(
-                                            vertical: 5.0, horizontal: 10),
-                                        border: OutlineInputBorder(),
-                                      ),
-                                      value: recipeIngredient.unit,
-                                      onChanged: (newValue) {
-                                        setState(() {
-                                          if (newValue == 'Other') {
-                                            recipeIngredient.unit = '';
-                                          } else {
-                                            recipeIngredient.unit = newValue!;
-                                          }
-                                          widget.onDataChanged('ingredients',
-                                              widget.recipe.ingredients);
-                                        });
-                                      },
-                                      items: units
-                                          .map<DropdownMenuItem<String>>(
-                                              (String value) {
-                                        return DropdownMenuItem<String>(
-                                          value: value,
-                                          child: Text(value),
-                                        );
-                                      }).toList(),
+                              child: Column(
+                                children: [
+                                  DropdownButtonFormField<String>(
+                                    decoration: const InputDecoration(
+                                      labelText: 'Unit',
+                                      contentPadding: EdgeInsets.symmetric(
+                                          vertical: 5.0, horizontal: 10),
+                                      border: OutlineInputBorder(),
                                     ),
+                                    // If the stored unit is not in the predefined list, default to 'Other'
+                                    value: units.contains(recipeIngredient.unit)
+                                        ? recipeIngredient.unit
+                                        : 'g',
+                                    onChanged: (newValue) {
+                                      setState(() {
+                                        recipeIngredient.unit = newValue!;
+                                        widget.onDataChanged('ingredients',
+                                            widget.recipe.ingredients);
+                                      });
+                                    },
+                                    items: units.map<DropdownMenuItem<String>>(
+                                        (String value) {
+                                      return DropdownMenuItem<String>(
+                                        value: value,
+                                        child: Text(value),
+                                      );
+                                    }).toList(),
+                                  ),
+                                ],
+                              ),
                             ),
                           ],
                         ),
@@ -210,7 +191,8 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
 
     // Validate servings
     if (widget.recipe.initialServings == null ||
-        widget.recipe.initialServings <= 0) {
+        widget.recipe.initialServings <= 0 ||
+        widget.recipe.initialServings > 100) {
       isValid = false;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(

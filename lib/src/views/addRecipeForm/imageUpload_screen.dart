@@ -1,8 +1,10 @@
 import 'dart:io';
 import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:http/http.dart' as http;
@@ -123,11 +125,19 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
     }
 
     // Fallback to a local placeholder image
-    return Image.asset(
-      'lib/assets/images/dinner-placeholder.png', // Local placeholder
-      width: double.infinity,
-      height: 200,
-      fit: BoxFit.cover,
+    return GestureDetector(
+      onTap: _pickImage,
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: AssetImage(
+                'lib/assets/images/dinner-placeholder.png'), // Local placeholder
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
+      ),
     );
   }
 
@@ -182,10 +192,14 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         SizedBox(height: 8),
         Padding(
           padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Text(
-            'Or customize the settings to create an image of your dish with AI!',
-            style: TextStyle(fontWeight: FontWeight.bold),
-            textAlign: TextAlign.left,
+          child: Row(
+            children: [
+              Text(
+                'Or let AI create a picture for you!',
+                style: TextStyle(fontWeight: FontWeight.bold),
+                textAlign: TextAlign.left,
+              ),
+            ],
           ),
         ),
         _buildCustomizationOptions(),
@@ -213,13 +227,13 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
             selectedBackground = newValue!;
           });
         }),
-        SizedBox(height: 8),
+        SizedBox(height: 4),
         _buildDropdown('Style', styles, selectedStyle, (String? newValue) {
           setState(() {
             selectedStyle = newValue!;
           });
         }),
-        SizedBox(height: 8),
+        SizedBox(height: 4),
         _buildDropdown('Plating', platingStyles, selectedPlating,
             (String? newValue) {
           setState(() {
@@ -350,8 +364,8 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         'Styled in a professional food photography setting with a $selectedBackground background, '
         '$selectedStyle style, and $selectedPlating plating.';
 
-    print('Prompt: $prompt');
     try {
+      int startTime = DateTime.now().millisecondsSinceEpoch; // Start timing
       setState(() {
         _isLoading = true;
       });
@@ -366,6 +380,9 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         'prompt': prompt,
       });
 
+      int endTime = DateTime.now().millisecondsSinceEpoch; // End timing
+      int responseTime = endTime - startTime;
+
       setState(() {
         _isLoading = false;
       });
@@ -377,6 +394,24 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
       });
 
       widget.onDataChanged('imageUrl', imageUrl);
+
+      // Log event in Firebase Analytics
+      AnalyticsService.logEvent(
+        name: "ai_image_generation_time",
+        parameters: {
+          "duration_ms": responseTime,
+          "prompt": prompt,
+        },
+      );
+
+      AnalyticsService.logEvent(
+        name: "ai_image_generation_prefs",
+        parameters: {
+          "background": selectedBackground,
+          "style": selectedStyle,
+          "plating": selectedPlating,
+        },
+      );
     } catch (e) {
       setState(() {
         _isLoading = false;

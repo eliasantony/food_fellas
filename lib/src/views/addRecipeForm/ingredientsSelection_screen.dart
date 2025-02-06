@@ -34,7 +34,6 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   @override
   void initState() {
     super.initState();
-    super.initState();
     final ingredientProvider =
         Provider.of<IngredientProvider>(context, listen: false);
 
@@ -116,9 +115,8 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
             child: SingleChildScrollView(
               child: Column(
                 children: [
-                  if (widget.recipe.ingredients.isNotEmpty)
-                    _buildSelectedIngredientsSection(),
-                  Divider(),
+                  _buildSelectedIngredientsSection(),
+                  const Divider(),
                   searchQuery.isNotEmpty
                       ? _buildSearchResults()
                       : _buildCategorizedIngredients(),
@@ -145,12 +143,15 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   }
 
   void _addNewIngredient(String ingredientName) async {
-    // Show dialog to select category
-    String? selectedCategory = await _showCategorySelectionDialog();
-    if (selectedCategory != null) {
+    // Use the improved dialog to confirm the ingredient name and select a category.
+    Map<String, String>? result =
+        await _showAddNewIngredientDialog(ingredientName);
+    if (result != null) {
+      String newName = result['name']!;
+      String category = result['category']!;
       Ingredient newIngredient = Ingredient(
-        ingredientName: ingredientName,
-        category: selectedCategory,
+        ingredientName: newName,
+        category: category,
         approved: false,
       );
 
@@ -159,19 +160,19 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
           FirebaseFirestore.instance.collection('ingredients');
       await ingredientsCollection.add(newIngredient.toJson());
 
-      // Update local lists
+      // Update local lists and automatically select the new ingredient.
       setState(() {
         availableIngredients.add(newIngredient);
         filteredIngredients.add(newIngredient);
         showAddIngredientOption = false;
-
-        // Automatically select the new ingredient
         _toggleIngredientSelection(true, newIngredient);
       });
     }
   }
 
-  Future<String?> _showCategorySelectionDialog() async {
+  Future<Map<String, String>?> _showAddNewIngredientDialog(
+      String initialName) async {
+    // List of categories (you may extract this to a constant elsewhere)
     List<String> categories = [
       'Vegetable',
       'Fruit',
@@ -188,40 +189,61 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
       'Other',
     ];
 
+    String? newIngredientName = initialName;
     String? selectedCategory;
 
-    await showDialog(
+    return showDialog<Map<String, String>>(
       context: context,
       builder: (context) {
         return AlertDialog(
-          title: const Text('Select Category'),
-          content: DropdownButtonFormField<String>(
-            decoration: const InputDecoration(
-              labelText: 'Category',
-              border: OutlineInputBorder(),
-            ),
-            items: categories.map((String value) {
-              return DropdownMenuItem<String>(
-                value: value,
-                child: Text(value),
-              );
-            }).toList(),
-            onChanged: (newValue) {
-              selectedCategory = newValue;
-            },
+          title: const Text('Add New Ingredient'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text('Confirm ingredient name and select a category:'),
+              TextFormField(
+                initialValue: initialName,
+                decoration: const InputDecoration(labelText: 'Ingredient Name'),
+                onChanged: (value) {
+                  newIngredientName = value;
+                },
+              ),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                decoration: const InputDecoration(
+                  labelText: 'Category',
+                  border: OutlineInputBorder(),
+                ),
+                items: categories.map((String value) {
+                  return DropdownMenuItem<String>(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (newValue) {
+                  selectedCategory = newValue;
+                },
+              ),
+            ],
           ),
           actions: [
             TextButton(
-              onPressed: () => Navigator.of(context).pop(),
+              onPressed: () => Navigator.of(context).pop(null),
               child: const Text('Cancel'),
             ),
             ElevatedButton(
               onPressed: () {
-                if (selectedCategory != null) {
-                  Navigator.of(context).pop();
+                if (newIngredientName?.trim().isNotEmpty == true &&
+                    selectedCategory != null) {
+                  Navigator.of(context).pop({
+                    'name': newIngredientName!.trim(),
+                    'category': selectedCategory!,
+                  });
                 } else {
                   ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Please select a category')),
+                    const SnackBar(
+                        content:
+                            Text('Please enter a name and select a category')),
                   );
                 }
               },
@@ -231,8 +253,6 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         );
       },
     );
-
-    return selectedCategory;
   }
 
   Widget _buildSearchResults() {
@@ -284,51 +304,42 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   }
 
   Widget _buildSelectedIngredientsSection() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Text(
-            'Selected Ingredients',
-            style: TextStyle(fontWeight: FontWeight.bold),
+    return ExpansionTile(
+      leading: Text(
+        '✅',
+        style: const TextStyle(fontSize: 24),
+      ),
+      title: const Text('Selected Ingredients'),
+      initiallyExpanded: widget.recipe.createdByAI == true ? true : false,
+      children: widget.recipe.ingredients.map((recipeIngredient) {
+        final ingredient = recipeIngredient.ingredient;
+        return CheckboxListTile(
+          title: Row(
+            children: [
+              Text(ingredient.ingredientName),
+              if (!ingredient.approved)
+                const Text(
+                  ' *',
+                  style: TextStyle(color: Colors.red),
+                ),
+            ],
           ),
-        ),
-        Column(
-          children: widget.recipe.ingredients.map((recipeIngredient) {
-            final ingredient = recipeIngredient.ingredient;
-            return CheckboxListTile(
-              title: Row(
-                children: [
-                  Text(ingredient.ingredientName),
-                  if (!ingredient.approved)
-                    const Text(
-                      ' *',
-                      style: TextStyle(color: Colors.red),
-                    ),
-                ],
-              ),
-              value: true,
-              onChanged: (bool? value) {
-                if (value == false) {
-                  _toggleIngredientSelection(false, ingredient);
-                }
-              },
-            );
-          }).toList(),
-        ),
-      ],
+          value: true,
+          onChanged: (bool? value) {
+            if (value == false) {
+              _toggleIngredientSelection(false, ingredient);
+            }
+          },
+        );
+      }).toList(),
     );
   }
 
   Widget _buildCategorizedIngredients() {
     // Build a Map of category to list of ingredients
     Map<String, List<Ingredient>> categorizedIngredients = {};
-
     for (var ingredient in availableIngredients) {
-      if (!categorizedIngredients.containsKey(ingredient.category)) {
-        categorizedIngredients[ingredient.category] = [];
-      }
+      categorizedIngredients.putIfAbsent(ingredient.category, () => []);
       categorizedIngredients[ingredient.category]!.add(ingredient);
     }
 
@@ -349,14 +360,16 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
       'Other',
     ];
 
-    // Build the list of ExpansionTiles in the desired order
     List<Widget> categoryWidgets = [];
-
     for (String category in categoryOrder) {
       if (categorizedIngredients.containsKey(category)) {
         List<Ingredient> ingredients = categorizedIngredients[category]!;
 
-        // Build the list of ingredients for this category
+        // Sort alphabetically (ignoring case)
+        ingredients.sort((a, b) => a.ingredientName
+            .toLowerCase()
+            .compareTo(b.ingredientName.toLowerCase()));
+
         List<Widget> ingredientWidgets = ingredients.map((ingredient) {
           return CheckboxListTile(
             title: Row(
@@ -376,24 +389,19 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
           );
         }).toList();
 
-        // Build the ExpansionTile for this category
         categoryWidgets.add(
           ExpansionTile(
             leading: Text(
               categoryEmojis[category] ?? '🍽️',
-              style: TextStyle(fontSize: 24),
+              style: const TextStyle(fontSize: 24),
             ),
             title: Text(category),
-            // Optionally, set initiallyExpanded if desired
-            // initiallyExpanded: true,
             children: ingredientWidgets,
           ),
         );
       }
     }
 
-    return Column(
-      children: categoryWidgets,
-    );
+    return Column(children: categoryWidgets);
   }
 }

@@ -19,6 +19,8 @@ class CookingStepsPage extends StatefulWidget {
 
 class _CookingStepsPageState extends State<CookingStepsPage> {
   List<TextEditingController> _controllers = [];
+  final ScrollController _scrollController = ScrollController();
+  List<GlobalKey> _itemKeys = [];
 
   @override
   void initState() {
@@ -29,7 +31,7 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
 
   @override
   void dispose() {
-    // Dispose all controllers
+    _scrollController.dispose();
     for (var controller in _controllers) {
       controller.dispose();
     }
@@ -37,6 +39,13 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
   }
 
   void _initializeControllers() {
+    if (widget.recipe.cookingSteps.isEmpty) {
+      widget.recipe.cookingSteps.add('');
+      _itemKeys.add(GlobalKey());
+    } else {
+      _itemKeys =
+          List.generate(widget.recipe.cookingSteps.length, (_) => GlobalKey());
+    }
     _controllers = widget.recipe.cookingSteps
         .map((step) => TextEditingController(text: step))
         .toList();
@@ -51,69 +60,69 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
           // Dynamically sized list view with reordering functionality
           Expanded(
             child: ReorderableListView.builder(
+              scrollController: _scrollController,
               padding: const EdgeInsets.symmetric(horizontal: 8.0),
               itemCount: _controllers.length,
               onReorder: _onReorder,
               itemBuilder: (context, index) {
-                return Padding(
-                  key: ValueKey('step_$index'),
-                  padding: const EdgeInsets.symmetric(vertical: 8.0),
-                  child: Row(
-                    children: [
-                      // Handle to drag and reorder steps
-                      ReorderableDragStartListener(
-                        index: index,
-                        child: Padding(
-                          padding: const EdgeInsets.only(right: 8.0),
-                          child: Icon(Icons.drag_handle),
-                        ),
-                      ),
-                      // Multiline TextFormField for step input
-                      Expanded(
-                        child: TextFormField(
-                          controller: _controllers[index],
-                          decoration: InputDecoration(
-                            labelText: 'Step ${index + 1}',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(8),
+                return Material(
+                    key: _itemKeys[index],
+                    child: Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 8.0),
+                        child: Row(
+                          children: [
+                            ReorderableDragStartListener(
+                              index: index,
+                              child: Padding(
+                                padding: const EdgeInsets.only(right: 8.0),
+                                child: Icon(Icons.drag_handle),
+                              ),
                             ),
-                            contentPadding: const EdgeInsets.symmetric(
-                              vertical: 12,
-                              horizontal: 16,
+                            // Multiline TextFormField for step input
+                            Expanded(
+                              child: TextFormField(
+                                controller: _controllers[index],
+                                decoration: InputDecoration(
+                                  labelText: 'Step ${index + 1}',
+                                  border: OutlineInputBorder(
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  contentPadding: const EdgeInsets.symmetric(
+                                    vertical: 12,
+                                    horizontal: 16,
+                                  ),
+                                ),
+                                keyboardType: TextInputType.multiline,
+                                maxLines: null, // Allow multiline input
+                                validator: (value) {
+                                  if (value == null || value.trim().isEmpty) {
+                                    return 'Please enter a description for this step';
+                                  }
+                                  return null;
+                                },
+                                onChanged: (value) {
+                                  // Update the recipe model when text changes
+                                  widget.recipe.cookingSteps[index] = value;
+                                  widget.onDataChanged('cookingSteps',
+                                      widget.recipe.cookingSteps);
+                                },
+                              ),
                             ),
-                          ),
-                          keyboardType: TextInputType.multiline,
-                          maxLines: null, // Allow multiline input
-                          validator: (value) {
-                            if (value == null || value.trim().isEmpty) {
-                              return 'Please enter a description for this step';
-                            }
-                            return null;
-                          },
-                          onChanged: (value) {
-                            // Update the recipe model when text changes
-                            widget.recipe.cookingSteps[index] = value;
-                            widget.onDataChanged(
-                                'cookingSteps', widget.recipe.cookingSteps);
-                          },
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.delete, color: Colors.red),
-                        onPressed: () {
-                          setState(() {
-                            // Remove the controller and the step
-                            _controllers[index].dispose();
-                            _controllers.removeAt(index);
-                            widget.recipe.cookingSteps.removeAt(index);
-                            widget.onDataChanged(
-                                'cookingSteps', widget.recipe.cookingSteps);
-                          });
-                        },
-                      ),
-                    ],
-                  ),
-                );
+                            IconButton(
+                              icon: Icon(Icons.delete, color: Colors.red),
+                              onPressed: () {
+                                setState(() {
+                                  // Remove the controller and the step
+                                  _controllers[index].dispose();
+                                  _controllers.removeAt(index);
+                                  widget.recipe.cookingSteps.removeAt(index);
+                                  widget.onDataChanged('cookingSteps',
+                                      widget.recipe.cookingSteps);
+                                });
+                              },
+                            ),
+                          ],
+                        )));
               },
             ),
           ),
@@ -142,10 +151,20 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
 
   void _addStep() {
     setState(() {
-      // Add a new controller and a new empty step
       _controllers.add(TextEditingController());
       widget.recipe.cookingSteps.add('');
+      _itemKeys.add(GlobalKey()); // Add a new key for the new step
       widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
+    });
+    // Scroll to the bottom after the frame is rendered.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
@@ -156,6 +175,10 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
       // Move the controller
       final controller = _controllers.removeAt(oldIndex);
       _controllers.insert(newIndex, controller);
+
+      // Move the key
+      final key = _itemKeys.removeAt(oldIndex);
+      _itemKeys.insert(newIndex, key);
 
       // Reorder the cooking steps in the model
       final step = widget.recipe.cookingSteps.removeAt(oldIndex);

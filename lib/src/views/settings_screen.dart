@@ -1,6 +1,8 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/src/views/addRecipeForm/importRecipes_screen.dart';
 import 'package:food_fellas/src/views/admin_dashboard.dart';
@@ -74,10 +76,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
   void _showInstagram() {
     // Open the browser to show the Privacy Policy link
     var url = Uri(
-        scheme: 'https',
-        host: 'instagram.com',
-        fragment: '/foodfellas.app',
-        path: '/');
+      scheme: 'https',
+      host: 'instagram.com',
+      path: '/foodfellas.app',
+    );
+    _launchURL(url);
+  }
+
+  void _openWebsite() {
+    // Open the browser to show the Privacy Policy link
+    var url = Uri(
+      scheme: 'https',
+      host: 'foodfellas.app',
+    );
     _launchURL(url);
   }
 
@@ -195,6 +206,41 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(),
           ListTile(
+            leading: Icon(Icons.language),
+            title: Text('Visit our Website'),
+            onTap: _openWebsite,
+          ),
+          ListTile(
+            leading: Icon(FontAwesomeIcons.instagram),
+            title: Text('Follow us on Instagram'),
+            onTap: _showInstagram,
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.share),
+            title: Text('Share FoodFellas'),
+            onTap: () {
+              Share.share(
+                  'Check out Food Fellas, the best app for food lovers! 🍔🍕🍝 Visit us at https://foodfellas.app');
+            },
+          ),
+          ListTile(
+            leading: Icon(Icons.star),
+            title: Text('Rate FoodFellas'),
+            onTap: () {
+              void _rateApp() {
+                if (Platform.isAndroid) {
+                  _launchURL(Uri.parse(
+                      'https://play.google.com/store/apps/details?id=com.foodfellas.app'));
+                } else if (Platform.isIOS) {
+                  _launchURL(
+                      Uri.parse('https://apps.apple.com/app/id1234567890'));
+                }
+              }
+            },
+          ),
+          Divider(),
+          ListTile(
             leading: Icon(Icons.description),
             title: Text('Terms of Service'),
             onTap: _showTermsOfService,
@@ -208,28 +254,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
             leading: Icon(Icons.info),
             title: Text('App Version'),
             subtitle: Text('pre 1.0.0'),
-          ),
-          Divider(),
-          ListTile(
-            leading: Icon(Icons.share),
-            title: Text('Share Food Fellas'),
-            onTap: () {
-              Share.share(
-                  'Check out Food Fellas, the best app for food lovers! 🍔🍕🍝 Visit us at https://foodfellas.app');
-            },
-          ),
-          ListTile(
-            leading: Icon(Icons.star),
-            title: Text('Rate Food Fellas'),
-            onTap: () {
-              // Implement rating logic
-            },
-          ),
-          Divider(),
-          ListTile(
-            leading: Icon(Icons.photo_camera),
-            title: Text('Follow us on Instagram'),
-            onTap: _showInstagram,
           ),
           Divider(),
           ListTile(

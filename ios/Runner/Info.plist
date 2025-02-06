@@ -38,6 +38,10 @@
 		<false />
 		<key>GIDClientID</key>
 		<string>610894749085-s0d81o3c2hicc2k9p1nbadt77evo035h.apps.googleusercontent.com</string>
+        <key>NSSpeechRecognitionUsageDescription</key>
+        <string>We need access to speech recognition for transcribing voice input.</string>
+        <key>NSMicrophoneUsageDescription</key>
+        <string>We need access to the microphone to record your voice.</string>
 		<key>LSRequiresIPhoneOS</key>
 		<true />
 		<key>UIApplicationSupportsIndirectInputEvents</key>

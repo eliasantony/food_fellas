@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/models/aiPhotoRecognitionModel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -301,11 +302,14 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                 child: Padding(
                   padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
                   child: Center(
-                    child: Text(
-                      _currentHint,
-                      key: ValueKey<String>(_currentHint),
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 16, color: Colors.white),
+                    child: Align(
+                      alignment: Alignment.center,
+                      child: Text(
+                        _currentHint,
+                        key: ValueKey<String>(_currentHint),
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 16, color: Colors.white),
+                      ),
                     ),
                   ),
                 ),
@@ -406,9 +410,17 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
       final prompt = TextPart(description);
       final imagePart = InlineDataPart('image/jpeg', _imageBytes);
 
+      // --- Start API call timing ---
+      final apiStart = DateTime.now();
       final response = await model?.generateContent([
         Content.multi([prompt, imagePart])
       ]);
+      final apiDuration = DateTime.now().difference(apiStart);
+      AnalyticsService.logEvent(
+        name: "image_to_recipe_api_response_time",
+        parameters: {"duration_ms": apiDuration.inMilliseconds},
+      );
+      // --- End API call timing ---
       final responseText = response?.text ?? '';
       print('Response: $responseText');
       // Extract the JSON recipe from the AI response
@@ -479,8 +491,11 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   Future<void> _navigateToAddRecipeForm(
       BuildContext context, Map<String, dynamic>? recipeJson) async {
     if (recipeJson != null) {
+          // Log that the image-to-recipe process is being continued
+      AnalyticsService.logEvent(name: "image_to_recipe_started");
       Recipe recipe = Recipe.fromJson(recipeJson);
       recipe.createdByAI = true; // Set the AI-created flag
+      recipe.source = "image_to_recipe";
 
       // Check and add missing ingredients
       await _checkAndAddIngredients(recipe);

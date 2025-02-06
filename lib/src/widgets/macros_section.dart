@@ -216,7 +216,7 @@ class _MacrosSectionState extends State<MacrosSection> {
                       },
                     ),
                   ),
-                if (_currentUserRole == 'user')
+                if (_currentUserRole == 'admin')
                   Padding(
                     padding: const EdgeInsets.only(top: 16.0),
                     child: SizedBox(

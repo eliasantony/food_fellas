@@ -183,6 +183,7 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
                         bool isSelected = selectedTags.contains(tag);
                         return FilterChip(
                           label: Text('${tag.icon} ${tag.name}'),
+                          showCheckmark: false,
                           selected: isSelected,
                           onSelected: (bool selected) {
                             setState(() {

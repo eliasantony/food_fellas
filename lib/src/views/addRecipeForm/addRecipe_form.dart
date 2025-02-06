@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:food_fellas/src/models/textEmbedding_model.dart';
+import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/views/addRecipeForm/tagsSelection_screen.dart';
 import 'package:food_fellas/src/views/addRecipeForm/thankyou_screen.dart';
@@ -40,11 +41,20 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
 
   late Recipe recipe;
 
+  // Record the form start time (for duration tracking)
+  late DateTime _formStartTime;
+  // If the recipe was pre-filled (e.g. from AI), keep an original copy for later comparison
+  Recipe? _originalRecipe;
+
   @override
   void initState() {
     super.initState();
     _pageController = PageController();
-
+    _formStartTime = DateTime.now();
+    if (widget.initialRecipe != null) {
+      // Clone the initial recipe (assumes toJson/fromJson exist)
+      _originalRecipe = Recipe.fromJson(widget.initialRecipe!.toJson());
+    }
     recipe = widget.initialRecipe ?? Recipe();
   }
 
@@ -56,79 +66,103 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title:
-            Text(widget.initialRecipe == null ? 'Add a Recipe' : 'Edit Recipe'),
-      ),
-      body: Column(
-        children: <Widget>[
-          SizedBox(
-            height: 100,
-            child: EasyStepper(
-              activeStep: _currentStep,
-              lineStyle: LineStyle(
-                lineLength: 80,
-                lineThickness: 3,
+    return PopScope(
+      // This callback is invoked when a pop is triggered (i.e. the user cancels the form).
+      // Here we log the cancellation along with the current step and time spent.
+      // Use the new onPopInvokedWithResult signature.
+      onPopInvokedWithResult: (bool popResult, dynamic result) {
+        final duration = DateTime.now().difference(_formStartTime);
+        // Get the step title from your EasySteps list:
+        String? currentStepName = _buildEasySteps()[_currentStep].title;
+        AnalyticsService.logEvent(
+          name: "recipe_form_cancelled",
+          parameters: {
+            "source": recipe.source ?? 'manual',
+            "duration_seconds": duration.inSeconds,
+            "cancelled_at_step": currentStepName ?? 'Unknown',
+          },
+        );
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text(
+              widget.initialRecipe == null ? 'Add a Recipe' : 'Edit Recipe'),
+        ),
+        body: Column(
+          children: <Widget>[
+            SizedBox(
+              height: 100,
+              child: EasyStepper(
+                activeStep: _currentStep,
+                lineStyle: LineStyle(
+                  lineLength: 80,
+                  lineThickness: 3,
+                ),
+                steps: _buildEasySteps(),
+                activeStepIconColor:
+                    MediaQuery.of(context).platformBrightness == Brightness.dark
+                        ? Colors.white
+                        : Colors.black,
+                activeStepBackgroundColor:
+                    Theme.of(context).colorScheme.primary,
+                activeStepBorderColor: Theme.of(context).colorScheme.primary,
+                finishedStepTextColor: Theme.of(context).colorScheme.primary,
+                onStepReached: (index) {
+                  if (_getCurrentFormKey().currentState!.validate()) {
+                    _getCurrentFormKey().currentState!.save();
+                    setState(() {
+                      _currentStep = index;
+                    });
+                    _pageController.animateToPage(
+                      index,
+                      duration: Duration(milliseconds: 300),
+                      curve: Curves.easeInOut,
+                    );
+                  }
+                },
               ),
-              steps: _buildEasySteps(),
-              activeStepIconColor:
-                  Theme.of(context).colorScheme.primary, // Icon color
-              onStepReached: (index) {
-                if (_getCurrentFormKey().currentState!.validate()) {
-                  _getCurrentFormKey().currentState!.save();
-                  setState(() {
-                    _currentStep = index;
-                  });
-                  _pageController.animateToPage(
-                    index,
-                    duration: Duration(milliseconds: 300),
-                    curve: Curves.easeInOut,
-                  );
-                }
-              },
             ),
-          ),
-          Expanded(
-            child: PageView(
-              controller: _pageController,
-              physics: NeverScrollableScrollPhysics(),
-              children: <Widget>[
-                RecipeBasicsPage(
-                  recipe: recipe,
-                  onDataChanged: _updateRecipeData,
-                  formKey: _basicsFormKey,
-                ),
-                IngredientsSelectionPage(
-                  recipe: recipe,
-                  onDataChanged: _updateRecipeData,
-                  formKey: _ingredientsFormKey,
-                ),
-                QuantitiesAndServingsPage(
-                  recipe: recipe,
-                  onDataChanged: _updateRecipeData,
-                  formKey: _quantitiesFormKey,
-                ),
-                CookingStepsPage(
-                  recipe: recipe,
-                  onDataChanged: _updateRecipeData,
-                  formKey: _stepsFormKey,
-                ),
-                TagsSelectionPage(
-                  recipe: recipe,
-                  onDataChanged: _updateRecipeData,
-                  formKey: _tagsFormKey,
-                ),
-                ImageUploadPage(
-                  recipe: recipe,
-                  onDataChanged: _updateRecipeData,
-                  formKey: _imageFormKey,
-                ),
-              ],
+            Expanded(
+              child: PageView(
+                controller: _pageController,
+                physics: NeverScrollableScrollPhysics(),
+                children: <Widget>[
+                  RecipeBasicsPage(
+                    recipe: recipe,
+                    onDataChanged: _updateRecipeData,
+                    formKey: _basicsFormKey,
+                  ),
+                  IngredientsSelectionPage(
+                    recipe: recipe,
+                    onDataChanged: _updateRecipeData,
+                    formKey: _ingredientsFormKey,
+                  ),
+                  QuantitiesAndServingsPage(
+                    recipe: recipe,
+                    onDataChanged: _updateRecipeData,
+                    formKey: _quantitiesFormKey,
+                  ),
+                  CookingStepsPage(
+                    recipe: recipe,
+                    onDataChanged: _updateRecipeData,
+                    formKey: _stepsFormKey,
+                  ),
+                  TagsSelectionPage(
+                    recipe: recipe,
+                    onDataChanged: _updateRecipeData,
+                    formKey: _tagsFormKey,
+                  ),
+                  ImageUploadPage(
+                    recipe: recipe,
+                    onDataChanged: _updateRecipeData,
+                    formKey: _imageFormKey,
+                  ),
+                ],
+              ),
             ),
-          ),
-          SizedBox(height: 100, child: _buildFloatingActionButtons())
-        ],
+            SizedBox(height: 100, child: _buildFloatingActionButtons())
+          ],
+        ),
       ),
     );
   }
@@ -215,16 +249,13 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       final now = DateTime.now();
       recipe.updatedAt = now; // Always update 'updatedAt'
 
-      // 1) Only set the authorId if it's a brand-new recipe (no existing recipe.id).
-      //    If recipe.id is null or empty => brand new
-      //    If recipe.id is set => editing existing recipe
+      // If brand new recipe, set authorId and createdAt
       if (recipe.id == null || recipe.id!.isEmpty) {
-        // This is a new recipe
-        recipe.authorId = currentUser.uid; // Keep track of who created it
-        recipe.createdAt = now; // Created time
+        recipe.authorId = currentUser.uid;
+        recipe.createdAt = now;
       }
 
-      // Handle image upload if an image is provided
+      // Handle image upload if provided
       if (recipe.imageFile != null) {
         try {
           String imageUrl =
@@ -242,7 +273,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         }
       }
 
-      // Generate embedding
+      // Generate embedding (this is your current functionality)
       try {
         TextEmbeddingModel embeddingModel = TextEmbeddingModel();
         String ingredientNames = recipe.ingredients
@@ -264,45 +295,58 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         return;
       }
 
-      // Determine if we are editing or creating new
+      // Determine if we are creating a new recipe or editing an existing one
       bool isNewRecipe = (recipe.id == null || recipe.id!.isEmpty);
 
-      // 2) Decide which DocumentReference to use
       DocumentReference docRef;
       if (isNewRecipe) {
-        // brand-new recipe
         docRef = FirebaseFirestore.instance.collection('recipes').doc();
-        recipe.id = docRef.id; // set the recipe ID
+        recipe.id = docRef.id;
       } else {
-        // editing existing recipe
         docRef =
             FirebaseFirestore.instance.collection('recipes').doc(recipe.id);
       }
 
-      // Prepare the tag names for easier searching
+      // Prepare tag names for easier searching
       List<String> tagsNames =
           recipe.tags.map((tag) => tag.name).toSet().toList();
 
-      // Convert to JSON but also add tagsNames
       Map<String, dynamic> recipeData = recipe.toJson();
       recipeData['tagsNames'] = tagsNames;
 
-try {
+      try {
         await docRef.set(recipeData);
 
         if (isNewRecipe) {
+          final duration = DateTime.now().difference(_formStartTime);
+
+          // Build the submission parameters including the source and, if available, the similarity percentage.
+          Map<String, Object> submissionParams = {
+            "source": recipe.source ?? 'manual',
+            "duration_seconds": duration.inSeconds,
+          };
+          if (_originalRecipe != null) {
+            double similarityPercentage =
+                computeRecipeSimilarity(_originalRecipe!, recipe);
+            submissionParams["similarity_percentage"] = similarityPercentage;
+          }
+          AnalyticsService.logEvent(
+            name: "recipe_submission_complete",
+            parameters: submissionParams,
+          );
+
           final userRef = FirebaseFirestore.instance
               .collection('users')
               .doc(currentUser.uid);
 
-          // Update recipe count and fetch the updated value
           DocumentSnapshot userDoc = await userRef.get();
-          int recipeCount = ((userDoc.data() as Map<String, dynamic>?)?['recipeCount'] ?? 0) + 1;
+          int recipeCount =
+              ((userDoc.data() as Map<String, dynamic>?)?['recipeCount'] ?? 0) +
+                  1;
           print('Recipe count: $recipeCount');
 
           await userRef.update({'recipeCount': FieldValue.increment(1)});
 
-          // Conditionally show feedback dialog if recipe count < 5
           if (recipeCount < 5) {
             showDialog(
               context: context,
@@ -314,7 +358,6 @@ try {
             SnackBar(content: Text('Recipe submitted successfully!')),
           );
 
-          Navigator.pop(context); // Close the form
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
@@ -338,6 +381,107 @@ try {
         });
       }
     }
+  }
+
+  double computeRecipeSimilarity(Recipe originalRecipe, Recipe newRecipe) {
+    double totalScore = 0.0;
+
+    // 1. Time similarity (prepTime & cookTime) – 25%
+    double prepSim = 1.0;
+    if (originalRecipe.prepTime != null && newRecipe.prepTime != null) {
+      int diff = (originalRecipe.prepTime! - newRecipe.prepTime!).abs();
+      int maxTime = (originalRecipe.prepTime! > newRecipe.prepTime!
+          ? originalRecipe.prepTime!
+          : newRecipe.prepTime!);
+      prepSim = maxTime > 0 ? 1 - (diff / maxTime) : 1.0;
+    }
+    double cookSim = 1.0;
+    if (originalRecipe.cookTime != null && newRecipe.cookTime != null) {
+      int diff = (originalRecipe.cookTime! - newRecipe.cookTime!).abs();
+      int maxTime = (originalRecipe.cookTime! > newRecipe.cookTime!
+          ? originalRecipe.cookTime!
+          : newRecipe.cookTime!);
+      cookSim = maxTime > 0 ? 1 - (diff / maxTime) : 1.0;
+    }
+    double timeSim = (prepSim + cookSim) / 2;
+    double timeContribution = timeSim * 25; // 25% weight
+
+    // 2. Ingredient similarity – 40%
+    // Assume each RecipeIngredient has a 'amount' field (of type double).
+    // Build maps: ingredient name (lowercased) => amount.
+    Map<String, double> originalIngr = {};
+    for (var ri in originalRecipe.ingredients) {
+      // If amount is not available, default to 1.0.
+      // (Adjust this according to your RecipeIngredient model.)
+      originalIngr[ri.ingredient.ingredientName.toLowerCase().trim()] =
+          (ri.baseAmount ?? 1.0);
+    }
+    Map<String, double> newIngr = {};
+    for (var ri in newRecipe.ingredients) {
+      newIngr[ri.ingredient.ingredientName.toLowerCase().trim()] =
+          (ri.baseAmount ?? 1.0);
+    }
+    Set<String> originalNames = originalIngr.keys.toSet();
+    Set<String> newNames = newIngr.keys.toSet();
+    double jaccard = 0.0;
+    if (originalNames.union(newNames).isNotEmpty) {
+      jaccard = originalNames.intersection(newNames).length /
+          originalNames.union(newNames).length;
+    }
+    // Now, for common ingredients, compute amount similarity.
+    double amountSim = 0.0;
+    if (originalNames.intersection(newNames).isNotEmpty) {
+      double sum = 0.0;
+      for (String key in originalNames.intersection(newNames)) {
+        double origAmt = originalIngr[key]!;
+        double newAmt = newIngr[key]!;
+        double sim = (origAmt == 0 || newAmt == 0)
+            ? 0.0
+            : 1 -
+                ((origAmt - newAmt).abs() /
+                    (origAmt > newAmt ? origAmt : newAmt));
+        sum += sim;
+      }
+      amountSim = sum / originalNames.intersection(newNames).length;
+    } else {
+      amountSim = 0.0;
+    }
+    // Combine name and amount similarity with weights (e.g., 75% name, 25% amount)
+    double ingredientScore = (0.75 * jaccard) + (0.25 * amountSim);
+    double ingredientContribution = ingredientScore * 40; // 40% weight
+
+    // 3. Tag similarity – 20%
+    Set<String> originalTags =
+        originalRecipe.tags.map((tag) => tag.name.toLowerCase().trim()).toSet();
+    Set<String> newTags =
+        newRecipe.tags.map((tag) => tag.name.toLowerCase().trim()).toSet();
+    double tagJaccard = 0.0;
+    if (originalTags.union(newTags).isNotEmpty) {
+      tagJaccard = originalTags.intersection(newTags).length /
+          originalTags.union(newTags).length;
+    }
+    double tagContribution = tagJaccard * 20; // 20% weight
+
+    // 4. Cooking steps similarity – 15%
+    List<String> originalSteps =
+        originalRecipe.cookingSteps.map((s) => s.toLowerCase().trim()).toList();
+    List<String> newSteps =
+        newRecipe.cookingSteps.map((s) => s.toLowerCase().trim()).toList();
+    Set<String> originalStepsSet = originalSteps.toSet();
+    Set<String> newStepsSet = newSteps.toSet();
+    double stepsJaccard = 0.0;
+    if (originalStepsSet.union(newStepsSet).isNotEmpty) {
+      stepsJaccard = originalStepsSet.intersection(newStepsSet).length /
+          originalStepsSet.union(newStepsSet).length;
+    }
+    double stepsContribution = stepsJaccard * 15; // 15% weight
+
+    totalScore = timeContribution +
+        ingredientContribution +
+        tagContribution +
+        stepsContribution;
+    if (totalScore > 100) totalScore = 100;
+    return totalScore;
   }
 
   Future<String> _uploadRecipeImage(File imageFile, String userId) async {
@@ -413,30 +557,61 @@ try {
 
   List<EasyStep> _buildEasySteps() {
     return [
-      const EasyStep(
+      EasyStep(
         title: 'Basics',
         icon: Icon(Icons.info),
+        activeIcon: Icon(
+          Icons.info,
+          color: MediaQuery.of(context).platformBrightness == Brightness.dark
+              ? Colors.white
+              : Colors.black,
+        ),
       ),
-      const EasyStep(
-        title: 'Ingredients',
-        icon: Icon(Icons.shopping_cart),
-      ),
-      const EasyStep(
-        title: 'Amounts',
-        icon: Icon(Icons.line_weight),
-      ),
-      const EasyStep(
-        title: 'Steps',
-        icon: Icon(Icons.list),
-      ),
-      const EasyStep(
-        title: 'Tags',
-        icon: Icon(Icons.label),
-      ),
-      const EasyStep(
-        title: 'Image',
-        icon: Icon(Icons.image),
-      ),
+      EasyStep(
+          title: 'Ingredients',
+          icon: Icon(Icons.shopping_cart),
+          activeIcon: Icon(
+            Icons.shopping_cart,
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          )),
+      EasyStep(
+          title: 'Amounts',
+          icon: Icon(Icons.scale_rounded),
+          activeIcon: Icon(
+            Icons.scale_rounded,
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          )),
+      EasyStep(
+          title: 'Steps',
+          icon: Icon(Icons.list),
+          activeIcon: Icon(
+            Icons.list,
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          )),
+      EasyStep(
+          title: 'Tags',
+          icon: Icon(Icons.label),
+          activeIcon: Icon(
+            Icons.label,
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          )),
+      EasyStep(
+          title: 'Image',
+          icon: Icon(Icons.image),
+          activeIcon: Icon(
+            Icons.image,
+            color: MediaQuery.of(context).platformBrightness == Brightness.dark
+                ? Colors.white
+                : Colors.black,
+          )),
     ];
   }
 }
