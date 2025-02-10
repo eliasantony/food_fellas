@@ -30,6 +30,7 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   List<Ingredient> filteredIngredients = [];
   String searchQuery = '';
   bool showAddIngredientOption = false;
+  TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
@@ -48,6 +49,12 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         availableIngredients = ingredientProvider.ingredients;
       });
     }
+  }
+
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
   }
 
   void _filterIngredients(String query) {
@@ -133,11 +140,24 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: TextField(
-        decoration: const InputDecoration(
-          labelText: 'Search or add ingredients', // Updated placeholder
-          prefixIcon: Icon(Icons.search),
+        controller: _searchController,
+        decoration: InputDecoration(
+          labelText: 'Search or add ingredients',
+          prefixIcon: const Icon(Icons.search),
+          suffixIcon: _searchController.text.isNotEmpty
+              ? IconButton(
+                  icon: const Icon(Icons.clear),
+                  onPressed: () {
+                    _searchController.clear();
+                    _filterIngredients('');
+                  },
+                )
+              : null,
         ),
-        onChanged: _filterIngredients,
+        onChanged: (query) {
+          _filterIngredients(query);
+          setState(() {}); // Triggers rebuild to update the suffixIcon state.
+        },
       ),
     );
   }
@@ -279,6 +299,9 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         bool isSelected = _isSelected(ingredient);
         children.add(
           CheckboxListTile(
+            visualDensity: const VisualDensity(vertical: -4, horizontal: 0),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
             title: Row(
               children: [
                 Text(ingredient.ingredientName),
@@ -314,6 +337,9 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
       children: widget.recipe.ingredients.map((recipeIngredient) {
         final ingredient = recipeIngredient.ingredient;
         return CheckboxListTile(
+          visualDensity: const VisualDensity(vertical: -4, horizontal: 0),
+          contentPadding:
+              const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
           title: Row(
             children: [
               Text(ingredient.ingredientName),
@@ -372,6 +398,9 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
 
         List<Widget> ingredientWidgets = ingredients.map((ingredient) {
           return CheckboxListTile(
+            visualDensity: const VisualDensity(vertical: -4, horizontal: 0),
+            contentPadding:
+                const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
             title: Row(
               children: [
                 Text(ingredient.ingredientName),
@@ -393,7 +422,7 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
           ExpansionTile(
             leading: Text(
               categoryEmojis[category] ?? '🍽️',
-              style: const TextStyle(fontSize: 24),
+              style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
             title: Text(category),
             children: ingredientWidgets,

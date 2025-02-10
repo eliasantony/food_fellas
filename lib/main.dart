@@ -8,6 +8,7 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -21,10 +22,14 @@ import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/services/firebase_messaging_service.dart';
+import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
+import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
+import 'package:food_fellas/src/widgets/expandableFAB.dart';
+import 'package:food_fellas/src/widgets/overlayExpandedFAB.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -233,7 +238,9 @@ class _MainAppState extends State<MainApp> {
         .getInitialMessage()
         .then((RemoteMessage? message) {
       if (message != null) {
-        handleNotificationNavigation(message.data);
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          handleNotificationNavigation(message.data);
+        });
       }
     });
 
@@ -303,7 +310,7 @@ class _MainPageState extends State<MainPage> {
   final List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     DiscoverScreen(),
-    ShoppingListScreen(),
+    AddRecipeForm(),
     const AIChatScreen(),
     ProfileScreen(),
   ];
@@ -314,49 +321,122 @@ class _MainPageState extends State<MainPage> {
 
   @override
   Widget build(BuildContext context) {
-    int _selectedIndex =
-        Provider.of<BottomNavBarProvider>(context).selectedIndex;
+    final bottomNavBarProvider = Provider.of<BottomNavBarProvider>(context);
+    int _selectedIndex = bottomNavBarProvider.selectedIndex;
     final userData = Provider.of<UserDataProvider>(context).userData;
 
     if (userData == null) {
       return Scaffold(
-        body: Center(
-          child: CircularProgressIndicator(),
-        ),
+        body: Center(child: CircularProgressIndicator()),
       );
     }
-    return Scaffold(
-      body: Center(
-        child: _widgetOptions.elementAt(_selectedIndex),
+
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (bool didPop, dynamic result) {
+        if (!didPop && _selectedIndex != 0) {
+          Provider.of<BottomNavBarProvider>(context, listen: false).setIndex(0);
+        }
+      },
+      child: Scaffold(
+        extendBody: true, // Ensures a seamless background effect
+        body: _widgetOptions.elementAt(_selectedIndex),
+        floatingActionButton: _buildExpandableFAB(),
+        floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
+        bottomNavigationBar: Stack(
+          children: [
+            // Touch-blocking layer (prevents clicks going through)
+            Positioned.fill(
+              child: GestureDetector(
+                onTap: () {}, // Blocks taps from going through
+                behavior: HitTestBehavior.opaque,
+                child: Container(), // Invisible, but catches clicks
+              ),
+            ),
+            BottomAppBar(
+              shape: const CircularNotchedRectangle(),
+              notchMargin: 8.0,
+              color: Theme.of(context).brightness == Brightness.dark
+                  ? Theme.of(context).colorScheme.surface
+                  : Theme.of(context).colorScheme.surface,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildNavItem(Icons.home, 0, _selectedIndex),
+                  _buildNavItem(Icons.search, 1, _selectedIndex),
+                  const SizedBox(width: 48), // Spacer for FAB
+                  _buildNavItem(Icons.chat, 3, _selectedIndex),
+                  _buildNavItem(Icons.person, 4, _selectedIndex),
+                ],
+              ),
+            ),
+          ],
+        ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        items: const <BottomNavigationBarItem>[
-          BottomNavigationBarItem(
-            icon: Icon(Icons.home),
-            label: 'Home',
+    );
+  }
+
+  Widget _buildNavItem(IconData icon, int index, int selectedIndex) {
+    bool isSelected = index == selectedIndex;
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          icon: Icon(
+            icon,
+            size: 32,
+            color: isSelected
+                ? Theme.of(context).colorScheme.primary
+                : Colors.grey,
           ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.search),
-            label: 'Discover',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.shopping_cart),
-            label: 'Shopping List',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'AI Chat',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
-        currentIndex: _selectedIndex,
-        selectedItemColor: Theme.of(context).colorScheme.primary,
-        unselectedItemColor: Theme.of(context).colorScheme.onSurface,
-        onTap: onItemTapped,
-      ),
+          onPressed: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(index);
+          },
+        ),
+        // Line indicator for selected state
+        if (isSelected)
+          Container(
+            height: 4,
+            width: 30,
+            color: Theme.of(context).colorScheme.primary,
+          )
+        else
+          const SizedBox(height: 4),
+      ],
+    );
+  }
+
+  Widget _buildExpandableFAB() {
+    return OverlayExpandableFab(
+      distance: 100, // adjust as needed
+      children: [
+        ActionButton(
+          onPressed: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(3);
+          },
+          icon: const Icon(Icons.chat),
+        ),
+        ActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => AddRecipeForm()),
+            );
+          },
+          icon: const Icon(Icons.create),
+        ),
+        ActionButton(
+          onPressed: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => ImageToRecipeScreen()),
+            );
+          },
+          icon: const Icon(Icons.camera_alt),
+        ),
+      ],
     );
   }
 }

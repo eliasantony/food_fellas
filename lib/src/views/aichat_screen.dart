@@ -11,6 +11,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:flutter_svg/flutter_svg.dart';
+import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
@@ -253,192 +254,206 @@ class _AIChatScreenState extends State<AIChatScreen> {
             },
           ),
         ],
-        leading: Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
-          child: SizedBox(
-            width: 8,
-            height: 8,
-            child: Image.asset(
-              'lib/assets/brand/hat.png',
-              fit: BoxFit.contain,
+        leading: GestureDetector(
+          onTap: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+            child: SizedBox(
+              width: 8,
+              height: 8,
+              child: Image.asset(
+                'lib/assets/brand/hat.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
       ),
-      body: Stack(children: [
-        Column(
-          children: [
-            if (isChatEmpty)
-              // Display Quick Replies at the top
-              Padding(
-                padding: const EdgeInsets.fromLTRB(8.0, 128.0, 8.0, 8.0),
-                child: Column(
-                  //spacing: 8,
-                  children: _getQuickReplies().map((quickReply) {
-                    return ChoiceChip(
-                      label: Text(
-                        quickReply.title ?? '',
-                        style: TextStyle(
-                          color: Theme.of(context).brightness == Brightness.dark
-                              ? Colors.white
-                              : Colors.black,
+      body: Padding(
+        padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight - 50),
+        child: Stack(children: [
+          Column(
+            children: [
+              if (isChatEmpty)
+                // Display Quick Replies at the top
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(8.0, 128.0, 8.0, 8.0),
+                  child: Column(
+                    //spacing: 8,
+                    children: _getQuickReplies().map((quickReply) {
+                      return ChoiceChip(
+                        label: Text(
+                          quickReply.title ?? '',
+                          style: TextStyle(
+                            color:
+                                Theme.of(context).brightness == Brightness.dark
+                                    ? Colors.white
+                                    : Colors.black,
+                          ),
                         ),
-                      ),
-                      selected: false,
-                      onSelected: (selected) {
-                        _onQuickReply(quickReply);
-                      },
-                    );
-                  }).toList(),
-                ),
-              ),
-            Expanded(
-              child: DashChat(
-                inputOptions: InputOptions(
-                    inputTextStyle: TextStyle(
-                      color: Colors.black,
-                    ),
-                    maxInputLength: 500,
-                    sendOnEnter: true,
-                    sendButtonBuilder: defaultSendButton(
-                        color: Theme.of(context).colorScheme.primary,
-                        padding: EdgeInsets.fromLTRB(16, 0, 0, 16)),
-                    trailing: [
-                      Padding(
-                        padding: const EdgeInsets.only(bottom: 16),
-                        child: IconButton(
-                          onPressed: _sendMediaMessage,
-                          icon: const Icon(Icons.image),
-                        ),
-                      )
-                    ]),
-                typingUsers: [...typingUsers],
-                quickReplyOptions: QuickReplyOptions(
-                  quickReplyTextStyle: TextStyle(
-                    color: Theme.of(context).brightness == Brightness.dark
-                        ? Colors.white
-                        : Colors.black,
+                        selected: false,
+                        onSelected: (selected) {
+                          _onQuickReply(quickReply);
+                        },
+                      );
+                    }).toList(),
                   ),
-                  quickReplyStyle: BoxDecoration(
-                    border: Border.all(
+                ),
+              Expanded(
+                child: DashChat(
+                  inputOptions: InputOptions(
+                      inputTextStyle: TextStyle(
+                        color: Colors.black,
+                      ),
+                      maxInputLength: 500,
+                      sendOnEnter: true,
+                      sendButtonBuilder: defaultSendButton(
+                          color: Theme.of(context).colorScheme.primary,
+                          padding: EdgeInsets.fromLTRB(16, 0, 0, 16)),
+                      trailing: [
+                        Padding(
+                          padding: const EdgeInsets.only(bottom: 16),
+                          child: IconButton(
+                            onPressed: _sendMediaMessage,
+                            icon: const Icon(Icons.image),
+                          ),
+                        )
+                      ]),
+                  typingUsers: [...typingUsers],
+                  quickReplyOptions: QuickReplyOptions(
+                    quickReplyTextStyle: TextStyle(
                       color: Theme.of(context).brightness == Brightness.dark
                           ? Colors.white
                           : Colors.black,
                     ),
-                    borderRadius: BorderRadius.circular(8.0),
-                  ),
-                  onTapQuickReply: _onQuickReply,
-                ),
-                messageOptions: MessageOptions(
-                  messageDecorationBuilder: (ChatMessage message,
-                      ChatMessage? previousMessage, ChatMessage? nextMessage) {
-                    return BoxDecoration(
-                      color: message.customProperties?['isAIMessage'] == true
-                          ? Colors.greenAccent.withOpacity(0.3)
-                          : (Theme.of(context).brightness == Brightness.dark
-                              ? const Color.fromARGB(255, 163, 163, 163)
-                                  .withOpacity(0.6)
-                              : const Color.fromARGB(255, 163, 163, 163)
-                                  .withOpacity(0.1)),
+                    quickReplyStyle: BoxDecoration(
+                      border: Border.all(
+                        color: Theme.of(context).brightness == Brightness.dark
+                            ? Colors.white
+                            : Colors.black,
+                      ),
                       borderRadius: BorderRadius.circular(8.0),
-                    );
-                  },
-                  messageTextBuilder: (ChatMessage message,
-                      ChatMessage? previousMessage, ChatMessage? nextMessage) {
-                    // Check if the message contains a JSON recipe
-                    if (message.customProperties?['jsonRecipe'] != null) {
-                      final recipeJson =
-                          message.customProperties?['jsonRecipe'];
-                      return Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Display the message text (without JSON)
-                          if ((message.text ?? '').trim().isNotEmpty)
-                            MarkdownBody(
-                              data: message.text ?? '',
-                              styleSheet: MarkdownStyleSheet(
-                                p: TextStyle(
-                                  color: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
-                                ),
-                                strong: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
-                                ),
-                                blockquote: TextStyle(
-                                  color: Theme.of(context).brightness ==
-                                          Brightness.dark
-                                      ? Colors.white
-                                      : Colors.black,
-                                  fontStyle: FontStyle.italic,
+                    ),
+                    onTapQuickReply: _onQuickReply,
+                  ),
+                  messageOptions: MessageOptions(
+                    messageDecorationBuilder: (ChatMessage message,
+                        ChatMessage? previousMessage,
+                        ChatMessage? nextMessage) {
+                      return BoxDecoration(
+                        color: message.customProperties?['isAIMessage'] == true
+                            ? Colors.greenAccent.withOpacity(0.3)
+                            : (Theme.of(context).brightness == Brightness.dark
+                                ? const Color.fromARGB(255, 163, 163, 163)
+                                    .withOpacity(0.6)
+                                : const Color.fromARGB(255, 163, 163, 163)
+                                    .withOpacity(0.1)),
+                        borderRadius: BorderRadius.circular(8.0),
+                      );
+                    },
+                    messageTextBuilder: (ChatMessage message,
+                        ChatMessage? previousMessage,
+                        ChatMessage? nextMessage) {
+                      // Check if the message contains a JSON recipe
+                      if (message.customProperties?['jsonRecipe'] != null) {
+                        final recipeJson =
+                            message.customProperties?['jsonRecipe'];
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            // Display the message text (without JSON)
+                            if ((message.text ?? '').trim().isNotEmpty)
+                              MarkdownBody(
+                                data: message.text ?? '',
+                                styleSheet: MarkdownStyleSheet(
+                                  p: TextStyle(
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                  strong: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black,
+                                  ),
+                                  blockquote: TextStyle(
+                                    color: Theme.of(context).brightness ==
+                                            Brightness.dark
+                                        ? Colors.white
+                                        : Colors.black,
+                                    fontStyle: FontStyle.italic,
+                                  ),
                                 ),
                               ),
+                            // Display the RecipeCard
+                            ChatRecipeCard(
+                              recipe: recipeJson,
+                              onAddRecipe: () {
+                                AnalyticsService.logEvent(
+                                    name: "ai_chat_recipe_started");
+                                _navigateToAddRecipeForm(context, recipeJson);
+                              },
                             ),
-                          // Display the RecipeCard
-                          ChatRecipeCard(
-                            recipe: recipeJson,
-                            onAddRecipe: () {
-                              AnalyticsService.logEvent(
-                                  name: "ai_chat_recipe_started");
-                              _navigateToAddRecipeForm(context, recipeJson);
-                            },
+                          ],
+                        );
+                      } else if (message
+                              .customProperties?['similarRecipeDoc'] !=
+                          null) {
+                        final doc =
+                            message.customProperties!['similarRecipeDoc'];
+                        return RecipeCard(recipeId: doc['id'], big: false);
+                      } else {
+                        // Regular message display
+                        return MarkdownBody(
+                          data: message.text ?? '',
+                          styleSheet: MarkdownStyleSheet(
+                            p: TextStyle(
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                            strong: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black,
+                            ),
+                            blockquote: TextStyle(
+                              color: Theme.of(context).brightness ==
+                                      Brightness.dark
+                                  ? Colors.white
+                                  : Colors.black,
+                              fontStyle: FontStyle.italic,
+                            ),
                           ),
-                        ],
-                      );
-                    } else if (message.customProperties?['similarRecipeDoc'] !=
-                        null) {
-                      final doc = message.customProperties!['similarRecipeDoc'];
-                      return RecipeCard(recipeId: doc['id'], big: false);
-                    } else {
-                      // Regular message display
-                      return MarkdownBody(
-                        data: message.text ?? '',
-                        styleSheet: MarkdownStyleSheet(
-                          p: TextStyle(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black,
-                          ),
-                          strong: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black,
-                          ),
-                          blockquote: TextStyle(
-                            color:
-                                Theme.of(context).brightness == Brightness.dark
-                                    ? Colors.white
-                                    : Colors.black,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      );
-                    }
-                  },
+                        );
+                      }
+                    },
+                  ),
+                  currentUser: currentUser,
+                  onSend: _sendMessage,
+                  messages: chatProvider.messages.reversed.toList(),
                 ),
-                currentUser: currentUser,
-                onSend: _sendMessage,
-                messages: chatProvider.messages.reversed.toList(),
+              ),
+            ],
+          ),
+          if (isLoading)
+            Container(
+              color: Colors.black54,
+              child: Center(
+                child: Lottie.asset('lib/assets/lottie/loadingAnim.json'),
               ),
             ),
-          ],
-        ),
-        if (isLoading)
-          Container(
-            color: Colors.black54,
-            child: Center(
-              child: Lottie.asset('lib/assets/lottie/loadingAnim.json'),
-            ),
-          ),
-      ]),
+        ]),
+      ),
     );
   }
 

@@ -12,8 +12,12 @@ class SimilarRecipesSection extends StatefulWidget {
   State<SimilarRecipesSection> createState() => _SimilarRecipesSectionState();
 }
 
-class _SimilarRecipesSectionState extends State<SimilarRecipesSection> {
+class _SimilarRecipesSectionState extends State<SimilarRecipesSection>
+    with AutomaticKeepAliveClientMixin {
   String? _lastFetchedId;
+
+  @override
+  bool get wantKeepAlive => true; // Ensure the widget is kept alive
 
   @override
   void initState() {
@@ -42,6 +46,7 @@ class _SimilarRecipesSectionState extends State<SimilarRecipesSection> {
 
   @override
   Widget build(BuildContext context) {
+    super.build(context); // Important for AutomaticKeepAliveClientMixin
     final searchProvider = context.watch<SearchProvider>();
 
     return Column(
@@ -52,7 +57,10 @@ class _SimilarRecipesSectionState extends State<SimilarRecipesSection> {
         if (searchProvider.isLoadingSimilarRecipes)
           const Center(child: CircularProgressIndicator())
         else if (searchProvider.similarRecipes.isNotEmpty)
-          HorizontalRecipeRow(recipes: searchProvider.similarRecipes)
+          HorizontalRecipeRow(
+            key: PageStorageKey('similarRecipes-${widget.recipeId}'),
+            recipes: searchProvider.similarRecipes,
+          )
         else
           const Text('No similar recipes found.'),
       ],

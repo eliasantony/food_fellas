@@ -61,7 +61,7 @@ class _ExpandableFabState extends State<ExpandableFab>
   Widget build(BuildContext context) {
     return SizedBox.expand(
       child: Stack(
-        alignment: Alignment.bottomRight,
+        alignment: Alignment.bottomCenter,
         clipBehavior: Clip.none,
         children: [
           _buildTapToCloseFab(),
@@ -101,8 +101,10 @@ class _ExpandableFabState extends State<ExpandableFab>
   List<Widget> _buildExpandingActionButtons() {
     final children = <Widget>[];
     final count = widget.children.length;
-    final step = 90.0 / (count - 1);
-    for (var i = 0, angleInDegrees = 0.0;
+    final startAngle = 30.0; // Adjusted starting angle
+    final step = 60.0; // Increase to spread buttons wider (100° total)
+
+    for (var i = 0, angleInDegrees = startAngle;
         i < count;
         i++, angleInDegrees += step) {
       children.add(
@@ -143,8 +145,7 @@ class _ExpandableFabState extends State<ExpandableFab>
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
                 ),
-                shape: BoxShape.rectangle,
-                borderRadius: BorderRadius.circular(16),
+                shape: BoxShape.circle,
               ),
               child: FloatingActionButton(
                 backgroundColor: Colors.transparent,

@@ -153,7 +153,6 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       body: _buildBody(),
-      floatingActionButton: _buildFAB(),
     );
   }
 
@@ -558,8 +557,9 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ),
         Container(
-          height: 200,
-          margin: EdgeInsets.only(left: 8),
+          height: 240,
+          margin:
+              EdgeInsets.fromLTRB(8.0, 0, 0, kBottomNavigationBarHeight + 16),
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: topChefs.length,
@@ -706,39 +706,6 @@ class _HomeScreenState extends State<HomeScreen> {
           ),
         ],
       ),
-    );
-  }
-
-  Widget _buildFAB() {
-    return ExpandableFab(
-      distance: 130,
-      children: [
-        ActionButton(
-          onPressed: () {
-            Provider.of<BottomNavBarProvider>(context, listen: false)
-                .setIndex(3);
-          },
-          icon: const Icon(Icons.chat),
-        ),
-        ActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => AddRecipeForm()),
-            );
-          },
-          icon: const Icon(Icons.create),
-        ),
-        ActionButton(
-          onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ImageToRecipeScreen()),
-            );
-          },
-          icon: const Icon(Icons.camera_alt),
-        ),
-      ],
     );
   }
 

@@ -574,9 +574,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   .doc(recipeData['authorId'])
                   .get()
                   .then((doc) {
-                _authorName = doc.exists
-                    ? doc['display_name'] ?? 'Unknown author'
-                    : 'Unknown author';
+                setState(() {
+                  _authorName = doc.exists
+                      ? doc['display_name'] ?? 'Unknown author'
+                      : 'Unknown author';
+                });
                 return doc;
               });
             }
@@ -1026,8 +1028,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Widget _buildImageSection(Map<String, dynamic> recipeData) {
     String? imageUrl = recipeData['imageUrl']; // Allow null to validate later
     String title = recipeData['title'] ?? '';
-    String authorId = recipeData['authorId'] ?? '';
-    String authorName = _authorName ?? 'Loading author...';
     int ingredientsCount = recipeData['ingredients']?.length ?? 0;
     int stepsCount = recipeData['cookingSteps']?.length ?? 0;
     int cookingTime = recipeData['totalTime'] ?? 0;
@@ -1099,24 +1099,35 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 ),
                 const SizedBox(height: 4),
                 // Author Name
-                GestureDetector(
-                  onTap: () {
-                    // Navigate to the author's profile
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => ProfileScreen(userId: authorId),
+                Consumer<RecipeProvider>(
+                  builder: (context, recipeProvider, child) {
+                    final recipeData =
+                        recipeProvider.recipesCache[widget.recipeId];
+                    final authorName =
+                        recipeData?['authorName'] ?? 'Loading author...';
+                    return GestureDetector(
+                      onTap: () {
+                        // Navigate to the author's profile
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => ProfileScreen(
+                              userId: recipeData?['authorId'] ?? '',
+                            ),
+                          ),
+                        );
+                      },
+                      child: Text(
+                        'by $authorName',
+                        style: const TextStyle(
+                          decoration: TextDecoration.underline,
+                          decorationStyle: TextDecorationStyle.solid,
+                          decorationColor: Colors.white,
+                          color: Colors.white,
+                        ),
                       ),
                     );
                   },
-                  child: Text(
-                    'by $authorName',
-                    style: const TextStyle(
-                      color: Colors.white,
-                      decoration: TextDecoration.underline,
-                      decorationColor: Colors.white,
-                    ),
-                  ),
                 ),
                 const SizedBox(height: 4),
                 // Details Row

@@ -79,10 +79,14 @@ Future<void> toggleRecipeInCollection({
 Future<void> toggleFollowCollection({
   required String collectionOwnerUid,
   required String collectionId,
-  required bool currentlyFollowing, // is the user currently following?
+  required bool currentlyFollowing,
 }) async {
   final currentUser = FirebaseAuth.instance.currentUser;
-  if (currentUser == null) return; // not logged in
+  if (currentUser == null) return;
+  debugPrint('currentUser.uid: ${currentUser.uid}');
+  debugPrint('collectionOwnerUid: $collectionOwnerUid');
+  debugPrint('collectionId: $collectionId');
+  debugPrint('currentlyFollowing: $currentlyFollowing');
 
   final batch = FirebaseFirestore.instance.batch();
 
@@ -105,15 +109,16 @@ Future<void> toggleFollowCollection({
       .doc(collectionId);
 
   if (currentlyFollowing) {
-    // == UNFOLLOW ==
+    debugPrint('Unfollowing collection');
+    // UNFOLLOW: delete docs and decrement followersCount
     batch.delete(followerDoc);
     batch.delete(userFollowedCollectionDoc);
-    // Decrement the followersCount
     batch.update(ownerCollectionDoc, {
       'followersCount': FieldValue.increment(-1),
     });
   } else {
-    // == FOLLOW ==
+    debugPrint('Following collection');
+    // FOLLOW: add docs and increment followersCount
     batch.set(followerDoc, {
       'followerUid': currentUser.uid,
       'followedAt': FieldValue.serverTimestamp(),
@@ -123,13 +128,20 @@ Future<void> toggleFollowCollection({
       'collectionOwnerUid': collectionOwnerUid,
       'followedAt': FieldValue.serverTimestamp(),
     });
-    // Increment the followersCount
     batch.update(ownerCollectionDoc, {
       'followersCount': FieldValue.increment(1),
     });
+    debugPrint('Batch commit...');
   }
 
-  await batch.commit();
+  try {
+    await batch.commit();
+    debugPrint('Batch commit successful');
+  } catch (e) {
+    debugPrint('Error during batch commit: $e');
+    // Rethrow or handle the error as needed.
+    throw e;
+  }
 }
 
 Future<void> rateCollection({
@@ -936,12 +948,12 @@ Future<void> showSaveRecipeDialog(
                             children: [
                               Text(icon, style: const TextStyle(fontSize: 24)),
                               const SizedBox(width: 8),
-                                Expanded(
+                              Expanded(
                                 child: Text(
                                   name,
                                   overflow: TextOverflow.ellipsis,
                                 ),
-                                ),
+                              ),
                             ],
                           ),
                           subtitle: Text(isOwned ? 'Owned' : 'Contributor'),

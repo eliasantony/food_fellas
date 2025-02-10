@@ -521,21 +521,38 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
               widget.collectionVisibility == true &&
               widget.collectionUserId != FirebaseAuth.instance.currentUser?.uid)
             IconButton(
-              icon: Icon(
-                isFollowingCollection ? Icons.favorite : Icons.favorite_border,
-                color: isFollowingCollection ? Colors.red : null,
-              ),
-              onPressed: () async {
-                await toggleFollowCollection(
-                  collectionOwnerUid: widget.collectionUserId!,
-                  collectionId: widget.collectionId!,
-                  currentlyFollowing: isFollowingCollection,
-                );
-                setState(() {
-                  isFollowingCollection = !isFollowingCollection;
-                });
-              },
-            ),
+                icon: Icon(
+                  isFollowingCollection
+                      ? Icons.favorite
+                      : Icons.favorite_border,
+                  color: isFollowingCollection ? Colors.red : null,
+                ),
+                onPressed: () async {
+                  // Store the current state BEFORE toggling.
+                  final wasFollowing = isFollowingCollection;
+
+                  // Call the toggle function with the current state.
+                  await toggleFollowCollection(
+                    collectionOwnerUid: widget.collectionUserId!,
+                    collectionId: widget.collectionId!,
+                    currentlyFollowing: wasFollowing, // use the old state!
+                  );
+
+                  // Now update the UI to reflect the change.
+                  setState(() {
+                    isFollowingCollection = !wasFollowing;
+                  });
+
+                  // Show the appropriate message.
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(
+                      content: Text(wasFollowing
+                          ? 'Collection unfollowed'
+                          : 'Collection followed'),
+                      duration: Duration(seconds: 2),
+                    ),
+                  );
+                }),
           // Show a popup menu with "Edit" and "Manage Contributors" options
           if ((widget.isCollection &&
                   _currentUserRole != null &&
@@ -606,6 +623,8 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                     Share.share(
                         'Check out this collection "${widget.collectionName} ${widget.collectionEmoji}": $shareUrl');
                   },
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary,
                   child: Icon(Icons.share),
                 )
               : null,
@@ -619,51 +638,81 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
   }
 
   Widget _buildRecipeList() {
-    if (widget.isCollection) {
-      // Handle collection loading or empty states
-      if (isLoadingCollection && allMergedData.isEmpty) {
-        return Center(child: CircularProgressIndicator());
-      }
-      if (!isLoadingCollection && visibleData.isEmpty) {
-        return Center(child: Text('No recipes in this collection.'));
-      }
-    } else {
-      // Handle subcollection loading or empty states
-      if (isLoadingMore && allMergedData.isEmpty) {
-        return Center(child: CircularProgressIndicator());
-      }
-      if (!isLoadingMore && visibleData.isEmpty) {
-        return Center(child: Text('No recipes found.'));
-      }
+    // 1) Determine if we are currently loading and have zero data
+    final bool isInitialLoading = widget.isCollection
+        ? (isLoadingCollection && allMergedData.isEmpty)
+        : (isLoadingMore && allMergedData.isEmpty);
+
+    if (isInitialLoading) {
+      // Show a center spinner ONLY for the initial load (no data yet).
+      return Center(child: CircularProgressIndicator());
     }
 
-    // Calculate the total item count
+    // 2) If we're NOT currently loading and still have zero visible recipes,
+    //    show an empty message.
+    final bool hasNoData = visibleData.isEmpty;
+    final bool isCurrentlyLoading =
+        widget.isCollection ? isLoadingCollection : isLoadingMore;
+    if (!isCurrentlyLoading && hasNoData) {
+      // We loaded, but there's no data to show
+      return Center(
+        child: Text(
+          widget.isCollection
+              ? 'No recipes in this collection.'
+              : 'No recipes found.',
+        ),
+      );
+    }
+
+    // 3) Otherwise, we have some data or we are still fetching more.
+    //    Show the ListView. We’ll append an extra “spinner” item at the bottom
+    //    if isLoadingCollection/isLoadingMore == true and hasMore == true.
+    //
+    //    We also add one more item for the rating section IF it's a collection.
+    //    So total items = visibleData + (loadingItem?) + (ratingSectionItem?)
+
+    // If we’re still loading more data and `hasMore == true`,
+    // we need 1 extra slot for the spinner.
+    final bool showLoadingFooter =
+        (isLoadingCollection || isLoadingMore) && hasMore;
+
+    // If it’s a collection, we want 1 extra slot for rating at the very end.
+    final bool isCollection = widget.isCollection;
+    final bool showRatingSection =
+        isCollection && allCollectionRecipeIds.isNotEmpty;
+
     final totalItemCount = visibleData.length +
-        ((isLoadingMore || isLoadingCollection) && hasMore ? 1 : 0) +
-        (widget.isCollection ? 1 : 0); // Add 1 for the rating section
+        (showLoadingFooter ? 1 : 0) +
+        (showRatingSection ? 1 : 0);
 
     return ListView.builder(
       controller: _scrollController,
       itemCount: totalItemCount,
       itemBuilder: (context, index) {
+        // A) If within visibleData range, return a recipe card
         if (index < visibleData.length) {
-          // Render recipe cards
           final recipeMap = visibleData[index];
           final recipeId = recipeMap['id'] as String;
           return RecipeCard(
             big: true,
             recipeId: recipeId,
           );
-        } else if (widget.isCollection &&
-            index == visibleData.length &&
-            !isLoadingCollection &&
-            allCollectionRecipeIds.isNotEmpty) {
-          // Render the rating section as the last item for collections
-          return _buildRatingSection();
-        } else {
-          // Show loading indicator for pagination
-          return Center(child: CircularProgressIndicator());
         }
+
+        // B) If we still have the rating section to place,
+        //    check if this index is the rating section slot
+        final ratingSectionIndex = visibleData.length;
+        if (showRatingSection && index == ratingSectionIndex) {
+          return _buildRatingSection();
+        }
+
+        // C) Otherwise, it must be the loading footer item
+        return Center(
+          child: Padding(
+            padding: const EdgeInsets.symmetric(vertical: 16.0),
+            child: CircularProgressIndicator(),
+          ),
+        );
       },
     );
   }

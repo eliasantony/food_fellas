@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
 
 class ShoppingListScreen extends StatelessWidget {
   const ShoppingListScreen({super.key});
@@ -49,14 +51,21 @@ class ShoppingListScreen extends StatelessWidget {
             ),
           ),
         ),
-        leading: Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
-          child: SizedBox(
-            width: 8,
-            height: 8,
-            child: Image.asset(
-              'lib/assets/brand/hat.png',
-              fit: BoxFit.contain,
+        leading: GestureDetector(
+          onTap: () {
+            Navigator.pop(context);
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+            child: SizedBox(
+              width: 8,
+              height: 8,
+              child: Image.asset(
+                'lib/assets/brand/hat.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),

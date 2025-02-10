@@ -12,6 +12,7 @@ import 'package:food_fellas/src/views/collectionDetail_screen.dart';
 import 'package:food_fellas/src/views/editProfile_screen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
+import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:food_fellas/src/views/userFollowerList_screen.dart';
 import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
@@ -198,6 +199,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
         backgroundColor: theme.appBarTheme.backgroundColor,
         actions: isCurrentUser
             ? [
+                IconButton(
+                  icon: Icon(Icons.shopping_cart_outlined,
+                      color: theme.iconTheme.color),
+                  onPressed: () async {
+                    await Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => ShoppingListScreen(),
+                      ),
+                    );
+                  },
+                ),
                 PopupMenuButton<int>(
                   icon: Icon(Icons.more_vert, color: theme.iconTheme.color),
                   onSelected: (item) async {
@@ -283,14 +296,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   },
                 ),
               ],
-        leading: Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
-          child: SizedBox(
-            width: 8,
-            height: 8,
-            child: Image.asset(
-              'lib/assets/brand/hat.png',
-              fit: BoxFit.contain,
+        leading: GestureDetector(
+          onTap: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+            child: SizedBox(
+              width: 8,
+              height: 8,
+              child: Image.asset(
+                'lib/assets/brand/hat.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
@@ -601,12 +620,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 child: ListView.builder(
                   scrollDirection: Axis.horizontal,
                   itemCount: isCurrentUser
-                      ? collections.length + 1 // Extra item for "Create New"
+                      ? collections.length + 1
                       : collections.length,
                   itemBuilder: (context, index) {
-                    if (isCurrentUser && index == collections.length) {
-                      // "Create New" card
-                      return _buildCreateCollectionCard(context, theme);
+                    if (isCurrentUser) {
+                      if (index == 0) {
+                        // Always show "Create New" card as the first item
+                        return _buildCreateCollectionCard(context, theme);
+                      } else {
+                        final collection = collections[index - 1];
+                        final collectionData =
+                            collection.data() as Map<String, dynamic>;
+                        return _buildCollectionCard(context, theme, userId,
+                            collection.id, collectionData);
+                      }
                     } else {
                       final collection = collections[index];
                       final collectionData =
@@ -643,6 +670,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
         SizedBox(height: 10),
         Container(
+          margin:
+              const EdgeInsets.only(bottom: kBottomNavigationBarHeight + 32),
           height: 200,
           child: StreamBuilder<QuerySnapshot>(
             stream: FirebaseFirestore.instance

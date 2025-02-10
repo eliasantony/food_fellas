@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_svg/svg.dart';
+import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
@@ -97,14 +98,20 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
             ),
           ),
         ),
-        leading: Padding(
-          padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
-          child: SizedBox(
-            width: 8,
-            height: 8,
-            child: Image.asset(
-              'lib/assets/brand/hat.png',
-              fit: BoxFit.contain,
+        leading: GestureDetector(
+          onTap: () {
+            Provider.of<BottomNavBarProvider>(context, listen: false)
+                .setIndex(0);
+          },
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),
+            child: SizedBox(
+              width: 8,
+              height: 8,
+              child: Image.asset(
+                'lib/assets/brand/hat.png',
+                fit: BoxFit.contain,
+              ),
             ),
           ),
         ),
@@ -206,60 +213,108 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   }
 
   Widget _buildResults(SearchProvider searchProvider) {
-    if (searchProvider.isLoading) {
-      return Center(child: CircularProgressIndicator());
-    }
+    // A quick helper so we don't type `searchProvider` repeatedly
+    final isLoading = searchProvider.isLoading;
+    final users = searchProvider.users;
+    final recipes = searchProvider.recipes;
 
-    // If "Users" only
+    /// --------------------
+    ///  USERS MODE ONLY
+    /// --------------------
     if (searchProvider.searchMode == SearchMode.users) {
-      if (searchProvider.users.isEmpty) {
+      // If there are no users and we're not loading => "No users found"
+      if (users.isEmpty && !isLoading) {
         return Center(child: Text("No users found."));
       }
-      return ListView.builder(
-        itemCount: searchProvider.users.length,
-        itemBuilder: (context, index) {
-          final userDoc = searchProvider.users[index];
-          return _buildUserTile(context, userDoc);
-        },
-      );
-    }
 
-    // If "Recipes" only (old behavior)
-    if (searchProvider.searchMode == SearchMode.recipes) {
-      if (searchProvider.recipes.isEmpty) {
-        return Center(child: Text("No recipes found."));
-      }
+      // Otherwise, show the user list plus a bottom spinner if loading
       return ListView.builder(
         controller: _scrollController,
-        itemCount: searchProvider.recipes.length,
+        itemCount: users.length + (isLoading ? 1 : 0),
         itemBuilder: (context, index) {
-          final recipe = searchProvider.recipes[index];
-          return RecipeCard(recipeId: recipe['id']);
+          if (index < users.length) {
+            final userDoc = users[index];
+            return _buildUserTile(context, userDoc);
+          } else {
+            // This is the extra item, shown only if isLoading == true
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
         },
       );
     }
 
-    // If "Both": show user(s) first if any, then recipes
+    /// --------------------
+    ///  RECIPES MODE ONLY
+    /// --------------------
+    if (searchProvider.searchMode == SearchMode.recipes) {
+      if (recipes.isEmpty && !isLoading) {
+        return Center(child: Text("No recipes found."));
+      }
+
+      return ListView.builder(
+        controller: _scrollController,
+        itemCount: recipes.length + (isLoading ? 1 : 0),
+        itemBuilder: (context, index) {
+          if (index < recipes.length) {
+            final recipe = recipes[index];
+            return RecipeCard(recipeId: recipe['id']);
+          } else {
+            // Bottom spinner
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+        },
+      );
+    }
+
+    /// --------------------
+    ///   BOTH MODE
+    /// --------------------
     if (searchProvider.searchMode == SearchMode.both) {
-      // If both sets are empty
-      if (searchProvider.users.isEmpty && searchProvider.recipes.isEmpty) {
+      // Here you have two lists: `users` and `recipes`.
+      // We'll merge them into one ListView:
+      final usersCount = users.length;
+      final recipesCount = recipes.length;
+      final totalCount = usersCount + recipesCount;
+
+      if (totalCount == 0 && !isLoading) {
         return Center(child: Text("No results found."));
       }
-      return ListView(
-        children: [
-          // 1) Possibly show a user section if _users is not empty
-          if (searchProvider.users.isNotEmpty)
-            ...searchProvider.users.map((userDoc) {
-              return _buildUserTile(context, userDoc);
-            }).toList(),
-          SizedBox(height: 16),
 
-          // 2) Then show the recipes
-          if (searchProvider.recipes.isNotEmpty)
-            ...searchProvider.recipes.map((recipe) {
-              return RecipeCard(recipeId: recipe['id']);
-            }).toList(),
-        ],
+      return ListView.builder(
+        controller: _scrollController,
+        itemCount: totalCount + (isLoading ? 1 : 0),
+        itemBuilder: (context, index) {
+          // 1) Fill up user tiles first:
+          if (index < usersCount) {
+            final userDoc = users[index];
+            return _buildUserTile(context, userDoc);
+          }
+          // 2) Then fill up recipe tiles
+          else if (index < usersCount + recipesCount) {
+            final recipeIndex = index - usersCount;
+            final recipe = recipes[recipeIndex];
+            return RecipeCard(recipeId: recipe['id']);
+          }
+          // 3) If we're past both user + recipe lists, it's the extra spinner
+          else {
+            return Center(
+              child: Padding(
+                padding: const EdgeInsets.symmetric(vertical: 16.0),
+                child: CircularProgressIndicator(),
+              ),
+            );
+          }
+        },
       );
     }
 

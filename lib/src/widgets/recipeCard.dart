@@ -8,12 +8,14 @@ import '../utils/dialog_utils.dart';
 import 'package:provider/provider.dart';
 
 class RecipeCard extends StatefulWidget {
-  final String recipeId;
+  final String? recipeId;
+  final Map<String, dynamic>? recipeData;
   final bool big;
 
   const RecipeCard({
     Key? key,
-    required this.recipeId,
+    this.recipeId,
+    this.recipeData,
     this.big = false,
   }) : super(key: key);
 
@@ -22,46 +24,80 @@ class RecipeCard extends StatefulWidget {
 }
 
 class _RecipeCardState extends State<RecipeCard> {
-  // Removed the isSaved variable and _checkIfSaved() method
+  Future<Map<String, dynamic>?>? _recipeFuture;
+  Map<String, dynamic>? _recipeData; // If already provided or once fetched
+
+  @override
+  void initState() {
+    super.initState();
+
+    // Case A: If widget.recipeData is not null, we already have the data
+    if (widget.recipeData != null) {
+      _recipeData = widget.recipeData;
+    }
+    // Case B: If not, and we have a recipeId, fetch/cached it
+    else if (widget.recipeId != null) {
+      final recipeProvider =
+          Provider.of<RecipeProvider>(context, listen: false);
+      _recipeFuture = recipeProvider.getRecipeById(widget.recipeId!);
+    }
+    // If neither is provided, there's not much we can do—maybe throw an error
+  }
 
   @override
   Widget build(BuildContext context) {
-    ThemeData theme = Theme.of(context);
-    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+    // If we already have recipeData, just build the card immediately
+    if (_recipeData != null) {
+      return _buildRecipeCard(_recipeData!);
+    }
+
+    // Otherwise, we must be fetching from `_recipeFuture`
+    if (_recipeFuture == null) {
+      // Means no recipeId and no recipeData => error or empty
+      return Text('No recipe data or ID provided.');
+    }
 
     return FutureBuilder<Map<String, dynamic>?>(
-      future: recipeProvider.getRecipeById(widget.recipeId),
+      future: _recipeFuture,
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return Container(
-            width: widget.big ? 400 : 250,
-            child: Center(child: CircularProgressIndicator()),
-          );
+          return _buildPlaceholderSpinner();
         } else if (snapshot.hasError) {
           return Text('Error loading recipe');
         } else if (!snapshot.hasData || snapshot.data == null) {
           return Text('Recipe not found');
         } else {
-          final recipeData = snapshot.data!;
-          // Now you have recipeData, you can build the card
-          return _buildRecipeCard(context, recipeProvider, recipeData);
+          // We got data—store it so we don’t rebuild the FutureBuilder again
+          _recipeData = snapshot.data!;
+          return _buildRecipeCard(_recipeData!);
         }
       },
     );
   }
 
-  Widget _buildRecipeCard(BuildContext context, RecipeProvider recipeProvider,
-      Map<String, dynamic> recipeData) {
-    ThemeData theme = Theme.of(context);
+  Widget _buildPlaceholderSpinner() {
+    return Container(
+      width: widget.big ? 400 : 250,
+      height: widget.big ? null : 220, // or some stable height
+      alignment: Alignment.center,
+      child: CircularProgressIndicator(),
+    );
+  }
 
-    // Extract data from recipeData
+  Widget _buildRecipeCard(Map<String, dynamic> recipeData) {
+    // Example from your existing code
+    // Extract needed fields from `recipeData`
+    final theme = Theme.of(context);
+    final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
+
     String title = recipeData['title'] ?? 'Unnamed Recipe';
     String description = recipeData['description'] ?? '';
-    double rating = recipeData['averageRating']?.toDouble() ?? 0.0;
+    double rating = (recipeData['averageRating'] ?? 0.0).toDouble();
     int ratingsCount = recipeData['ratingsCount'] ?? 0;
-    int totalTime = recipeData['totalTime'] ?? 0; // Corrected default value
+    int totalTime = recipeData['totalTime'] ?? 0;
     String thumbnailUrl = recipeData['imageUrl'] ?? '';
     String authorName = recipeData['authorName'] ?? 'Unknown author';
+    final recipeId = recipeData['id'] ?? widget.recipeId;
 
     return Container(
       width: widget.big ? 400 : 250,
@@ -74,19 +110,20 @@ class _RecipeCardState extends State<RecipeCard> {
           alignment: Alignment.topRight,
           children: [
             InkWell(
-              splashColor: theme.colorScheme.primary.withOpacity(0.1),
               onTap: () {
+                // Navigate with either the local ID or fallback
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) =>
-                        RecipeDetailScreen(recipeId: widget.recipeId),
+                    builder: (context) => RecipeDetailScreen(
+                      recipeId: recipeId,
+                    ),
                   ),
                 );
               },
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
+                children: [
                   AspectRatio(
                     aspectRatio: 16 / 9,
                     child: _buildRecipeImage(thumbnailUrl),
@@ -164,22 +201,20 @@ class _RecipeCardState extends State<RecipeCard> {
                 ],
               ),
             ),
-            // Bookmark button
+            // The bookmark button using Selector
             Padding(
               padding: const EdgeInsets.all(8.0),
               child: CircleAvatar(
                 backgroundColor: Colors.white.withAlpha(200),
                 child: Selector<RecipeProvider, bool>(
-                  selector: (_, provider) =>
-                      provider.isRecipeSaved(widget.recipeId),
+                  selector: (_, provider) => provider.isRecipeSaved(recipeId),
                   builder: (context, isSaved, child) {
                     return IconButton(
                       icon: isSaved
                           ? Icon(Icons.bookmark, color: Colors.green)
                           : Icon(Icons.bookmark_border, color: Colors.grey),
                       onPressed: () async {
-                        await showSaveRecipeDialog(context,
-                            recipeId: widget.recipeId);
+                        await showSaveRecipeDialog(context, recipeId: recipeId);
                       },
                     );
                   },

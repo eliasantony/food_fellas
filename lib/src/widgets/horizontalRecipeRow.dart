@@ -5,7 +5,10 @@ import 'recipeCard.dart';
 class HorizontalRecipeRow extends StatelessWidget {
   final List<Map<String, dynamic>> recipes;
 
-  HorizontalRecipeRow({required this.recipes});
+  const HorizontalRecipeRow({
+    Key? key,
+    required this.recipes,
+  }) : super(key: key);
 
   @override
   Widget build(BuildContext context) {

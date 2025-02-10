@@ -155,7 +155,7 @@ Future<void> showNotification(String? title, String? body) async {
 void handleNotificationNavigation(Map<String, dynamic> data) {
   final nav = globalNavigatorKey.currentState;
   if (nav == null) return;
-
+  debugPrint('Handling notification: $data');
   final type = data['type'];
   switch (type) {
     case 'new_recipe':
