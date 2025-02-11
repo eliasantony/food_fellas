@@ -133,20 +133,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
         children: [
           if (widget.userData['role'] == 'admin') ...[
             ListTile(
-              leading: Icon(Icons.edit_document),
-              title: Text('Batch Import for Admins'),
-              trailing: Icon(Icons.arrow_forward),
-              onTap: () async {
-                // Navigate to Import Recipes Screen
-                final result = await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => ImportRecipesPage(),
-                  ),
-                );
-              },
-            ),
-            ListTile(
               leading: Icon(Icons.dashboard),
               title: Text('Admin Dashboard'),
               trailing: Icon(Icons.arrow_forward),

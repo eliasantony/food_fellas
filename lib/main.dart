@@ -324,6 +324,14 @@ class _MainPageState extends State<MainPage> {
     final bottomNavBarProvider = Provider.of<BottomNavBarProvider>(context);
     int _selectedIndex = bottomNavBarProvider.selectedIndex;
     final userData = Provider.of<UserDataProvider>(context).userData;
+    final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
+
+    final Widget? fab = (_selectedIndex == 3 && isKeyboardVisible)
+        ? null
+        : MediaQuery(
+            data: MediaQuery.of(context).removeViewInsets(removeBottom: true),
+            child: _buildExpandableFAB(),
+          );
 
     if (userData == null) {
       return Scaffold(
@@ -339,9 +347,10 @@ class _MainPageState extends State<MainPage> {
         }
       },
       child: Scaffold(
-        extendBody: true, // Ensures a seamless background effect
+        extendBody: true,
+        resizeToAvoidBottomInset: _selectedIndex == 3 ? true : false,
         body: _widgetOptions.elementAt(_selectedIndex),
-        floatingActionButton: _buildExpandableFAB(),
+        floatingActionButton: fab,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: Stack(
           children: [

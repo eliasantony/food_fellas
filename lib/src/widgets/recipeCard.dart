@@ -238,8 +238,13 @@ class _RecipeCardState extends State<RecipeCard> {
     if (isValidUrl(thumbnailUrl)) {
       return CachedNetworkImage(
         imageUrl: thumbnailUrl!,
-        progressIndicatorBuilder: (context, url, downloadProgress) =>
-            CircularProgressIndicator(value: downloadProgress.progress),
+        progressIndicatorBuilder: (context, url, downloadProgress) => Center(
+          child: SizedBox(
+            width: 30,
+            height: 30,
+            child: CircularProgressIndicator(value: downloadProgress.progress),
+          ),
+        ),
         errorWidget: (context, url, error) => Image.asset(
           'lib/assets/images/dinner-placeholder.png',
           fit: BoxFit.cover,

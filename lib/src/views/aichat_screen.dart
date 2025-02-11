@@ -158,6 +158,10 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final chatProvider = Provider.of<ChatProvider>(context);
     bool isChatEmpty = chatProvider.messages.isEmpty;
 
+    final bottomPadding = MediaQuery.of(context).viewInsets.bottom > 0
+        ? MediaQuery.of(context).viewInsets.bottom
+        : (kBottomNavigationBarHeight - 50);
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -273,7 +277,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
         ),
       ),
       body: Padding(
-        padding: const EdgeInsets.only(bottom: kBottomNavigationBarHeight - 50),
+        padding: EdgeInsets.only(bottom: bottomPadding),
         child: Stack(children: [
           Column(
             children: [
@@ -305,15 +309,15 @@ class _AIChatScreenState extends State<AIChatScreen> {
               Expanded(
                 child: DashChat(
                   inputOptions: InputOptions(
-                      inputTextStyle: TextStyle(
-                        color: Colors.black,
-                      ),
-                      maxInputLength: 500,
-                      sendOnEnter: true,
-                      sendButtonBuilder: defaultSendButton(
-                          color: Theme.of(context).colorScheme.primary,
-                          padding: EdgeInsets.fromLTRB(16, 0, 0, 16)),
-                      trailing: [
+                    inputTextStyle: TextStyle(
+                      color: Colors.black,
+                    ),
+                    maxInputLength: 500,
+                    sendOnEnter: true,
+                    sendButtonBuilder: defaultSendButton(
+                        color: Theme.of(context).colorScheme.primary,
+                        padding: EdgeInsets.fromLTRB(16, 0, 0, 16)),
+                    /* trailing: [
                         Padding(
                           padding: const EdgeInsets.only(bottom: 16),
                           child: IconButton(
@@ -321,7 +325,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
                             icon: const Icon(Icons.image),
                           ),
                         )
-                      ]),
+                      ] */
+                  ),
                   typingUsers: [...typingUsers],
                   quickReplyOptions: QuickReplyOptions(
                     quickReplyTextStyle: TextStyle(

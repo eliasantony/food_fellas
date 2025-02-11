@@ -695,7 +695,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
           final recipeId = recipeMap['id'] as String;
           return RecipeCard(
             big: true,
-            recipeId: recipeId,
+            recipeData: recipeMap,
           );
         }
 
