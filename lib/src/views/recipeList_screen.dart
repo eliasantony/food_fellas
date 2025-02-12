@@ -222,6 +222,8 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       List<dynamic> recipeIds = data['recipes'] ?? [];
       allCollectionRecipeIds = recipeIds.cast<String>();
 
+      await _cleanupStaleRecipeIds(allCollectionRecipeIds);
+
       collectionIndex = 0; // reset
       hasMore = true;
 
@@ -352,6 +354,31 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     }
 
     return results;
+  }
+
+  Future<void> _cleanupStaleRecipeIds(List<String> recipeIds) async {
+    // Fetch recipes by IDs in a batch.
+    final snapshot = await FirebaseFirestore.instance
+        .collection('recipes')
+        .where(FieldPath.documentId, whereIn: recipeIds)
+        .get();
+
+    // Build a set of valid recipe IDs.
+    final validIds = snapshot.docs.map((doc) => doc.id).toSet();
+
+    // Determine stale IDs.
+    final staleIds = recipeIds.where((id) => !validIds.contains(id)).toList();
+
+    if (staleIds.isNotEmpty) {
+      // Update the collection document to remove the stale IDs.
+      // (Assuming your collection is stored as an array field "recipes")
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(widget.collectionUserId)
+          .collection('collections')
+          .doc(widget.collectionId)
+          .update({'recipes': FieldValue.arrayRemove(staleIds)});
+    }
   }
 
   /// Filter allMergedData based on the selected filters (e.g. averageRating, tagNames, etc.)
@@ -565,7 +592,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                 final currentUser = FirebaseAuth.instance.currentUser;
                 if (currentUser != null) {
                   bool isOwner = (currentUser.uid == widget.collectionUserId);
-                  bool isAdmin = false;
+                  bool isAdmin = _currentUserRole == 'admin';
 
                   if (isOwner || isAdmin) {
                     return PopupMenuButton<String>(
@@ -586,6 +613,16 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                             existingContributors:
                                 widget.collectionContributors ?? [],
                           );
+                        } else if (value == 'delete') {
+                          // Show the confirmation dialog
+                          if (widget.collectionId != null &&
+                              widget.collectionUserId != null) {
+                            showDeleteCollectionConfirmationDialog(
+                              context: context,
+                              ownerUid: widget.collectionUserId!,
+                              collectionId: widget.collectionId!,
+                            );
+                          }
                         }
                       },
                       icon: Icon(Icons.more_vert),
@@ -602,6 +639,13 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                           child: ListTile(
                             leading: Icon(Icons.group),
                             title: Text('Manage Contributors'),
+                          ),
+                        ),
+                        PopupMenuItem(
+                          value: 'delete',
+                          child: ListTile(
+                            leading: Icon(Icons.delete),
+                            title: Text('Delete Collection'),
                           ),
                         ),
                       ],
@@ -692,6 +736,8 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         // A) If within visibleData range, return a recipe card
         if (index < visibleData.length) {
           final recipeMap = visibleData[index];
+          print('Building recipe card for ${recipeMap['id']}');
+          print('Recipe data: $recipeMap');
           final recipeId = recipeMap['id'] as String;
           return RecipeCard(
             big: true,

@@ -29,7 +29,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   Recipe? _currentRecipe;
   String? _authorName;
   String _userRole = 'user';
-  Future<DocumentSnapshot>? _authorFuture;
   int? servings;
   int? initialServings;
   double userRating = 0.0;
@@ -567,22 +566,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             bool canEditOrDelete = userId != null &&
                 (recipeData['authorId'] == userId || _userRole == 'admin');
 
-            // Initialize author data if not already done
-            if (_authorFuture == null && recipeData['authorId'] != null) {
-              _authorFuture = FirebaseFirestore.instance
-                  .collection('users')
-                  .doc(recipeData['authorId'])
-                  .get()
-                  .then((doc) {
-                setState(() {
-                  _authorName = doc.exists
-                      ? doc['display_name'] ?? 'Unknown author'
-                      : 'Unknown author';
-                });
-                return doc;
-              });
-            }
-
             // Initialize servings if not already set
             if (initialServings == null) {
               initialServings = recipeData['initialServings'] ?? 1;
@@ -1031,6 +1014,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     int ingredientsCount = recipeData['ingredients']?.length ?? 0;
     int stepsCount = recipeData['cookingSteps']?.length ?? 0;
     int cookingTime = recipeData['totalTime'] ?? 0;
+    String authorName = recipeData['authorName'] ?? 'Unknown author';
 
     // Validate the imageUrl
     bool isValidImageUrl(String? url) {
@@ -1108,14 +1092,18 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     return GestureDetector(
                       onTap: () {
                         // Navigate to the author's profile
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => ProfileScreen(
-                              userId: recipeData?['authorId'] ?? '',
+                        final authorId = recipeData?['authorId'];
+                        if (authorId != null &&
+                            authorId.toString().isNotEmpty) {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => ProfileScreen(
+                                userId: authorId,
+                              ),
                             ),
-                          ),
-                        );
+                          );
+                        }
                       },
                       child: Text(
                         'by $authorName',

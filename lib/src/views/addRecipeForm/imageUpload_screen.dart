@@ -3,6 +3,7 @@ import 'dart:typed_data';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:image_picker/image_picker.dart';
@@ -12,6 +13,7 @@ import 'dart:convert';
 import 'package:lottie/lottie.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:provider/provider.dart';
 
 class ImageUploadPage extends StatefulWidget {
   final Recipe recipe;
@@ -157,8 +159,13 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   Widget _displayNetworkImage(String imageUrl) {
     return CachedNetworkImage(
       imageUrl: imageUrl,
-      progressIndicatorBuilder: (context, url, downloadProgress) =>
-          CircularProgressIndicator(value: downloadProgress.progress),
+      progressIndicatorBuilder: (context, url, downloadProgress) => Center(
+        child: SizedBox(
+          width: 30,
+          height: 30,
+          child: CircularProgressIndicator(value: downloadProgress.progress),
+        ),
+      ),
       errorWidget: (context, url, error) => Image.asset(
         'lib/assets/images/dinner-placeholder.png', // Local fallback
         width: double.infinity,

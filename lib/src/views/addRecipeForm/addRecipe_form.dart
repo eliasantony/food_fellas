@@ -2,12 +2,14 @@ import 'dart:io';
 
 import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
+import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:food_fellas/src/models/textEmbedding_model.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/views/addRecipeForm/tagsSelection_screen.dart';
 import 'package:food_fellas/src/views/addRecipeForm/thankyou_screen.dart';
+import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 import 'recipeBasics_screen.dart';
 import 'ingredientsSelection_screen.dart';
@@ -249,8 +251,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
       final now = DateTime.now();
       recipe.updatedAt = now; // Always update 'updatedAt'
 
+      bool isNewRecipe = (recipe.id == null || recipe.id!.isEmpty);
+
       // If brand new recipe, set authorId and createdAt
-      if (recipe.id == null || recipe.id!.isEmpty) {
+      if (isNewRecipe) {
         recipe.authorId = currentUser.uid;
         recipe.createdAt = now;
       }
@@ -295,9 +299,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         return;
       }
 
-      // Determine if we are creating a new recipe or editing an existing one
-      bool isNewRecipe = (recipe.id == null || recipe.id!.isEmpty);
-
       DocumentReference docRef;
       if (isNewRecipe) {
         docRef = FirebaseFirestore.instance.collection('recipes').doc();
@@ -307,15 +308,58 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
             FirebaseFirestore.instance.collection('recipes').doc(recipe.id);
       }
 
-      // Prepare tag names for easier searching
-      List<String> tagsNames =
-          recipe.tags.map((tag) => tag.name).toSet().toList();
-
       Map<String, dynamic> recipeData = recipe.toJson();
-      recipeData['tagsNames'] = tagsNames;
+
+      recipeData['tagsNames'] = recipe.tags.map((tag) => tag.name).toSet().toList();
+
 
       try {
-        await docRef.set(recipeData);
+        // 1) Get the current user’s display name
+        final userRef =
+            FirebaseFirestore.instance.collection('users').doc(currentUser.uid);
+        final userDoc = await userRef.get();
+        final String currentUserDisplayName =
+            userDoc.data()?['display_name'] ?? 'Unknown author';
+
+        if (isNewRecipe) {
+          // ============== NEW RECIPE ==============
+          // Store the current user’s name right away
+          recipeData['authorName'] = currentUserDisplayName;
+
+          // Write the new doc
+          await docRef.set(recipeData);
+        } else {
+          // ============= EXISTING RECIPE =============
+          // Fetch the existing doc to see who authored it
+          final docSnap = await docRef.get();
+          if (docSnap.exists) {
+            final existingData = docSnap.data() as Map<String, dynamic>;
+            final existingAuthorId = existingData['authorId'];
+
+            // If current user is the author => update authorName to current name
+            if (existingAuthorId == currentUser.uid) {
+              recipeData['authorName'] = currentUserDisplayName;
+            } else {
+              // If the doc has no authorName stored, do a fallback fetch
+              if (existingData['authorName'] == null ||
+                  existingData['authorName'] == '') {
+                // For example, use your provider to get the “real” author’s name
+                // (assuming getAuthorById returns a Map like {'display_name': '...'})
+                final originalAuthorDoc =
+                    await Provider.of<RecipeProvider>(context, listen: false)
+                        .getAuthorById(existingAuthorId);
+                final originalName =
+                    originalAuthorDoc?['display_name'] ?? 'Unknown author';
+                recipeData['authorName'] = originalName;
+              } else {
+                // Otherwise, do nothing. We respect the existing authorName.
+                recipeData.remove('authorName');
+              }
+            }
+          }
+          // Write updates to the doc (merging to keep existing fields if desired)
+          await docRef.set(recipeData, SetOptions(merge: true));
+        }
 
         if (isNewRecipe) {
           final duration = DateTime.now().difference(_formStartTime);
@@ -368,6 +412,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Recipe edited successfully!')),
           );
+          // Update the recipe in Firestore
+          final recipeProvider =
+              Provider.of<RecipeProvider>(context, listen: false);
+          recipeProvider.refreshRecipe(docRef.id);
           Navigator.pop(context, true);
         }
       } catch (e) {

@@ -30,6 +30,7 @@ import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
 import 'package:food_fellas/src/widgets/expandableFAB.dart';
 import 'package:food_fellas/src/widgets/overlayExpandedFAB.dart';
+import 'package:food_fellas/src/widgets/tutorialDialog.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'firebase_options.dart';
@@ -220,17 +221,21 @@ class _MainAppState extends State<MainApp> {
   void initState() {
     super.initState();
 
+    checkAndShowTutorial(context);
+
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
+      debugPrint('onMessage event was published: ${message.data}');
       if (notification != null) {
-        showNotification(notification.title, notification.body);
+        debugPrint('Showing notification with data: ${message.data}');
+        showNotification(notification.title, notification.body, message.data);
       }
     });
 
     // App opened via notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
-      print('onMessageOpenedApp event was published: ${message.data}');
+      debugPrint('onMessageOpenedApp event was published: ${message.data}');
       handleNotificationNavigation(message.data);
     });
 

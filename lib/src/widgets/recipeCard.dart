@@ -34,6 +34,20 @@ class _RecipeCardState extends State<RecipeCard> {
     // Case A: If widget.recipeData is not null, we already have the data
     if (widget.recipeData != null) {
       _recipeData = widget.recipeData;
+      if (_recipeData!['authorName'] == null) {
+        final recipeProvider =
+            Provider.of<RecipeProvider>(context, listen: false);
+
+        // Suppose getAuthorById returns a Future<Map<String, dynamic>>
+        recipeProvider
+            .getAuthorById(_recipeData!['authorId'])
+            .then((authorData) {
+          setState(() {
+            _recipeData!['authorName'] =
+                authorData?['display_name'] ?? 'Unknown';
+          });
+        });
+      }
     }
     // Case B: If not, and we have a recipeId, fetch/cached it
     else if (widget.recipeId != null) {
@@ -62,12 +76,13 @@ class _RecipeCardState extends State<RecipeCard> {
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return _buildPlaceholderSpinner();
-        } else if (snapshot.hasError) {
-          return Text('Error loading recipe');
-        } else if (!snapshot.hasData || snapshot.data == null) {
-          return Text('Recipe not found');
+        } else if (snapshot.hasError ||
+            !snapshot.hasData ||
+            snapshot.data == null) {
+          // Instead of showing an error message, simply return an empty container
+          // or a placeholder indicating the recipe is unavailable.
+          return SizedBox.shrink();
         } else {
-          // We got data—store it so we don’t rebuild the FutureBuilder again
           _recipeData = snapshot.data!;
           return _buildRecipeCard(_recipeData!);
         }

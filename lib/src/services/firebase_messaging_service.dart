@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -90,11 +91,16 @@ Future<void> initLocalNotifications() async {
     android: initializationSettingsAndroid,
     iOS: initializationSettingsIOS,
   );
-  await flutterLocalNotificationsPlugin.initialize(initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-    // Handle notification tap
-    // You can navigate to a specific screen based on the notification payload
-  });
+  await flutterLocalNotificationsPlugin.initialize(
+    initializationSettings,
+    onDidReceiveNotificationResponse: (NotificationResponse response) {
+      debugPrint("Local notification tapped: ${response.payload}");
+      if (response.payload != null && response.payload!.isNotEmpty) {
+        final Map<String, dynamic> data = jsonDecode(response.payload!);
+        handleNotificationNavigation(data);
+      }
+    },
+  );
 
   // Only for Android:
   if (Platform.isAndroid) {
@@ -133,7 +139,12 @@ Future<void> initLocalNotifications() async {
   }
 }
 
-Future<void> showNotification(String? title, String? body) async {
+Future<void> showNotification(
+    String? title, String? body, Map<String, dynamic> data) async {
+  debugPrint('Showing notification: $title, $body with data: $data');
+  // Convert data to JSON string to use as payload.
+  final String payload = jsonEncode(data);
+
   const AndroidNotificationDetails androidPlatformChannelSpecifics =
       AndroidNotificationDetails(
     'default_channel',
@@ -149,13 +160,15 @@ Future<void> showNotification(String? title, String? body) async {
     title,
     body,
     platformChannelSpecifics,
+    payload: payload,
   );
 }
 
 void handleNotificationNavigation(Map<String, dynamic> data) {
-  final nav = globalNavigatorKey.currentState;
-  if (nav == null) return;
   debugPrint('Handling notification: $data');
+  final nav = globalNavigatorKey.currentState;
+  debugPrint('Navigator: $nav');
+  if (nav == null) return;
   final type = data['type'];
   switch (type) {
     case 'new_recipe':

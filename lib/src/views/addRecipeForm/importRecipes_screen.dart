@@ -150,7 +150,17 @@ class _ImportRecipesPageState extends State<ImportRecipesPage> {
 
       final file = File(filePath);
       final String jsonString = await file.readAsString();
-      final List<dynamic> jsonData = jsonDecode(jsonString);
+      final dynamic decoded = jsonDecode(jsonString);
+      List<dynamic> jsonData;
+
+      if (decoded is Map<String, dynamic>) {
+        // Wrap the single object in a list
+        jsonData = [decoded];
+      } else if (decoded is List) {
+        jsonData = decoded;
+      } else {
+        throw FormatException('Invalid JSON: not a Map or List');
+      }
 
       // 3) Convert each JSON map into a Recipe object
       final importedRecipes =

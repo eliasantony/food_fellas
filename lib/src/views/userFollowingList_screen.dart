@@ -216,7 +216,7 @@ class _UserFollowingListItemState extends State<UserFollowingListItem> {
     return Row(
       children: [
         Text(
-          'Recipes: ${widget.userData['recipesCount'] ?? 0}',
+          'Recipes: ${widget.userData['recipeCount'] ?? 0}',
           style: TextStyle(fontSize: 14),
         ),
         SizedBox(width: 4),

@@ -39,5 +39,5 @@ async function exportDocument(collection, documentId) {
 }
 
 // Hier die Collection und Document ID eingeben
-//exportDocument('recipes', 'LFpLQrlrbNfn3HkMlmcn');
+exportDocument('recipes', 'LFpLQrlrbNfn3HkMlmcn');
 exportDocument('users', 'ecFKkmIyFuSGq84gSnEm2Mmd24Z2');

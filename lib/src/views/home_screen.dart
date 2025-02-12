@@ -49,8 +49,8 @@ class _HomeScreenState extends State<HomeScreen> {
     setState(() {
       _isLoading = true;
     });
-
     await _fetchRows();
+    if (!mounted) return;
     setState(() {
       _isLoading = false;
     });

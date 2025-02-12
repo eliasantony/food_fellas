@@ -29,6 +29,89 @@ Future<String> _createCollection(
   return collectionRef.id;
 }
 
+Future<void> deleteCollection({
+  required BuildContext context,
+  required String ownerUid,
+  required String collectionId,
+}) async {
+  final user = FirebaseAuth.instance.currentUser;
+  if (user == null) return;
+
+  // (Optional) Check if user is admin or the owner. If you rely solely on
+  // Firestore Security Rules, you can skip this local check.
+  // But it’s nice to fail early in the client:
+  // ------------------------------------------------
+  final isOwner = (user.uid == ownerUid);
+  bool isAdmin = false; // retrieve from your user data if needed
+  if (!isOwner && !isAdmin) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('You do not have permission to delete this.')),
+    );
+    return;
+  }
+
+  final collectionRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(ownerUid)
+      .collection('collections')
+      .doc(collectionId);
+
+  final docSnap = await collectionRef.get();
+  if (!docSnap.exists) {
+    // Already deleted or doesn’t exist
+    return;
+  }
+
+  final data = docSnap.data()!;
+  final List<dynamic> contributorUids = data['contributors'] ?? [];
+
+  WriteBatch batch = FirebaseFirestore.instance.batch();
+
+  // 1) For each contributor, remove this collection from their sharedCollections
+  for (final contributorUid in contributorUids) {
+    final contributorRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(contributorUid)
+        .collection('sharedCollections')
+        .doc(collectionId);
+
+    batch.delete(contributorRef);
+  }
+
+  // 2) For each follower in the subcollection, remove the doc from
+  //    the follower’s "followedCollections" and also remove the subcollection doc
+  final followersSnap = await collectionRef.collection('followers').get();
+  for (final followerDoc in followersSnap.docs) {
+    final followerUid = followerDoc.id;
+    // In your code, you store the doc ID as the follower’s UID
+    // or sometimes you store it in a field. Adjust as needed.
+
+    // remove from that follower’s followedCollections
+    final followedDocRef = FirebaseFirestore.instance
+        .collection('users')
+        .doc(followerUid)
+        .collection('followedCollections')
+        .doc(collectionId);
+
+    batch.delete(followedDocRef);
+    // remove the subcollection doc itself
+    batch.delete(followerDoc.reference);
+  }
+
+  // 3) Finally, delete the collection doc
+  batch.delete(collectionRef);
+
+  // 4) Commit batch
+  try {
+    await batch.commit();
+  } catch (e) {
+    debugPrint('Error deleting collection: $e');
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text('Error deleting collection. Please try again.')),
+    );
+  }
+}
+
 Future<void> toggleRecipeInCollection({
   required String collectionOwnerUid,
   required String collectionId,
@@ -452,6 +535,55 @@ Future<void> showCreateCollectionDialog(BuildContext context,
       );
     },
   );
+}
+
+Future<void> showDeleteCollectionConfirmationDialog({
+  required BuildContext context,
+  required String ownerUid,
+  required String collectionId,
+}) async {
+  final shouldDelete = await showDialog<bool>(
+    context: context,
+    builder: (ctx) {
+      return AlertDialog(
+        title: Text('Delete Collection'),
+        content: Text(
+          'Are you sure you want to delete this collection? '
+          'This action is irreversible.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.of(ctx).pop(true),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(ctx).colorScheme.error,
+            ),
+            child: Text(
+              'Delete',
+              style: TextStyle(color: Theme.of(ctx).colorScheme.onError),
+            ),
+          ),
+        ],
+      );
+    },
+  );
+
+  if (shouldDelete == true) {
+    await deleteCollection(
+      context: context,
+      ownerUid: ownerUid,
+      collectionId: collectionId,
+    );
+    // Once deletion is done, you can pop back or refresh the UI
+    Navigator.of(context).pop(); // If you want to go back to previous screen
+    // Or show a success message if you prefer staying on the same page:
+    // ScaffoldMessenger.of(context).showSnackBar(
+    //   SnackBar(content: Text('Collection deleted.')),
+    // );
+  }
 }
 
 void _showEmojiPicker(

@@ -32,7 +32,6 @@
   "email": "elias@antony.at",
   "role": "admin",
   "averageRating": 0,
-  "recipeCount": 6,
   "fcmToken": "dDoAQCRcS0hcj4xgEcyNu-:APA91bFMWqKIxFphIpUUQVo9hs5RvTDqQW0UAxvN7ywHr-4bWX04wmKZkQ7HWPJer5cHWxBT-DwiXSMg6uxSc8O3OlJSexqlwCGAibNIrCQS6ljQfXygTzE",
   "notifications": {
     "newComment": true,
@@ -40,6 +39,7 @@
     "newRecipeFromFollowing": true,
     "weeklyRecommendations": true
   },
+  "recipeCount": 7,
   "subcollections": {
     "collections": [
       {
@@ -50,14 +50,13 @@
           "_seconds": 1737375294,
           "_nanoseconds": 109000000
         },
+        "isPublic": false,
         "recipes": [
           "mg4JOubn9FUQbAkanmat"
-        ],
-        "isPublic": false
+        ]
       },
       {
         "id": "gOq5LnGOqttomIiyksaU",
-        "recipes": [],
         "name": "Peter Esy",
         "icon": "🍽",
         "isPublic": true,
@@ -66,8 +65,10 @@
           "_nanoseconds": 482000000
         },
         "contributors": [
-          "eW2mRlQLIffkpck4ku9O6nXn9ZV2",
           "qKyZzLuB33TkZyw8XFnkTOfJzij2"
+        ],
+        "recipes": [
+          "a3Kv4bxhRUyNQlBVIYlK"
         ]
       }
     ],
@@ -127,6 +128,20 @@
           "_seconds": 1737997135,
           "_nanoseconds": 340000000
         }
+      },
+      {
+        "id": "1738854724737",
+        "createdAt": {
+          "_seconds": 1738854724,
+          "_nanoseconds": 890000000
+        }
+      },
+      {
+        "id": "1738854974500",
+        "createdAt": {
+          "_seconds": 1738854974,
+          "_nanoseconds": 690000000
+        }
       }
     ],
     "followedCollections": [
@@ -135,18 +150,8 @@
         "collectionId": "iA3JPQvyGe55biUr6QzZ",
         "collectionOwnerUid": "5z0n3OQWN2d876Wg5HljybRkjex1",
         "followedAt": {
-          "_seconds": 1737914387,
-          "_nanoseconds": 171000000
-        }
-      }
-    ],
-    "followers": [
-      {
-        "id": "eW2mRlQLIffkpck4ku9O6nXn9ZV2",
-        "uid": "eW2mRlQLIffkpck4ku9O6nXn9ZV2",
-        "timestamp": {
-          "_seconds": 1738153742,
-          "_nanoseconds": 788000000
+          "_seconds": 1739195325,
+          "_nanoseconds": 434000000
         }
       }
     ],
@@ -170,12 +175,28 @@
     ],
     "interactionHistory": [
       {
+        "id": "5BNjSutGQ45uVBRm0Qzh",
+        "viewedAt": {
+          "_seconds": 1739193184,
+          "_nanoseconds": 711000000
+        },
+        "recipeId": "5BNjSutGQ45uVBRm0Qzh"
+      },
+      {
         "id": "7lYvKQa6pq0dvCrWcYCU",
         "viewedAt": {
           "_seconds": 1736781110,
           "_nanoseconds": 194000000
         },
         "recipeId": "7lYvKQa6pq0dvCrWcYCU"
+      },
+      {
+        "id": "7ujywjZP7pcDJob0QEaV",
+        "recipeId": "7ujywjZP7pcDJob0QEaV",
+        "viewedAt": {
+          "_seconds": 1738926447,
+          "_nanoseconds": 927000000
+        }
       },
       {
         "id": "91sewLZVo21ie0doLCu6",
@@ -189,8 +210,8 @@
         "id": "I3mwoCM5EnYWSrra42fD",
         "recipeId": "I3mwoCM5EnYWSrra42fD",
         "viewedAt": {
-          "_seconds": 1737122453,
-          "_nanoseconds": 554000000
+          "_seconds": 1738939835,
+          "_nanoseconds": 482000000
         }
       },
       {
@@ -229,8 +250,8 @@
         "id": "MgGdKyTohvQ9pw3DxW6T",
         "recipeId": "MgGdKyTohvQ9pw3DxW6T",
         "viewedAt": {
-          "_seconds": 1738154990,
-          "_nanoseconds": 762000000
+          "_seconds": 1738323737,
+          "_nanoseconds": 356000000
         }
       },
       {
@@ -245,16 +266,16 @@
         "id": "a3Kv4bxhRUyNQlBVIYlK",
         "recipeId": "a3Kv4bxhRUyNQlBVIYlK",
         "viewedAt": {
-          "_seconds": 1738187133,
-          "_nanoseconds": 555000000
+          "_seconds": 1738924941,
+          "_nanoseconds": 372000000
         }
       },
       {
         "id": "cO6dHFHMiNpgu7WFzH1e",
         "recipeId": "cO6dHFHMiNpgu7WFzH1e",
         "viewedAt": {
-          "_seconds": 1737493473,
-          "_nanoseconds": 570000000
+          "_seconds": 1738510660,
+          "_nanoseconds": 153000000
         }
       },
       {
@@ -283,11 +304,19 @@
       },
       {
         "id": "t125EPKaEGeXoIS6MZSb",
+        "recipeId": "t125EPKaEGeXoIS6MZSb",
         "viewedAt": {
-          "_seconds": 1736777993,
-          "_nanoseconds": 105000000
-        },
-        "recipeId": "t125EPKaEGeXoIS6MZSb"
+          "_seconds": 1738925859,
+          "_nanoseconds": 579000000
+        }
+      },
+      {
+        "id": "t9w12DsO0UQ53kiz2WXW",
+        "recipeId": "t9w12DsO0UQ53kiz2WXW",
+        "viewedAt": {
+          "_seconds": 1739222846,
+          "_nanoseconds": 780000000
+        }
       },
       {
         "id": "xkXrykV8aqfdddKp0Vu6",
@@ -308,39 +337,30 @@
     ],
     "recommendations": [
       {
-        "id": "91sewLZVo21ie0doLCu6",
+        "id": "5we0YnT6ZwzZ8atDT8bh",
         "score": 5,
-        "recipeId": "91sewLZVo21ie0doLCu6",
+        "recipeId": "5we0YnT6ZwzZ8atDT8bh",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
-        "id": "D3AiJepVdqMBobz4EqME",
+        "id": "7lYvKQa6pq0dvCrWcYCU",
         "score": 5,
-        "recipeId": "D3AiJepVdqMBobz4EqME",
+        "recipeId": "7lYvKQa6pq0dvCrWcYCU",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
-        "id": "JtgMMOjQhRJBGtavgisz",
+        "id": "I3mwoCM5EnYWSrra42fD",
         "score": 5,
-        "recipeId": "JtgMMOjQhRJBGtavgisz",
+        "recipeId": "I3mwoCM5EnYWSrra42fD",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
-        }
-      },
-      {
-        "id": "Ks1XRRnF1Pl4WDjtDnmA",
-        "score": 5,
-        "recipeId": "Ks1XRRnF1Pl4WDjtDnmA",
-        "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
@@ -348,8 +368,8 @@
         "score": 5,
         "recipeId": "LFpLQrlrbNfn3HkMlmcn",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
@@ -357,8 +377,8 @@
         "score": 5,
         "recipeId": "OXZ2YHgpEHstJrwE6LEH",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
@@ -366,17 +386,26 @@
         "score": 10,
         "recipeId": "a3Kv4bxhRUyNQlBVIYlK",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
-        "id": "cO6dHFHMiNpgu7WFzH1e",
+        "id": "bkQv9gwYAwwl2KWe9mLx",
         "score": 5,
-        "recipeId": "cO6dHFHMiNpgu7WFzH1e",
+        "recipeId": "bkQv9gwYAwwl2KWe9mLx",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
+        }
+      },
+      {
+        "id": "rM6X0psVOdN2zxAmdVXQ",
+        "score": 5,
+        "recipeId": "rM6X0psVOdN2zxAmdVXQ",
+        "createdAt": {
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
@@ -384,30 +413,17 @@
         "score": 5,
         "recipeId": "rSd9GAvc31XoTApTYNU2",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       },
       {
-        "id": "z6nSvG9yuYjre3q8Fuhh",
-        "score": 5,
-        "recipeId": "z6nSvG9yuYjre3q8Fuhh",
+        "id": "t9w12DsO0UQ53kiz2WXW",
+        "score": 10,
+        "recipeId": "t9w12DsO0UQ53kiz2WXW",
         "createdAt": {
-          "_seconds": 1737943205,
-          "_nanoseconds": 201000000
-        }
-      }
-    ],
-    "shoppingList": [
-      {
-        "id": "FVyptdpizXTmxSSy9ZBv",
-        "item": "Chicken Drumsticks",
-        "amount": 8,
-        "unit": "pieces",
-        "status": "active",
-        "timestamp": {
-          "_seconds": 1737731292,
-          "_nanoseconds": 696000000
+          "_seconds": 1739152808,
+          "_nanoseconds": 966000000
         }
       }
     ],
@@ -418,6 +434,14 @@
         "updatedAt": {
           "_seconds": 1737036245,
           "_nanoseconds": 650000000
+        }
+      },
+      {
+        "id": "2025-02",
+        "totalTokensUsed": 10938,
+        "updatedAt": {
+          "_seconds": 1738854993,
+          "_nanoseconds": 502000000
         }
       }
     ]

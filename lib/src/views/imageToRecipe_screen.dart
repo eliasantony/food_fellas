@@ -6,6 +6,7 @@ import 'dart:ui';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:food_fellas/src/models/aiPhotoRecognitionModel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
@@ -15,6 +16,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -363,13 +365,38 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
     }
   } */
 
+  Future<File> compressImage(File file) async {
+    final tempDir = await getTemporaryDirectory();
+    final targetPath =
+        '${tempDir.path}/${DateTime.now().millisecondsSinceEpoch}.jpg';
+
+    final compressedBytes = await FlutterImageCompress.compressWithFile(
+      file.absolute.path,
+      minWidth: 800, // resize to max 800px wide
+      minHeight: 800, // resize to max 800px high
+      quality: 80, // JPEG quality (0-100)
+      format: CompressFormat.jpeg,
+    );
+
+    final compressedFile = File(targetPath)..writeAsBytesSync(compressedBytes!);
+
+    return compressedFile;
+  }
+
   void _pickImage() async {
     final picker = ImagePicker();
     final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
     if (image != null) {
+      // Convert XFile -> File
+      final original = File(image.path);
+
+      // Optionally, crop first (as you have with ImageCropper)
+      // Then compress/resize
+      final compressed = await compressImage(original);
+
       setState(() {
-        _selectedImage = File(image.path);
+        _selectedImage = compressed;
       });
     }
   }
@@ -412,10 +439,13 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
 
       // --- Start API call timing ---
       final apiStart = DateTime.now();
+      print('Calling API at $apiStart');
       final response = await model?.generateContent([
         Content.multi([prompt, imagePart])
       ]);
       final apiDuration = DateTime.now().difference(apiStart);
+      print('API call finished at ${DateTime.now()}');
+      print('API call duration: $apiDuration');
       AnalyticsService.logEvent(
         name: "image_to_recipe_api_response_time",
         parameters: {"duration_ms": apiDuration.inMilliseconds},
@@ -491,7 +521,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   Future<void> _navigateToAddRecipeForm(
       BuildContext context, Map<String, dynamic>? recipeJson) async {
     if (recipeJson != null) {
-          // Log that the image-to-recipe process is being continued
+      // Log that the image-to-recipe process is being continued
       AnalyticsService.logEvent(name: "image_to_recipe_started");
       Recipe recipe = Recipe.fromJson(recipeJson);
       recipe.createdByAI = true; // Set the AI-created flag
@@ -500,6 +530,8 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
       // Check and add missing ingredients
       await _checkAndAddIngredients(recipe);
 
+      // Pop the current screen
+      Navigator.pop(context);
       // Navigate to AddRecipeForm with the pre-filled recipe data
       Navigator.push(
         context,

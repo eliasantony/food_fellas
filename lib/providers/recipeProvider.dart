@@ -16,59 +16,78 @@ class RecipeProvider extends ChangeNotifier {
   }
 
   Future<Map<String, dynamic>?> getRecipeById(String recipeId) async {
-    // Check if the recipe is already cached
+    // 1) Check cache
     if (_recipesCache.containsKey(recipeId)) {
       return _recipesCache[recipeId];
     }
 
-    // Fetch from Firestore and cache it
     try {
+      // 2) Fetch from Firestore
       DocumentSnapshot doc = await FirebaseFirestore.instance
           .collection('recipes')
           .doc(recipeId)
           .get();
 
-      if (doc.exists) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-
-        // Fetch author's display name
-        String authorId = data['authorId'] ?? '';
-        Map<String, dynamic>? authorData = await getAuthorById(authorId);
-
-        if (authorData != null) {
-          data['authorName'] = authorData['display_name'] ?? 'Unknown author';
-        } else {
-          data['authorName'] = 'Unknown author';
-        }
-
-        data['averageRating'] = (data['averageRating'] is String)
-            ? double.tryParse(data['averageRating']) ?? 0.0
-            : data['averageRating']?.toDouble() ?? 0.0;
-
-        data['ratingsCount'] = (data['ratingsCount'] is String)
-            ? int.tryParse(data['ratingsCount']) ?? 0
-            : data['ratingsCount'] ?? 0;
-
-        // Safe parsing for ratingCounts map
-        if (data['ratingCounts'] is Map) {
-          Map<String, dynamic> rawCounts =
-              Map<String, dynamic>.from(data['ratingCounts']);
-          data['ratingCounts'] = rawCounts.map((key, value) {
-            int parsedKey = int.tryParse(key) ?? 0;
-            int parsedValue =
-                (value is String) ? int.tryParse(value) ?? 0 : value ?? 0;
-            return MapEntry(parsedKey, parsedValue);
-          });
-        } else {
-          data['ratingCounts'] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
-        }
-
-        _recipesCache[recipeId] = data;
-        notifyListeners();
-        return data;
-      } else {
+      if (!doc.exists) {
         return null;
       }
+
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+      // 3) Parse rating fields, etc. (your existing code)
+      data['averageRating'] = (data['averageRating'] is String)
+          ? double.tryParse(data['averageRating']) ?? 0.0
+          : data['averageRating']?.toDouble() ?? 0.0;
+
+      data['ratingsCount'] = (data['ratingsCount'] is String)
+          ? int.tryParse(data['ratingsCount']) ?? 0
+          : data['ratingsCount'] ?? 0;
+
+      // Safe parsing for ratingCounts map
+      if (data['ratingCounts'] is Map) {
+        Map<String, dynamic> rawCounts =
+            Map<String, dynamic>.from(data['ratingCounts']);
+        data['ratingCounts'] = rawCounts.map((key, value) {
+          int parsedKey = int.tryParse(key) ?? 0;
+          int parsedValue =
+              (value is String) ? int.tryParse(value) ?? 0 : value ?? 0;
+          return MapEntry(parsedKey, parsedValue);
+        });
+      } else {
+        data['ratingCounts'] = {1: 0, 2: 0, 3: 0, 4: 0, 5: 0};
+      }
+
+      // 4) Check if we have authorId
+      String authorId = data['authorId'] ?? '';
+      if (authorId.isEmpty) {
+        // The doc might not even have an authorId. We'll set a fallback.
+        data['authorName'] = data['authorName'] ?? 'Unknown author';
+      } else {
+        // If we do have an authorId, check if doc has authorName
+        final hasNoName =
+            (data['authorName'] == null || data['authorName'] == '');
+        if (hasNoName) {
+          // 5) Fallback fetch from "users" collection
+          Map<String, dynamic>? authorData = await getAuthorById(authorId);
+          final fetchedName = authorData?['display_name'] ?? 'Unknown author';
+
+          // 6) Put that name in our local `data` so it displays
+          data['authorName'] = fetchedName;
+
+          // 7) Also store it back in Firestore so we don’t need to do this next time
+          //    Use merge = true to preserve other fields
+          await doc.reference
+              .set({'authorName': fetchedName}, SetOptions(merge: true));
+        } else {
+          // doc had a valid authorName? just use it
+          data['authorName'] = data['authorName'];
+        }
+      }
+
+      // 8) Cache the result
+      _recipesCache[recipeId] = data;
+      notifyListeners();
+      return data;
     } catch (e) {
       print('Error fetching recipe: $e');
       return null;

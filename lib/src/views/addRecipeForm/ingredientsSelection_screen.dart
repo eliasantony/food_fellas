@@ -333,7 +333,10 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         style: const TextStyle(fontSize: 24),
       ),
       title: const Text('Selected Ingredients'),
-      initiallyExpanded: widget.recipe.createdByAI == true ? true : false,
+      initiallyExpanded:
+          (widget.recipe.createdByAI == true || widget.recipe.authorId != null)
+              ? true
+              : false,
       children: widget.recipe.ingredients.map((recipeIngredient) {
         final ingredient = recipeIngredient.ingredient;
         return CheckboxListTile(

@@ -8,6 +8,7 @@ import 'package:food_fellas/src/views/addRecipeForm/importRecipes_screen.dart';
 import 'package:food_fellas/src/views/admin_dashboard.dart';
 import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/settings_notificationPreferences_screen.dart';
+import 'package:food_fellas/src/widgets/tutorialDialog.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -181,8 +182,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(),
           ListTile(
+            title: Text("Show Tutorial"),
+            leading: Icon(Icons.help_outline),
+            onTap: () {
+              showTutorialDialog(context);
+            },
+          ),
+          ListTile(
             leading: Icon(Icons.feedback_outlined),
-            title: Text('Send Feedback'),
+            title: Text('Give Feedback'),
             onTap: () {
               showDialog(
                 context: context,

@@ -37,7 +37,7 @@ class _FeedbackModalState extends State<FeedbackModal> {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      title: Text('Provide Feedback'),
+      title: Text('Give Feedback'),
       content: SingleChildScrollView(
         child: Form(
           key: _formKey,
@@ -103,8 +103,8 @@ class _FeedbackModalState extends State<FeedbackModal> {
                   'Add Recipe Form',
                   'Search',
                   'Shopping List',
-                  'AI Chat'
-                      'Profile',
+                  'AI Chat',
+                  'Profile',
                   'Settings',
                   'Other',
                 ].map((screen) {

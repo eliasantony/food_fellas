@@ -14,6 +14,11 @@
   "createdAt": 1729618053432,
   "createdByAI": true,
   "description": "A creamy, rich, and flavorful dish with a touch of elegance! This elevated version features sautéed onions and garlic, a splash of wine, and a creamy pesto rosso sauce. Perfectly topped with burrata, cherry tomatoes, and fresh basil for an unforgettable dinner.",
+  "embedding": [
+    0.004918213,
+    -0.025512522,
+    0.022564221
+  ],
   "fat": 45,
   "id": "LFpLQrlrbNfn3HkMlmcn",
   "imageUrl": "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/recipes%2F1729617985556.jpg?alt=media&token=3aa2b74a-e1d9-4f76-a5e3-202acafc1ca1",
@@ -274,6 +279,22 @@
         "viewedAt": {
           "_seconds": 1735693643,
           "_nanoseconds": 400000000
+        }
+      },
+      {
+        "id": "ecFKkmIyFuSGq84gSnEm2Mmd24Z2",
+        "userId": "ecFKkmIyFuSGq84gSnEm2Mmd24Z2",
+        "viewedAt": {
+          "_seconds": 1737126401,
+          "_nanoseconds": 690000000
+        }
+      },
+      {
+        "id": "r8zp6y3A05N4GRtH19q4efLipR93",
+        "userId": "r8zp6y3A05N4GRtH19q4efLipR93",
+        "viewedAt": {
+          "_seconds": 1736018927,
+          "_nanoseconds": 196000000
         }
       }
     ]

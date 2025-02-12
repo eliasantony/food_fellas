@@ -448,9 +448,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .where('authorId', isEqualTo: userId)
           .get(),
       builder: (context, snapshot) {
-        int recipesCount = 0;
+        int recipeCount = 0;
         if (snapshot.hasData && snapshot.data != null) {
-          recipesCount = snapshot.data!.docs.length;
+          recipeCount = snapshot.data!.docs.length;
         }
 
         return FutureBuilder<QuerySnapshot>(
@@ -492,7 +492,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     children: <Widget>[
                       _ProfileStatistic(
                         title: 'Recipes',
-                        value: '$recipesCount',
+                        value: '$recipeCount',
                         onTap: () {
                           final recipesQuery = FirebaseFirestore.instance
                               .collection('recipes')
