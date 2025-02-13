@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -12,7 +13,7 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({super.key});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -117,7 +118,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await handlePostSignIn(context, userCredential.user);
     } catch (e) {
-      print('Error signing in with Google: $e');
+      if (kDebugMode) {
+        print('Error signing in with Google: $e');
+      }
       setState(() {
         _emailError = 'Google Sign-In failed: $e';
       });
@@ -143,7 +146,9 @@ class _LoginScreenState extends State<LoginScreen> {
 
       await handlePostSignIn(context, userCredential.user);
     } catch (e) {
-      print('Error signing in with Apple: $e');
+      if (kDebugMode) {
+        print('Error signing in with Apple: $e');
+      }
       setState(() {
         _emailError = 'Apple Sign-In failed: $e';
       });

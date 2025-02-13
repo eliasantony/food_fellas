@@ -1,7 +1,6 @@
 import 'dart:convert';
-import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:http/http.dart' as http;
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/typesense/typesenseClient.dart';
 
@@ -131,7 +130,6 @@ class SearchProvider with ChangeNotifier {
       };
 
       // Make the GET request
-      //print('searchParams => $queryParams');
       final response = await TypesenseHttpClient.get(
         '/collections/recipes/documents/search',
         queryParams,
@@ -159,7 +157,9 @@ class SearchProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error during fetchRecipes: $e');
+      if (kDebugMode) {
+        print('Error during fetchRecipes: $e');
+      }
       if (offset == 0) {
         _recipes = [];
       }
@@ -227,7 +227,9 @@ class SearchProvider with ChangeNotifier {
             'HTTP POST Error ${response.statusCode}: ${response.body}');
       }
     } catch (e) {
-      print('Error during multiSearch: $e');
+      if (kDebugMode) {
+        print('Error during multiSearch: $e');
+      }
     }
 
     _isLoading = false;
@@ -254,7 +256,6 @@ class SearchProvider with ChangeNotifier {
         // Build the filter_by string to exclude the UIDs
         final filterBy = excludeUids.map((uid) => 'id:!=$uid').join(' && ');
         queryParams['filter_by'] = filterBy;
-        print('Fetching users with filter_by: $filterBy'); // Debug statement
       }
 
       final response = await TypesenseHttpClient.get(
@@ -269,7 +270,9 @@ class SearchProvider with ChangeNotifier {
         return userData;
       }).toList();
     } catch (e) {
-      print('Error fetching users: $e');
+      if (kDebugMode) {
+        print('Error fetching users: $e');
+      }
       _users = [];
     }
 
@@ -292,7 +295,9 @@ class SearchProvider with ChangeNotifier {
         return data;
       }
     } catch (e) {
-      print('Error fetching user by UID: $e');
+      if (kDebugMode) {
+        print('Error fetching user by UID: $e');
+      }
     }
     return null;
   }
@@ -331,7 +336,9 @@ class SearchProvider with ChangeNotifier {
         _rowUsers['topChefs'] = [];
       }
     } catch (e) {
-      print('Error during fetchTopChefs: $e');
+      if (kDebugMode) {
+        print('Error fetching top chefs: $e');
+      }
       _rowUsers['topChefs'] = [];
     }
 
@@ -370,7 +377,9 @@ class SearchProvider with ChangeNotifier {
         _rowRecipes[rowKey] = [];
       }
     } catch (e) {
-      print('Error during fetchRowRecipes($rowKey): $e');
+      if (kDebugMode) {
+        print('Error during fetchRowRecipes($rowKey): $e');
+      }
       _rowRecipes[rowKey] = [];
     }
 
@@ -380,7 +389,6 @@ class SearchProvider with ChangeNotifier {
 
   Future<void> fetchHomeRowsOnce(String userId) async {
     if (_homeRowsFetched) return;
-    print('refreshing home rows...');
     // 1) fetch row recipes:
     await fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
     await fetchRowRecipes('topRated', sortBy: 'averageRating:desc');
@@ -410,7 +418,6 @@ class SearchProvider with ChangeNotifier {
 
     try {
       final query = "$title $description ${ingredients.join(' ')}";
-      //print('Fuzzy Search Query: $query');
 
       final response = await TypesenseHttpClient.get(
         '/collections/recipes/documents/search',
@@ -429,7 +436,9 @@ class SearchProvider with ChangeNotifier {
 
       //print("Fuzzy Search Results: $_similarRecipes");
     } catch (e) {
-      print('Error fetching fuzzy recipes: $e');
+      if (kDebugMode) {
+        print('Error fetching fuzzy recipes: $e');
+      }
       _similarRecipes = [];
     }
 
@@ -487,7 +496,9 @@ class SearchProvider with ChangeNotifier {
       _similarRecipes = await TypesenseHttpClient.fetchSimilarRecipes(
           embedding, 3); // Fetch top 3 similar recipes
     } catch (e) {
-      print('Error fetching similar recipes: $e');
+      if (kDebugMode) {
+        print('Error fetching similar recipes: $e');
+      }
       _similarRecipes = [];
     }
 
@@ -502,7 +513,9 @@ class SearchProvider with ChangeNotifier {
       _similarRecipes = await TypesenseHttpClient.fetchSimilarRecipesById(
           recipeId); // Fetch top 4 similar recipes
     } catch (e) {
-      print('Error fetching similar recipes: $e');
+      if (kDebugMode) {
+        print('Error fetching similar recipes: $e');
+      }
       _similarRecipes = [];
     }
 
@@ -540,7 +553,9 @@ class SearchProvider with ChangeNotifier {
         }
       }
     } catch (e) {
-      print('Error fetching recently viewed recipes: $e');
+      if (kDebugMode) {
+        print('Error fetching recently viewed recipes: $e');
+      }
     }
     return viewedRecipes;
   }
@@ -577,7 +592,9 @@ class SearchProvider with ChangeNotifier {
       }
       return recommendedRecipes;
     } catch (e) {
-      print('Error fetching user-specific recommendations: $e');
+      if (kDebugMode) {
+        print('Error fetching user-specific recommendations: $e');
+      }
       return [];
     }
   }

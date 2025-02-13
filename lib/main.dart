@@ -5,10 +5,10 @@ import 'package:app_links/app_links.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
-import 'package:flutter_floating_bottom_bar/flutter_floating_bottom_bar.dart';
 import 'package:flutter_gemini/flutter_gemini.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -25,8 +25,6 @@ import 'package:food_fellas/src/services/firebase_messaging_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
-import 'package:food_fellas/src/views/settings_screen.dart';
-import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
 import 'package:food_fellas/src/widgets/expandableFAB.dart';
 import 'package:food_fellas/src/widgets/overlayExpandedFAB.dart';
@@ -46,6 +44,7 @@ final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
 final GlobalKey<NavigatorState> globalNavigatorKey =
     GlobalKey<NavigatorState>();
+// ignore: library_private_types_in_public_api
 final GlobalKey<_MainPageState> mainPageKey = GlobalKey<_MainPageState>();
 
 void main() async {
@@ -56,14 +55,18 @@ void main() async {
     DeviceOrientation.portraitDown,
   ]);
 
-  print('Initializing Firebase...');
+  if (kDebugMode) {
+    debugPrint('Initializing Firebase...');
+  }
   try {
     await Firebase.initializeApp(
       name: 'FoodFellas',
       options: DefaultFirebaseOptions.currentPlatform,
     );
   } catch (e) {
-    print('Firebase initialization error: $e');
+    if (kDebugMode) {
+      debugPrint('Firebase initialization error: $e');
+    }
   }
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
@@ -74,17 +77,23 @@ void main() async {
     // On Android, it's safe to call getToken() right away
     String? token = await FirebaseMessaging.instance.getToken();
     saveTokenToDatabase();
-    print("FCM Token on Android: $token");
+    if (kDebugMode) {
+      print("FCM Token on Android: $token");
+    }
   } else if (Platform.isIOS) {
     // Avoid calling getToken() on a simulator
     bool isSimulator = !await _isPhysicalDevice();
     if (isSimulator) {
-      print("Running on iOS Simulator. APNS token is not supported here.");
+      if (kDebugMode) {
+        print("Running on iOS Simulator. APNS token is not supported here.");
+      }
     } else {
       // It's a real device, so you can safely call getToken()
       String? token = await FirebaseMessaging.instance.getToken();
       saveTokenToDatabase();
-      print("FCM Token on iOS device: $token");
+      if (kDebugMode) {
+        print("FCM Token on iOS device: $token");
+      }
     }
   }
 
@@ -137,7 +146,9 @@ Future<bool> _isPhysicalDevice() async {
 
 void _handleIncomingLink(Uri uri) {
   // Just a debug print so you know it's being triggered.
-  print('Deep link triggered for: $uri');
+  if (kDebugMode) {
+    print('Deep link triggered for: $uri');
+  }
 
   final pathSegments = uri.pathSegments;
 
@@ -183,7 +194,9 @@ void _handleIncomingLink(Uri uri) {
             _showError('Unknown content type: $contentType');
         }
       } else {
-        print('NavigatorState is null. Could not push.');
+        if (kDebugMode) {
+          print('NavigatorState is null. Could not push.');
+        }
       }
     } else {
       _showError('Invalid share link: Missing content type or ID');
@@ -194,7 +207,9 @@ void _handleIncomingLink(Uri uri) {
 }
 
 void _showError(String message) {
-  print('ERROR: $message');
+  if (kDebugMode) {
+    print('ERROR: $message');
+  }
 
   // Optionally show a dialog or snack bar if context is available:
   final ctx = globalNavigatorKey.currentContext;
@@ -209,6 +224,8 @@ void _showError(String message) {
 }
 
 class MainApp extends StatefulWidget {
+  const MainApp({super.key});
+
   @override
   State<MainApp> createState() => _MainAppState();
 }
@@ -308,7 +325,6 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-  int _selectedIndex = 0;
 
   final List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
@@ -325,11 +341,11 @@ class _MainPageState extends State<MainPage> {
   @override
   Widget build(BuildContext context) {
     final bottomNavBarProvider = Provider.of<BottomNavBarProvider>(context);
-    int _selectedIndex = bottomNavBarProvider.selectedIndex;
+    int selectedIndex = bottomNavBarProvider.selectedIndex;
     final userData = Provider.of<UserDataProvider>(context).userData;
     final isKeyboardVisible = MediaQuery.of(context).viewInsets.bottom > 0;
 
-    final Widget? fab = (_selectedIndex == 3 && isKeyboardVisible)
+    final Widget? fab = (selectedIndex == 3 && isKeyboardVisible)
         ? null
         : MediaQuery(
             data: MediaQuery.of(context).removeViewInsets(removeBottom: true),
@@ -343,16 +359,16 @@ class _MainPageState extends State<MainPage> {
     }
 
     return PopScope(
-      canPop: _selectedIndex == 0,
+      canPop: selectedIndex == 0,
       onPopInvokedWithResult: (bool didPop, dynamic result) {
-        if (!didPop && _selectedIndex != 0) {
+        if (!didPop && selectedIndex != 0) {
           Provider.of<BottomNavBarProvider>(context, listen: false).setIndex(0);
         }
       },
       child: Scaffold(
         extendBody: true,
-        resizeToAvoidBottomInset: _selectedIndex == 3 ? true : false,
-        body: _widgetOptions.elementAt(_selectedIndex),
+        resizeToAvoidBottomInset: selectedIndex == 3 ? true : false,
+        body: _widgetOptions.elementAt(selectedIndex),
         floatingActionButton: fab,
         floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
         bottomNavigationBar: Stack(
@@ -374,11 +390,11 @@ class _MainPageState extends State<MainPage> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceAround,
                 children: [
-                  _buildNavItem(Icons.home, 0, _selectedIndex),
-                  _buildNavItem(Icons.search, 1, _selectedIndex),
+                  _buildNavItem(Icons.home, 0, selectedIndex),
+                  _buildNavItem(Icons.search, 1, selectedIndex),
                   const SizedBox(width: 48), // Spacer for FAB
-                  _buildNavItem(Icons.chat, 3, _selectedIndex),
-                  _buildNavItem(Icons.person, 4, _selectedIndex),
+                  _buildNavItem(Icons.chat, 3, selectedIndex),
+                  _buildNavItem(Icons.person, 4, selectedIndex),
                 ],
               ),
             ),

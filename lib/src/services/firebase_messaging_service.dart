@@ -1,14 +1,11 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'dart:developer';
-
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
-import 'package:food_fellas/main.dart';
 import 'package:food_fellas/src/views/home_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
@@ -20,7 +17,9 @@ final GlobalKey<NavigatorState> globalNavigatorKey =
 
 /// Request notification permissions for iOS and Android (if needed).
 Future<NotificationSettings> requestNotificationPermissions() async {
-  print('Requesting notification permissions...');
+  if (kDebugMode) {
+    print('Requesting notification permissions...');
+  }
   FirebaseMessaging messaging = FirebaseMessaging.instance;
 
   NotificationSettings settings = await messaging.requestPermission(
@@ -29,7 +28,9 @@ Future<NotificationSettings> requestNotificationPermissions() async {
     sound: true,
   );
 
-  print('User granted permission: ${settings.authorizationStatus}');
+  if (kDebugMode) {
+    print('User granted permission: ${settings.authorizationStatus}');
+  }
   return settings;
 }
 
@@ -37,18 +38,25 @@ Future<NotificationSettings> requestNotificationPermissions() async {
 Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
   // If you're going to use other Firebase services in the background,
   // such as Firestore, you must call `initializeApp` again (only if not already initialized).
-  print('Handling a background message: ${message.messageId}');
+
+  if (kDebugMode) {
+    print('Handling a background message: ${message.messageId}');
+  }
 }
 
 Future<void> saveTokenToDatabase() async {
   final user = FirebaseAuth.instance.currentUser;
   if (user == null) {
-    print('No user is currently signed in.');
+    if (kDebugMode) {
+      print('No user is currently signed in.');
+    }
     return;
   }
   String? token = await FirebaseMessaging.instance.getToken();
   if (token == null) {
-    print('Failed to obtain FCM token.');
+    if (kDebugMode) {
+      print('Failed to obtain FCM token.');
+    }
     return;
   }
 
@@ -57,12 +65,15 @@ Future<void> saveTokenToDatabase() async {
       {
         'fcmToken': token,
       },
-      SetOptions(
-          merge: true), // Merge with existing data or create the document
+      SetOptions(merge: true),
     );
-    print('FCM Token saved/updated successfully.');
+    if (kDebugMode) {
+      print('FCM Token saved/updated successfully.');
+    }
   } catch (e) {
-    print('Error saving FCM Token: $e');
+    if (kDebugMode) {
+      print('Error saving FCM Token: $e');
+    }
   }
 }
 
@@ -73,7 +84,9 @@ Future<void> removeTokenFromDatabase() async {
         .collection('users')
         .doc(user.uid)
         .update({'fcmToken': FieldValue.delete()});
-    print("FCM Token removed from database.");
+    if (kDebugMode) {
+      print("FCM Token removed from database.");
+    }
   }
 }
 
@@ -214,7 +227,9 @@ void handleNotificationNavigation(Map<String, dynamic> data) {
       break;
 
     default:
-      print("No matching notification type found: $type");
+      if (kDebugMode) {
+        print("No matching notification type found: $type");
+      }
       break;
   }
 }

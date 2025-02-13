@@ -1,5 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 class UserDataProvider with ChangeNotifier {
   Map<String, dynamic>? _userData;
@@ -20,7 +20,9 @@ class UserDataProvider with ChangeNotifier {
         notifyListeners();
       }
     } catch (e) {
-      debugPrint('Error updating user data: $e');
+      if (kDebugMode) {
+        debugPrint('Error updating user data: $e');
+      }
     }
   }
 }

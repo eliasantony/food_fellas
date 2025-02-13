@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -204,12 +205,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       // Check if this is a new user (you can add additional onboarding logic here)
       if (userCredential.additionalUserInfo?.isNewUser == true) {
-        print('New Google user signed up');
+        if (kDebugMode) {
+          print('New Google user signed up');
+        }
       } else {
-        print('Existing Google user signed in');
+        if (kDebugMode) {
+          print('Existing Google user signed in');
+        }
       }
     } catch (e) {
-      print('Error signing in with Google: $e');
+      if (kDebugMode) {
+        print('Error signing in with Google: $e');
+      }
       setState(() {
         _emailError = 'Google Sign-In failed: $e';
       });
@@ -237,12 +244,18 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
       // Check if this is a new user
       if (userCredential.additionalUserInfo?.isNewUser == true) {
-        print('New Apple user signed up');
+        if (kDebugMode) {
+          print('New Apple user signed up');
+        }
       } else {
-        print('Existing Apple user signed in');
+        if (kDebugMode) {
+          print('Existing Apple user signed in');
+        }
       }
     } catch (e) {
-      print('Error signing in with Apple: $e');
+      if (kDebugMode) {
+        print('Error signing in with Apple: $e');
+      }
       setState(() {
         _emailError = 'Apple Sign-In failed: $e';
       });
