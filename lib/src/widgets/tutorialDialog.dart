@@ -64,13 +64,18 @@ class _TutorialDialogState extends State<TutorialDialog> {
           'Easily add and customize your own delicious recipes to share with the FoodFellas community!',
     },
     {
+      'gif': 'lib/assets/tutorialGifs/CreateCollection.gif',
+      'title': '📦 Create Collections',
+      'text':
+          'Organize your favorite recipes into collections for easy access! Invite your friends to collaborate on collections too!',
+    },
+    {
       'gif': 'lib/assets/tutorialGifs/Feedback.gif',
       'title': '💡 Help Us Improve!',
       'text':
           'Have suggestions?\nGo to **Profile → Settings → Give Feedback** and share your thoughts!',
     },
   ];
-
   @override
   Widget build(BuildContext context) {
     return Dialog(

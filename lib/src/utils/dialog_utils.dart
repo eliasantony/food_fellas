@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:emoji_picker_flutter/emoji_picker_flutter.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/src/views/recipeList_screen.dart';
 import 'package:provider/provider.dart';
 
 Future<String> _createCollection(
@@ -380,7 +381,7 @@ Future<void> removeContributorFromCollection({
   );
 }
 
-Future<void> showCreateCollectionDialog(BuildContext context,
+Future<void> showCreateCollectionDialog(BuildContext parentContext,
     {bool autoAddRecipe = false,
     String? recipeId,
     String? initialName,
@@ -397,7 +398,7 @@ Future<void> showCreateCollectionDialog(BuildContext context,
   bool showEmojiPicker = false;
 
   showDialog(
-    context: context,
+    context: parentContext,
     builder: (context) {
       return StatefulBuilder(
         builder: (context, setState) {
@@ -505,6 +506,13 @@ Future<void> showCreateCollectionDialog(BuildContext context,
                           add: true,
                           recipeId: recipeId,
                         );
+                        Navigator.pop(context);
+                        Navigator.pop(parentContext);
+                        ScaffoldMessenger.of(parentContext).showSnackBar(
+                          SnackBar(
+                              content:
+                                  Text('Collection created successfully!')),
+                        );
                       }
                     } else {
                       // Update existing collection
@@ -554,7 +562,7 @@ Future<void> showDeleteCollectionConfirmationDialog({
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
-            child: Text('Cancel'),
+            child: Text('Cancel', style: TextStyle(color: Colors.grey)),
           ),
           ElevatedButton(
             onPressed: () => Navigator.of(ctx).pop(true),
@@ -1060,7 +1068,6 @@ Future<void> showSaveRecipeDialog(
                             leading: const Icon(Icons.add),
                             title: const Text('Create New Collection'),
                             onTap: () {
-                              Navigator.pop(ctx);
                               showCreateCollectionDialog(context,
                                   autoAddRecipe: true, recipeId: recipeId);
                             },

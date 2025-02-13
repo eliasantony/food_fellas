@@ -220,9 +220,6 @@ class _MainAppState extends State<MainApp> {
   @override
   void initState() {
     super.initState();
-
-    checkAndShowTutorial(context);
-
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       final notification = message.notification;
@@ -261,6 +258,7 @@ class _MainAppState extends State<MainApp> {
     });
 
     saveTokenToDatabase();
+    checkAndShowTutorial(context);
   }
 
   @override

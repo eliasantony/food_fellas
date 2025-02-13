@@ -183,6 +183,7 @@ class SearchProvider with ChangeNotifier {
             "collection": "users",
             "q": query.isNotEmpty ? query : "*",
             "query_by": "display_name,email",
+            "sort_by": "averageRating:desc",
             "per_page": 3
           },
           {

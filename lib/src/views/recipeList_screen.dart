@@ -79,6 +79,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       _checkIfFollowingCollection();
     }
     if (widget.isCollection) {
+      print('Fetching collection data...');
       _fetchCurrentUserRole();
       _fetchCollectionInitial(); // Flow B
       // Also listen for scroll to load more chunks if needed
@@ -736,8 +737,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         // A) If within visibleData range, return a recipe card
         if (index < visibleData.length) {
           final recipeMap = visibleData[index];
-          print('Building recipe card for ${recipeMap['id']}');
-          print('Recipe data: $recipeMap');
           final recipeId = recipeMap['id'] as String;
           return RecipeCard(
             big: true,

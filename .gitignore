@@ -55,3 +55,5 @@ build/
 
 node_modules
 populateTageCollection.js
+
+tutorial*.mov
