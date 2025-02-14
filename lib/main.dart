@@ -23,6 +23,7 @@ import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/services/firebase_messaging_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
+import 'package:food_fellas/src/views/auth/welcome_screen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
@@ -309,6 +310,7 @@ class _MainAppState extends State<MainApp> {
       themeMode: themeProvider.isDarkMode ? ThemeMode.dark : ThemeMode.light,
       home: InitializerWidget(),
       routes: {
+        '/welcome': (context) => const WelcomeScreen(),
         '/login': (context) => const LoginScreen(),
         '/signup': (context) => const SignUpScreen(),
         '/mainPage': (context) => MainPage(),

@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:developer';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
@@ -79,7 +80,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
       _checkIfFollowingCollection();
     }
     if (widget.isCollection) {
-      print('Fetching collection data...');
       _fetchCurrentUserRole();
       _fetchCollectionInitial(); // Flow B
       // Also listen for scroll to load more chunks if needed
@@ -310,7 +310,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     List<Map<String, dynamic>> subDataList,
   ) async {
     if (recipeIds.isEmpty) {
-      print('No recipe IDs provided.');
       return [];
     }
 
@@ -350,7 +349,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
           }
         }
       } catch (e) {
-        print('Error fetching recipes for batch $batchIds: $e');
+        if (kDebugMode) {
+          debugPrint('Error fetching recipes for batch $batchIds: $e');
+        }
       }
     }
 
@@ -387,7 +388,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
   List<Map<String, dynamic>> _applyFiltersToAll(
       List<Map<String, dynamic>> data, Map<String, dynamic> filters) {
     return data.where((item) {
-      // item might have fields like: { id, title, averageRating, totalTime, tagNames, createdByAI, ingredients, score, viewedAt, ... }
 
       // averageRating >= minRating
       if (filters.containsKey('averageRating')) {
@@ -445,7 +445,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         bool containsAll = neededIngs.every((ing) => docIngNames.contains(ing));
         if (!containsAll) return false;
       }
-
       return true; // passes all filters
     }).toList();
   }
@@ -739,6 +738,7 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
           final recipeMap = visibleData[index];
           final recipeId = recipeMap['id'] as String;
           return RecipeCard(
+            key: ValueKey(recipeId),
             big: true,
             recipeData: recipeMap,
           );

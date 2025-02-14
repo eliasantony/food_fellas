@@ -60,7 +60,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
             child: Text('Cancel'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => {
+              Navigator.of(context).pop(true),
+              Navigator.of(context)
+                  .pushNamedAndRemoveUntil('/welcome', (route) => false)
+            },
             child: Text('Log Out'),
           ),
         ],
@@ -118,6 +122,58 @@ class _SettingsScreenState extends State<SettingsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Could not launch $url')),
       );
+    }
+  }
+
+  void _deleteAccount() async {
+    bool? confirmDelete = await showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('Confirm Account Deletion'),
+        content: Text(
+            'Are you sure you want to delete your account? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text('Cancel'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () => Navigator.of(context).pop(true),
+            icon: Icon(
+              Icons.delete,
+              color: Theme.of(context).colorScheme.onErrorContainer,
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.errorContainer,
+            ),
+            label: Text(
+              'Delete Account',
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.onErrorContainer,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmDelete == true) {
+      // Delete the user's account
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          await user.delete();
+          // Navigate to login screen or root
+          Navigator.of(context).popUntil((route) => route.isFirst);
+        } catch (e) {
+          print('Error deleting account: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error deleting account. Please try again.'),
+            ),
+          );
+        }
+      }
     }
   }
 
@@ -228,7 +284,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       'https://play.google.com/store/apps/details?id=com.foodfellas.app'));
                 } else if (Platform.isIOS) {
                   _launchURL(
-                      Uri.parse('https://apps.apple.com/app/id1234567890'));
+                      Uri.parse('https://apps.apple.com/app/6741926857'));
                 }
               }
             },
