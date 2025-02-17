@@ -157,6 +157,10 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildBody() {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isLoggedInAndNotGuest =
+        currentUser != null && !currentUser.isAnonymous;
+
     return NotificationListener<ScrollNotification>(
       onNotification: (scrollNotification) {
         if (scrollNotification is ScrollUpdateNotification) {
@@ -173,7 +177,9 @@ class _HomeScreenState extends State<HomeScreen> {
             title: ValueListenableBuilder<bool>(
               valueListenable: _isExpandedNotifier,
               builder: (context, isExpanded, child) {
-                return isExpanded ? SizedBox.shrink() : _buildCollapsedBar();
+                return isExpanded
+                    ? SizedBox.shrink()
+                    : _buildCollapsedBar(isLoggedInAndNotGuest);
               },
             ),
             flexibleSpace: FlexibleSpaceBar(
@@ -191,7 +197,8 @@ class _HomeScreenState extends State<HomeScreen> {
             child: _buildMealTypeCategories(),
           ),
           // Recommended
-          SliverToBoxAdapter(child: _buildRecommendedRow()),
+          if (isLoggedInAndNotGuest)
+            SliverToBoxAdapter(child: _buildRecommendedRow()),
           // New Recipes
           SliverToBoxAdapter(
             child: _buildSectionTitle('New Recipes'),
@@ -265,7 +272,8 @@ class _HomeScreenState extends State<HomeScreen> {
           ), */
 
           // Recently Viewed
-          SliverToBoxAdapter(child: _buildRecentlyViewedRow()),
+          if (isLoggedInAndNotGuest)
+            SliverToBoxAdapter(child: _buildRecentlyViewedRow()),
           // Top Chefs
           SliverToBoxAdapter(child: _buildTopChefsRow()),
         ],
@@ -273,7 +281,7 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildCollapsedBar() {
+  Widget _buildCollapsedBar(bool isLoggedInAndNotGuest) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
@@ -318,24 +326,33 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ),
         ),
-        Selector<UserDataProvider, String?>(
-          selector: (context, provider) => provider.userData?['photo_url'],
-          builder: (context, photoUrl, child) {
-            return GestureDetector(
-              onTap: () {
-                Provider.of<BottomNavBarProvider>(context, listen: false)
-                    .setIndex(4);
-              },
-              child: CircleAvatar(
-                backgroundColor: Colors.transparent,
-                backgroundImage: photoUrl != null
-                    ? NetworkImage(photoUrl)
-                    : AssetImage('lib/assets/images/DefaultAvatar.png')
-                        as ImageProvider,
-              ),
-            );
-          },
-        ),
+        if (isLoggedInAndNotGuest)
+          Selector<UserDataProvider, String?>(
+            selector: (context, provider) => provider.userData?['photo_url'],
+            builder: (context, photoUrl, child) {
+              return GestureDetector(
+                onTap: () {
+                  Provider.of<BottomNavBarProvider>(context, listen: false)
+                      .setIndex(4);
+                },
+                child: CircleAvatar(
+                  backgroundColor: Colors.transparent,
+                  backgroundImage: photoUrl != null
+                      ? NetworkImage(photoUrl)
+                      : AssetImage('lib/assets/images/DefaultAvatar.png')
+                          as ImageProvider,
+                ),
+              );
+            },
+          ),
+        if (!isLoggedInAndNotGuest)
+          IconButton(
+            icon: Icon(Icons.account_circle),
+            onPressed: () {
+              Provider.of<BottomNavBarProvider>(context, listen: false)
+                  .setIndex(4);
+            },
+          ),
       ],
     );
   }

@@ -20,6 +20,7 @@ import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
+import 'package:food_fellas/src/views/guestUserScreen.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
 import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
@@ -138,6 +139,66 @@ class _AIChatScreenState extends State<AIChatScreen> {
   bool isLoading = false;
   bool preferencesEnabled = true;
   List<ChatUser> typingUsers = [];
+  late FocusNode _chatFocusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _chatFocusNode = FocusNode();
+    _chatFocusNode.addListener(_handleFocusChange);
+  }
+
+  void _handleFocusChange() {
+    // Check if the text field gained focus and if the user is a guest
+    final currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+    if (_chatFocusNode.hasFocus && isGuestUser) {
+      // Immediately unfocus the input
+      _chatFocusNode.unfocus();
+      // Show the sign up / log in prompt
+      _showSignUpPrompt();
+    }
+  }
+
+  void _showSignUpPrompt() {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Create an Account"),
+        content: const Text(
+          "To chat with AI, please log in or sign up for an account.",
+        ),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.pushReplacementNamed(context, '/login');
+            },
+            child: const Text("Log In"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.pushReplacementNamed(context, '/signup');
+            },
+            child: const Text("Sign Up"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+            },
+            child: const Text("Cancel"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void dispose() {
+    _chatFocusNode.dispose();
+    super.dispose();
+  }
 
   void _addTypingUser(ChatUser user) {
     setState(() {
@@ -157,6 +218,16 @@ class _AIChatScreenState extends State<AIChatScreen> {
   Widget build(BuildContext context) {
     final chatProvider = Provider.of<ChatProvider>(context);
     bool isChatEmpty = chatProvider.messages.isEmpty;
+
+    final currentFirebaseUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser =
+        currentFirebaseUser == null || currentFirebaseUser.isAnonymous;
+
+    if (isGuestUser) {
+      return GuestUserScreen(
+          title: "AI Chat",
+          message: "Sign up or log in to chat with our AI Assistant.");
+    }
 
     final bottomPadding = MediaQuery.of(context).viewInsets.bottom > 0
         ? MediaQuery.of(context).viewInsets.bottom
@@ -308,7 +379,9 @@ class _AIChatScreenState extends State<AIChatScreen> {
                 ),
               Expanded(
                 child: DashChat(
+                  readOnly: isGuestUser,
                   inputOptions: InputOptions(
+                    focusNode: _chatFocusNode,
                     inputTextStyle: TextStyle(
                       color: Colors.black,
                     ),

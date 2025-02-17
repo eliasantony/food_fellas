@@ -388,7 +388,6 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
   List<Map<String, dynamic>> _applyFiltersToAll(
       List<Map<String, dynamic>> data, Map<String, dynamic> filters) {
     return data.where((item) {
-
       // averageRating >= minRating
       if (filters.containsKey('averageRating')) {
         double minRating = filters['averageRating'];
@@ -503,6 +502,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
         ? '${widget.collectionEmoji ?? ''} ${widget.collectionName ?? 'Collection'}'
         : (widget.title ?? 'Recipes');
 
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
     if (widget.collectionVisibility == false &&
         widget.collectionUserId != FirebaseAuth.instance.currentUser?.uid) {
       return Scaffold(
@@ -546,7 +548,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
           if (widget.isCollection == true &&
               widget.collectionId != null &&
               widget.collectionVisibility == true &&
-              widget.collectionUserId != FirebaseAuth.instance.currentUser?.uid)
+              widget.collectionUserId !=
+                  FirebaseAuth.instance.currentUser?.uid &&
+              !isGuestUser)
             IconButton(
                 icon: Icon(
                   isFollowingCollection
@@ -848,11 +852,15 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
 
   Widget _buildRatingSection() {
     final currentUser = FirebaseAuth.instance.currentUser;
+    final isGuestUser = currentUser == null || currentUser.isAnonymous;
     final isOwner = widget.collectionUserId == currentUser?.uid;
     final isContributor =
         widget.collectionContributors?.contains(currentUser?.uid) ?? false;
 
-    if (isOwner || isContributor || allCollectionRecipeIds.isEmpty) {
+    if (isOwner ||
+        isContributor ||
+        allCollectionRecipeIds.isEmpty ||
+        isGuestUser) {
       return SizedBox.shrink(); // Hide rating section for owners/contributors
     }
 

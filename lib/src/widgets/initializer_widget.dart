@@ -117,6 +117,19 @@ class _InitializerWidgetState extends State<InitializerWidget> {
   }
 
   Widget _checkOnboarding(User user) {
+    // If the user is anonymous, bypass onboarding
+    if (user.isAnonymous) {
+      // Set default guest data into the provider (if not already set)
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        Provider.of<UserDataProvider>(context, listen: false).setUserData({
+          'display_name': 'Guest',
+          'photo_url':
+              'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690', // or your default asset URL
+        });
+      });
+      return MainPage();
+    }
+    // Otherwise, continue with the normal onboarding check
     return FutureBuilder<bool>(
       future: _checkOnboardingAndFetchUserData(user.uid),
       builder: (context, snapshot) {

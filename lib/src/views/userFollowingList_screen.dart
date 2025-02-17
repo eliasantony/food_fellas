@@ -12,7 +12,8 @@ class FollowingListScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currentUser = FirebaseAuth.instance.currentUser;
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
 
     return Scaffold(
       appBar: AppBar(
@@ -163,6 +164,9 @@ class _UserFollowingListItemState extends State<UserFollowingListItem> {
 
   @override
   Widget build(BuildContext context) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
     return ListTile(
       onTap: _navigateToProfile,
       leading: CircleAvatar(
@@ -172,7 +176,8 @@ class _UserFollowingListItemState extends State<UserFollowingListItem> {
       ),
       title: name(),
       subtitle: subtitle(),
-      trailing: widget.userData['uid'] != FirebaseAuth.instance.currentUser?.uid
+      trailing: !isGuestUser &&
+              widget.userData['uid'] != FirebaseAuth.instance.currentUser?.uid
           ? Tooltip(
               message: isFollowing
                   ? 'Unfollow ${widget.userData['display_name']}'

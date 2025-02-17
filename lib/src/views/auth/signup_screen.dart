@@ -262,6 +262,46 @@ class _SignUpScreenState extends State<SignUpScreen> {
     }
   }
 
+  Future<void> _continueAsGuest() async {
+    bool shouldContinue = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text("Continue as Guest"),
+            content: const Text(
+                "Continuing as a guest will limit many features of the app. Do you wish to proceed?"),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(false),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(true),
+                child: const Text("Continue"),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+
+    if (!shouldContinue) return;
+
+    try {
+      // Option 1: Sign in anonymously using Firebase
+      UserCredential userCredential =
+          await FirebaseAuth.instance.signInAnonymously();
+      // Option 2: If you prefer to simply navigate without authentication,
+      // ensure your app handles a null or guest user appropriately.
+
+      // Navigate directly to the home screen (or main page)
+      Navigator.pushReplacementNamed(context, '/mainPage');
+    } catch (e) {
+      // Handle errors here if needed
+      if (kDebugMode) {
+        print('Error during anonymous sign in: $e');
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -354,6 +394,10 @@ class _SignUpScreenState extends State<SignUpScreen> {
                   Navigator.pushReplacementNamed(context, '/login');
                 },
                 child: const Text('Already have an account? Log in'),
+              ),
+              TextButton(
+                onPressed: _continueAsGuest,
+                child: Text('Continue as Guest'),
               ),
               const SizedBox(height: 20),
               const Row(

@@ -17,8 +17,16 @@ class UserDataProvider with ChangeNotifier {
           await FirebaseFirestore.instance.collection('users').doc(uid).get();
       if (userDoc.exists) {
         _userData = userDoc.data();
-        notifyListeners();
+      } else {
+        // If the document doesn't exist (likely for an anonymous user),
+        // set some default guest values.
+        _userData = {
+          'display_name': 'Guest',
+          'photo_url':
+              'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690',
+        };
       }
+      notifyListeners();
     } catch (e) {
       if (kDebugMode) {
         debugPrint('Error updating user data: $e');

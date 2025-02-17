@@ -97,7 +97,6 @@ class TypesenseHttpClient {
       final results = result['results'];
       if (results is List) {
         final first = results.first;
-        print(first);
         final hits = first['hits'];
         if (hits is List) {
           return hits

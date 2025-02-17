@@ -187,16 +187,21 @@ class _UserFollowerListItemState extends State<UserFollowerListItem> {
 
   @override
   Widget build(BuildContext context) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
     return ListTile(
       onTap: _navigateToProfile,
       leading: CircleAvatar(
         radius: 25,
-        backgroundImage: NetworkImage(widget.userData['photo_url'] ?? 'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690'),
+        backgroundImage: NetworkImage(widget.userData['photo_url'] ??
+            'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690'),
         backgroundColor: Colors.transparent,
       ),
       title: name(),
       subtitle: subtitle(),
-      trailing: widget.userData['uid'] != FirebaseAuth.instance.currentUser?.uid
+      trailing: !isGuestUser &&
+              widget.userData['uid'] != FirebaseAuth.instance.currentUser?.uid
           ? Tooltip(
               message: isFollowing
                   ? 'Unfollow ${widget.userData['display_name']}'

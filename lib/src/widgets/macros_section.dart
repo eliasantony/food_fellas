@@ -27,6 +27,7 @@ class _MacrosSectionState extends State<MacrosSection> {
 
   Future<void> _fetchCurrentUserRole() async {
     final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final userRole = userProvider.userData?['role'] ?? 'user';
     setState(() {
       _currentUserRole = userProvider.userData?['role'];
     });

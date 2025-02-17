@@ -9,6 +9,7 @@ import 'package:food_fellas/src/views/admin_dashboard.dart';
 import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/settings_notificationPreferences_screen.dart';
 import 'package:food_fellas/src/widgets/tutorialDialog.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -27,10 +28,19 @@ class SettingsScreen extends StatefulWidget {
 
 class _SettingsScreenState extends State<SettingsScreen> {
   bool notificationsEnabled = true;
+  String _appVersion = '';
 
   @override
   void initState() {
     super.initState();
+    _loadAppVersion();
+  }
+
+  Future<void> _loadAppVersion() async {
+    final packageInfo = await PackageInfo.fromPlatform();
+    setState(() {
+      _appVersion = packageInfo.version;
+    });
   }
 
   Future<void> _updateNotificationPreferences(
@@ -115,6 +125,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
     _launchURL(url);
   }
 
+  void _showSupport() {
+    // Open the browser to show the Privacy Policy link
+    var url = Uri(
+        scheme: 'https',
+        host: 'foodfellas.app',
+        fragment: '/support',
+        path: '/');
+    _launchURL(url);
+  }
+
   void _launchURL(Uri url) async {
     if (await canLaunchUrl(url)) {
       await launchUrl(url);
@@ -126,35 +146,60 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _deleteAccount() async {
+    String inputText = '';
     bool? confirmDelete = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Confirm Account Deletion'),
-        content: Text(
-            'Are you sure you want to delete your account? This action cannot be undone.'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
-          ),
-          ElevatedButton.icon(
-            onPressed: () => Navigator.of(context).pop(true),
-            icon: Icon(
-              Icons.delete,
-              color: Theme.of(context).colorScheme.onErrorContainer,
-            ),
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.errorContainer,
-            ),
-            label: Text(
-              'Delete Account',
-              style: TextStyle(
-                color: Theme.of(context).colorScheme.onErrorContainer,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            return AlertDialog(
+              title: Text('Confirm Account Deletion'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                      'Type DELETE to confirm account deletion. This action cannot be undone.'),
+                  TextField(
+                    onChanged: (value) {
+                      setState(() {
+                        inputText = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Type DELETE here',
+                    ),
+                  ),
+                ],
               ),
-            ),
-          ),
-        ],
-      ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: inputText == 'DELETE'
+                      ? () => Navigator.of(context).pop(true)
+                      : null,
+                  icon: Icon(
+                    Icons.delete,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor:
+                        Theme.of(context).colorScheme.errorContainer,
+                  ),
+                  label: Text(
+                    'Delete Account',
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.onErrorContainer,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
     );
 
     if (confirmDelete == true) {
@@ -170,6 +215,141 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
               content: Text('Error deleting account. Please try again.'),
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  void _resetPassword() async {
+    String email = FirebaseAuth.instance.currentUser!.email!;
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Password reset email sent to $email'),
+        ),
+      );
+    } catch (e) {
+      print('Error sending password reset email: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content:
+              Text('Error sending password reset email. Please try again.'),
+        ),
+      );
+    }
+  }
+
+  void _updatePassword() async {
+    String newPassword = '';
+    String confirmPassword = '';
+    bool? confirmUpdate = await showDialog(
+      context: context,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setState) {
+            bool passwordsMismatch =
+                confirmPassword.isNotEmpty && newPassword != confirmPassword;
+            return AlertDialog(
+              title: Text('Update Password'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    'Enter your new password below.',
+                    textAlign: TextAlign.left,
+                  ),
+                  TextField(
+                    obscureText: true,
+                    onChanged: (value) {
+                      setState(() {
+                        newPassword = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'New Password',
+                      border: OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: passwordsMismatch ? Colors.red : Colors.grey,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: passwordsMismatch
+                              ? Colors.red
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                    ),
+                  ),
+                  SizedBox(height: 10),
+                  TextField(
+                    obscureText: true,
+                    onChanged: (value) {
+                      setState(() {
+                        confirmPassword = value;
+                      });
+                    },
+                    decoration: InputDecoration(
+                      hintText: 'Confirm New Password',
+                      border: OutlineInputBorder(),
+                      enabledBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: passwordsMismatch ? Colors.red : Colors.grey,
+                        ),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderSide: BorderSide(
+                          color: passwordsMismatch
+                              ? Colors.red
+                              : Theme.of(context).colorScheme.primary,
+                        ),
+                      ),
+                      errorText:
+                          passwordsMismatch ? 'Passwords do not match' : null,
+                    ),
+                  ),
+                ],
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: Text('Cancel'),
+                ),
+                ElevatedButton.icon(
+                  onPressed: (newPassword.isNotEmpty &&
+                          confirmPassword.isNotEmpty &&
+                          newPassword == confirmPassword)
+                      ? () => Navigator.of(context).pop(true)
+                      : null,
+                  icon: Icon(Icons.lock),
+                  label: Text('Update Password'),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+
+    if (confirmUpdate == true) {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null) {
+        try {
+          await user.updatePassword(newPassword);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Password updated successfully!'),
+            ),
+          );
+        } catch (e) {
+          print('Error updating password: $e');
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Error updating password. Please try again.'),
             ),
           );
         }
@@ -291,6 +471,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
           ),
           Divider(),
           ListTile(
+            leading: Icon(Icons.info),
+            title: Text('App Version'),
+            subtitle: Text(_appVersion),
+          ),
+          ListTile(
             leading: Icon(Icons.description),
             title: Text('Terms of Service'),
             onTap: _showTermsOfService,
@@ -301,15 +486,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _showPrivacyPolicy,
           ),
           ListTile(
-            leading: Icon(Icons.info),
-            title: Text('App Version'),
-            subtitle: Text('pre 1.0.0'),
+            leading: Icon(Icons.support_agent_rounded),
+            title: Text('Support'),
+            onTap: _showSupport,
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.lock),
+            title: Text('Reset Password'),
+            onTap: _resetPassword,
+          ),
+          ListTile(
+            leading: Icon(Icons.update),
+            title: Text('Update Password'),
+            onTap: _updatePassword,
           ),
           Divider(),
           ListTile(
             leading: Icon(Icons.logout),
             title: Text('Log Out'),
             onTap: _logOut,
+          ),
+          Divider(),
+          ListTile(
+            leading: Icon(Icons.delete_forever_rounded),
+            title: Text('Delete Account'),
+            onTap: _deleteAccount,
           ),
         ],
       ),

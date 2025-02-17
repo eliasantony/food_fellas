@@ -27,6 +27,7 @@ import 'package:food_fellas/src/views/auth/welcome_screen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
+import 'package:food_fellas/src/widgets/authPrompt_dialog.dart';
 import 'package:food_fellas/src/widgets/expandableFAB.dart';
 import 'package:food_fellas/src/widgets/overlayExpandedFAB.dart';
 import 'package:food_fellas/src/widgets/tutorialDialog.dart';
@@ -327,7 +328,6 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
-
   final List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     DiscoverScreen(),
@@ -338,6 +338,24 @@ class _MainPageState extends State<MainPage> {
 
   void onItemTapped(int index) {
     Provider.of<BottomNavBarProvider>(context, listen: false).setIndex(index);
+  }
+
+  void _showAuthDialog(BuildContext context, String title, String message) {
+    showDialog(
+      context: context,
+      builder: (context) => AuthPromptDialog(
+        title: title,
+        message: message,
+        onLogin: () {
+          Navigator.of(context).pop();
+          Navigator.pushReplacementNamed(context, '/login');
+        },
+        onSignup: () {
+          Navigator.of(context).pop();
+          Navigator.pushReplacementNamed(context, '/signup');
+        },
+      ),
+    );
   }
 
   @override
@@ -438,31 +456,54 @@ class _MainPageState extends State<MainPage> {
   }
 
   Widget _buildExpandableFAB() {
+    final currentUser = FirebaseAuth.instance.currentUser;
     return OverlayExpandableFab(
       distance: 100, // adjust as needed
       children: [
         ActionButton(
           onPressed: () {
-            Provider.of<BottomNavBarProvider>(context, listen: false)
-                .setIndex(3);
+            if (currentUser == null || currentUser.isAnonymous) {
+              _showAuthDialog(
+                context,
+                "Create an Account",
+                "Using the AI Chat feature is only available for registered users. Please log in or sign up to continue.",
+              );
+            } else {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => AddRecipeForm()));
+            }
           },
           icon: const Icon(Icons.chat),
         ),
         ActionButton(
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => AddRecipeForm()),
-            );
+            if (currentUser == null || currentUser.isAnonymous) {
+              _showAuthDialog(
+                context,
+                "Create an Account",
+                "Adding recipes is only available for registered users. Please log in or sign up to continue.",
+              );
+            } else {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (context) => AddRecipeForm()));
+            }
           },
           icon: const Icon(Icons.create),
         ),
         ActionButton(
           onPressed: () {
-            Navigator.push(
-              context,
-              MaterialPageRoute(builder: (context) => ImageToRecipeScreen()),
-            );
+            if (currentUser == null || currentUser.isAnonymous) {
+              _showAuthDialog(
+                context,
+                "Create an Account",
+                "Using the image-to-recipe feature is only available for registered users. Please log in or sign up to continue.",
+              );
+            } else {
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) => ImageToRecipeScreen()));
+            }
           },
           icon: const Icon(Icons.camera_alt),
         ),

@@ -140,6 +140,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _fetchUserRole() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (user.isAnonymous) return;
 
     final userDoc = await FirebaseFirestore.instance
         .collection('users')
@@ -529,6 +530,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipeProvider = Provider.of<RecipeProvider>(context);
     bool isSaved = recipeProvider.isRecipeSaved(widget.recipeId);
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
     return Scaffold(
       floatingActionButton: FloatingActionButton(
         backgroundColor: Theme.of(context).colorScheme.primary,
@@ -672,7 +676,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                           ];
                                         },
                                       )
-                                    else
+                                    else if (!isGuestUser)
                                       // Save Button for regular users
                                       Selector<RecipeProvider, bool>(
                                         selector: (_, provider) => provider
@@ -807,7 +811,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                   ),
                                                 ),
                                                 // Options Menu or Save Button
-                                                if (canEditOrDelete)
+                                                if (canEditOrDelete &&
+                                                    !isGuestUser)
                                                   PopupMenuButton<String>(
                                                     icon: Icon(
                                                       Icons.more_vert,
@@ -870,7 +875,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                       ];
                                                     },
                                                   )
-                                                else
+                                                else if (!isGuestUser)
                                                   // Save Button for regular users
                                                   IconButton(
                                                     icon: Icon(
@@ -914,7 +919,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 shrinkWrap: false,
                 physics: const ClampingScrollPhysics(),
                 padding: EdgeInsets.zero,
-                children: _buildRecipeDetail(recipeData),
+                children: _buildRecipeDetail(recipeData, isGuestUser),
               ),
             );
           }
@@ -923,7 +928,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  List<Widget> _buildRecipeDetail(Map<String, dynamic> recipeData) {
+  List<Widget> _buildRecipeDetail(
+      Map<String, dynamic> recipeData, bool isGuestUser) {
     String recipeId = recipeData['id'] ?? '';
     String description = recipeData['description'] ?? '';
     List<dynamic> ingredientsData = recipeData['ingredients'] ?? [];
@@ -985,11 +991,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       ),
       const SizedBox(height: 16),
       // Comments and Reviews Section
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: _buildRatingAndCommentsSection(),
-      ),
-      const SizedBox(height: 16),
+      if (!isGuestUser) ...[
+        Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 8.0),
+          child: _buildRatingAndCommentsSection(),
+        ),
+        const SizedBox(height: 16),
+      ],
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
         child: _buildRatingBreakdown(averageRating, ratingsCount, ratingCounts),

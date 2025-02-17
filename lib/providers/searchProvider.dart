@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/typesense/typesenseClient.dart';
@@ -389,16 +390,24 @@ class SearchProvider with ChangeNotifier {
 
   Future<void> fetchHomeRowsOnce(String userId) async {
     if (_homeRowsFetched) return;
-    // 1) fetch row recipes:
+    // 1) Fetch row recipes that are public (available to everyone)
     await fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
     await fetchRowRecipes('topRated', sortBy: 'averageRating:desc');
     //await fetchRowRecipes('popular', sortBy: 'viewCount:desc');
     //await fetchRowRecipes('mostRated', sortBy: 'ratingCount:desc');
     await fetchTopChefs(sortBy: 'recipeCount:desc');
 
-    // 2) fetch “recently viewed” & “recommended”
-    _recentlyViewedCached = await fetchRecentlyViewedRecipes(userId, limit: 10);
-    _recommendedCached = await fetchFirebaseRecommendations(userId, limit: 5);
+    // 2) For user‑specific sections, check if the user is not anonymous
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser != null && !currentUser.isAnonymous) {
+      _recentlyViewedCached =
+          await fetchRecentlyViewedRecipes(userId, limit: 10);
+      _recommendedCached = await fetchFirebaseRecommendations(userId, limit: 5);
+    } else {
+      // If the user is a guest, simply clear these caches.
+      _recentlyViewedCached = [];
+      _recommendedCached = [];
+    }
 
     _homeRowsFetched = true;
     notifyListeners();
@@ -527,6 +536,9 @@ class SearchProvider with ChangeNotifier {
     String userId, {
     int limit = 5,
   }) async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.isAnonymous) return [];
+
     final viewedRecipes = <Map<String, dynamic>>[];
     try {
       final viewsSnapshot = await FirebaseFirestore.instance
@@ -564,6 +576,8 @@ class SearchProvider with ChangeNotifier {
     String userId, {
     int limit = 5,
   }) async {
+    User? currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null || currentUser.isAnonymous) return [];
     try {
       // 1) Get the recommended recipe IDs
       final recsSnapshot = await FirebaseFirestore.instance

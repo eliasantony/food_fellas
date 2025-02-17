@@ -98,12 +98,19 @@ class _SettingsNotificationPreferencesScreenState
             Spacer(),
             Padding(
               padding:
-                  const EdgeInsets.symmetric(horizontal: 8.0, vertical: 16),
+                  const EdgeInsets.symmetric(horizontal: 16.0, vertical: 32.0),
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _savePreferences, // Handle saving here
+                  onPressed: _savePreferences,
                   style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 30,
+                      vertical: 15,
+                    ),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12),
+                    ),
                     backgroundColor: Theme.of(context).colorScheme.primary,
                   ),
                   child: Text(

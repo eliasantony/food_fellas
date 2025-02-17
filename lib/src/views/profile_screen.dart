@@ -10,6 +10,7 @@ import 'package:food_fellas/src/utils/dialog_utils.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/collectionDetail_screen.dart';
 import 'package:food_fellas/src/views/editProfile_screen.dart';
+import 'package:food_fellas/src/views/guestUserScreen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
@@ -52,6 +53,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<void> _fetchCurrentUserRole() async {
+    if (FirebaseAuth.instance.currentUser == null) return;
+    if (FirebaseAuth.instance.currentUser!.isAnonymous) return;
+
     final userProvider =
         Provider.of<UserDataProvider>(this.context, listen: false);
     setState(() {
@@ -64,6 +68,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     String? displayUserId = widget.userId ?? currentUser?.uid;
 
     if (currentUser == null) {
+      return;
+    }
+    if (currentUser.isAnonymous && displayUserId == null) {
       return;
     }
 
@@ -150,7 +157,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     ThemeData theme = Theme.of(context);
+    final currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
 
+    // If the current user is a guest and is viewing their own profile,
+    // show a limited guest view.
+    if (isGuestUser &&
+        (widget.userId == null || widget.userId == currentUser?.uid)) {
+      return GuestUserScreen(
+          title: "Profile", message: "Sign up to view the full profile");
+    }
+
+    // Otherwise, proceed to load user data.
     if (userData == null) {
       // Show loading indicator
       return Scaffold(
@@ -163,6 +181,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Widget _buildProfileScreen(
       BuildContext context, ThemeData theme, Map<String, dynamic> userData) {
+    final User? currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,
@@ -318,7 +339,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: <Widget>[
             // Profile Header
-            _buildProfileHeader(theme, userData),
+            _buildProfileHeader(theme, userData, isGuestUser),
             // Average Rating Section
             _buildAverageRatingSection(theme, userData['uid']),
             // Statistics Section
@@ -339,7 +360,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(ThemeData theme, Map<String, dynamic> userData) {
+  Widget _buildProfileHeader(
+      ThemeData theme, Map<String, dynamic> userData, bool isGuestUser) {
     String displayName = userData['display_name'] ?? 'No Name';
     String photoUrl = userData['photo_url'] ??
         'https://via.placeholder.com/150'; // Default image if none provided
@@ -374,18 +396,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-          if (!isCurrentUser)
+            if (!isCurrentUser && !isGuestUser)
             Tooltip(
               message: isFollowing
-                  ? 'Unfollow ${userData['display_name']}'
-                  : 'Follow ${userData['display_name']}',
+                ? 'Unfollow ${userData['display_name']}'
+                : 'Follow ${userData['display_name']}',
               child: IconButton(
-                iconSize: 24,
-                icon: isFollowing
-                    ? Icon(Icons.person_add_disabled_rounded)
-                    : Icon(Icons.person_add_rounded),
-                color: isFollowing ? Colors.red[600] : Colors.green[600],
-                onPressed: _toggleFollow,
+              iconSize: 24,
+              icon: isFollowing
+                ? Icon(Icons.person_add_disabled_rounded)
+                : Icon(Icons.person_add_rounded),
+              color: isFollowing ? Colors.red[600] : Colors.green[600],
+              onPressed: _toggleFollow,
               ),
             ),
         ],

@@ -105,6 +105,9 @@ class _RecipeCardState extends State<RecipeCard> {
     final theme = Theme.of(context);
     final recipeProvider = Provider.of<RecipeProvider>(context, listen: false);
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
     String title = recipeData['title'] ?? 'Unnamed Recipe';
     String description = recipeData['description'] ?? '';
     double rating = (recipeData['averageRating'] ?? 0.0).toDouble();
@@ -217,25 +220,27 @@ class _RecipeCardState extends State<RecipeCard> {
               ),
             ),
             // The bookmark button using Selector
-            Padding(
-              padding: const EdgeInsets.all(8.0),
-              child: CircleAvatar(
-                backgroundColor: Colors.white.withAlpha(200),
-                child: Selector<RecipeProvider, bool>(
-                  selector: (_, provider) => provider.isRecipeSaved(recipeId),
-                  builder: (context, isSaved, child) {
-                    return IconButton(
-                      icon: isSaved
-                          ? Icon(Icons.bookmark, color: Colors.green)
-                          : Icon(Icons.bookmark_border, color: Colors.grey),
-                      onPressed: () async {
-                        await showSaveRecipeDialog(context, recipeId: recipeId);
-                      },
-                    );
-                  },
+            if (!isGuestUser)
+              Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: CircleAvatar(
+                  backgroundColor: Colors.white.withAlpha(200),
+                  child: Selector<RecipeProvider, bool>(
+                    selector: (_, provider) => provider.isRecipeSaved(recipeId),
+                    builder: (context, isSaved, child) {
+                      return IconButton(
+                        icon: isSaved
+                            ? Icon(Icons.bookmark, color: Colors.green)
+                            : Icon(Icons.bookmark_border, color: Colors.grey),
+                        onPressed: () async {
+                          await showSaveRecipeDialog(context,
+                              recipeId: recipeId);
+                        },
+                      );
+                    },
+                  ),
                 ),
               ),
-            ),
           ],
         ),
       ),

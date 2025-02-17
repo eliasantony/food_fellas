@@ -9,6 +9,7 @@ import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/views/addRecipeForm/tagsSelection_screen.dart';
 import 'package:food_fellas/src/views/addRecipeForm/thankyou_screen.dart';
+import 'package:food_fellas/src/views/guestUserScreen.dart';
 import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 import 'recipeBasics_screen.dart';
@@ -68,6 +69,14 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
 
   @override
   Widget build(BuildContext context) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
+
+    if (isGuestUser) {
+      return GuestUserScreen(
+          title: "Add Recipe", message: "Sign up to add a recipe!");
+    }
+
     return PopScope(
       // This callback is invoked when a pop is triggered (i.e. the user cancels the form).
       // Here we log the cancellation along with the current step and time spent.
@@ -310,8 +319,8 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
 
       Map<String, dynamic> recipeData = recipe.toJson();
 
-      recipeData['tagsNames'] = recipe.tags.map((tag) => tag.name).toSet().toList();
-
+      recipeData['tagsNames'] =
+          recipe.tags.map((tag) => tag.name).toSet().toList();
 
       try {
         // 1) Get the current user’s display name
