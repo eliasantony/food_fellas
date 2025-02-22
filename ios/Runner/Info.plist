@@ -52,10 +52,12 @@
 	<string>We need access to the microphone to record your voice.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>We need access to speech recognition for transcribing voice input.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>FoodFellas needs access to your camera to take photos for recipe suggestions.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>FoodFellas needs access to your photos to allow image-based recipe suggestions and food discovery.</string>
+    <string>FoodFellas needs access to your photos so you can upload pictures of food and meals. The app may use these images to provide AI-generated recipe suggestions based on your selected photo.</string>
     <key>NSPhotoLibraryAddUsageDescription</key>
-    <string>FoodFellas needs access to save images of your favorite recipes.</string>
+    <string>FoodFellas needs access to save images of your favorite recipes so you can revisit them later in your gallery.</string>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
 	<key>UIBackgroundModes</key>

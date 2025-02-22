@@ -12,6 +12,7 @@ import 'package:food_fellas/src/widgets/tutorialDialog.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -502,6 +503,22 @@ class _SettingsScreenState extends State<SettingsScreen> {
             onTap: _updatePassword,
           ),
           Divider(),
+          if (widget.userData['role'] == 'admin') ...[
+            ListTile(
+              leading: Icon(Icons.delete),
+              title: Text('Clear Shared Preferences'),
+              onTap: () async {
+                final prefs = await SharedPreferences.getInstance();
+                await prefs.clear();
+                ScaffoldMessenger.of(context).showSnackBar(
+                  SnackBar(
+                    content: Text('Shared preferences cleared.'),
+                  ),
+                );
+              },
+            ),
+            Divider(),
+          ],
           ListTile(
             leading: Icon(Icons.logout),
             title: Text('Log Out'),

@@ -56,10 +56,10 @@ class ThankYouScreen extends StatelessWidget {
                       width: double.infinity,
                       child: ElevatedButton(
                         onPressed: () {
-                          Navigator.of(context).pop();
                           Provider.of<BottomNavBarProvider>(context,
                                   listen: false)
                               .setIndex(0);
+                          Navigator.of(context).pop(true);
                         },
                         style: ElevatedButton.styleFrom(
                           backgroundColor:

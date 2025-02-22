@@ -18,7 +18,7 @@ class _RecipeFeedbackDialogState extends State<RecipeFeedbackDialog> {
   String feedback = '';
   String question1Answer = ''; // Open-ended feedback
   int easeOfUseRating = 5;
-  int ingredientsSatisfactionRating = 5;
+  String ingredientsSatisfactionRating = 'Yes';
   String experiencedBugs = 'No';
 
   Future<void> _submitFeedback() async {
@@ -97,20 +97,20 @@ class _RecipeFeedbackDialogState extends State<RecipeFeedbackDialog> {
                 ),
               ),
               SizedBox(height: 4),
-              RatingBar.builder(
-                initialRating: ingredientsSatisfactionRating.toDouble(),
-                minRating: 1,
-                direction: Axis.horizontal,
-                allowHalfRating: false,
-                itemCount: 5,
-                itemPadding: const EdgeInsets.symmetric(horizontal: 2.0),
-                itemBuilder: (context, _) => const Icon(
-                  Icons.star,
-                  color: Colors.amber,
+              DropdownButtonFormField<String>(
+                value: ingredientsSatisfactionRating,
+                decoration: InputDecoration(
+                  border: OutlineInputBorder(),
                 ),
-                onRatingUpdate: (newRating) {
+                items: ['No', 'Yes'].map((value) {
+                  return DropdownMenuItem(
+                    value: value,
+                    child: Text(value),
+                  );
+                }).toList(),
+                onChanged: (value) {
                   setState(() {
-                    ingredientsSatisfactionRating = newRating.toInt();
+                    ingredientsSatisfactionRating = value ?? 'No';
                   });
                 },
               ),
@@ -170,7 +170,32 @@ class _RecipeFeedbackDialogState extends State<RecipeFeedbackDialog> {
       ),
       actions: [
         TextButton(
-          onPressed: () => Navigator.of(context).pop(),
+          onPressed: () async {
+            final shouldCancel = await showDialog<bool>(
+              context: context,
+              builder: (context) {
+                return AlertDialog(
+                  title: Text('Confirm Cancel'),
+                  content: Text(
+                    'Are you sure you want to cancel?\nYour feedback is very important to us.',
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(context).pop(false),
+                      child: Text('No'),
+                    ),
+                    ElevatedButton(
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: Text('Yes'),
+                    ),
+                  ],
+                );
+              },
+            );
+            if (shouldCancel == true) {
+              Navigator.of(context).pop();
+            }
+          },
           child: Text('Cancel'),
         ),
         ElevatedButton(

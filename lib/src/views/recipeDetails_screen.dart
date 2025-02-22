@@ -1,4 +1,5 @@
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/photoview_screen.dart';
@@ -221,6 +222,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             .update({'recipeCount': FieldValue.increment(-1)});
       }
 
+      final searchProvider =
+          Provider.of<SearchProvider>(context, listen: false);
+      searchProvider.invalidateHomeRows();
+
       // Navigate back after deletion
       Navigator.pop(context);
 
@@ -362,6 +367,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     // Submit rating in the background
     Future.microtask(() => _submitRating(rating));
+
+    // Show a snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('Rated this recipe with $rating stars ⭐️.'),
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   void _submitComment() async {
@@ -369,7 +382,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     if (user == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-            content: Text('You must be logged in to submit a comment.')),
+          content: Text('You must be logged in to submit a comment.'),
+          duration: Duration(seconds: 2),
+        ),
       );
       return;
     }
@@ -394,6 +409,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       'timestamp': FieldValue.serverTimestamp(),
       'rating': rating > 0 ? rating : null,
     });
+
+    // Show a snackbar
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Comment submitted successfully.'),
+        duration: Duration(seconds: 2),
+      ),
+    );
 
     _commentController.clear();
     // Submit the rating if it has changed
@@ -1374,6 +1397,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Padding _buildIngredientItem(
       double totalAmount, String unit, String ingredientName) {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    bool isGuestUser = currentUser == null || currentUser.isAnonymous;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4.0),
       child: Row(
@@ -1394,39 +1419,43 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
           // Shopping list button
           Expanded(
             flex: 1,
-            child: ValueListenableBuilder<Set<String>>(
-              valueListenable: shoppingListItemsNotifier,
-              builder: (context, shoppingListItems, _) {
-                bool isInShoppingList =
-                    shoppingListItems.contains(ingredientName);
+            child: isGuestUser
+                ? SizedBox
+                    .shrink() // or return a disabled icon/button if you prefer
+                : ValueListenableBuilder<Set<String>>(
+                    valueListenable: shoppingListItemsNotifier,
+                    builder: (context, shoppingListItems, _) {
+                      bool isInShoppingList =
+                          shoppingListItems.contains(ingredientName);
 
-                return AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  transitionBuilder:
-                      (Widget child, Animation<double> animation) {
-                    return ScaleTransition(scale: animation, child: child);
-                  },
-                  child: IconButton(
-                    key: ValueKey<bool>(isInShoppingList),
-                    icon: Icon(
-                      isInShoppingList
-                          ? Icons.check
-                          : Icons.add_shopping_cart_rounded,
-                      color: isInShoppingList ? Colors.green : null,
-                    ),
-                    onPressed: () {
-                      if (isInShoppingList) {
-                        _removeIngredientFromShoppingList(
-                            ingredientName, totalAmount, unit);
-                      } else {
-                        _addIngredientToShoppingList(
-                            ingredientName, totalAmount, unit);
-                      }
+                      return AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 300),
+                        transitionBuilder:
+                            (Widget child, Animation<double> animation) {
+                          return ScaleTransition(
+                              scale: animation, child: child);
+                        },
+                        child: IconButton(
+                          key: ValueKey<bool>(isInShoppingList),
+                          icon: Icon(
+                            isInShoppingList
+                                ? Icons.check
+                                : Icons.add_shopping_cart_rounded,
+                            color: isInShoppingList ? Colors.green : null,
+                          ),
+                          onPressed: () {
+                            if (isInShoppingList) {
+                              _removeIngredientFromShoppingList(
+                                  ingredientName, totalAmount, unit);
+                            } else {
+                              _addIngredientToShoppingList(
+                                  ingredientName, totalAmount, unit);
+                            }
+                          },
+                        ),
+                      );
                     },
                   ),
-                );
-              },
-            ),
           ),
         ],
       ),
@@ -1505,7 +1534,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   onPressed: _submitComment,
                 ),
               ),
-              maxLines: null,
+              maxLines: 3,
             ),
           ],
         ),

@@ -1,7 +1,9 @@
 import 'dart:io';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
+import 'package:food_fellas/main.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:food_fellas/src/models/textEmbedding_model.dart';
@@ -396,27 +398,42 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           int recipeCount =
               ((userDoc.data() as Map<String, dynamic>?)?['recipeCount'] ?? 0) +
                   1;
-          print('Recipe count: $recipeCount');
+
+          if (kDebugMode) {
+            debugPrint('Recipe count: $recipeCount');
+          }
 
           await userRef.update({'recipeCount': FieldValue.increment(1)});
 
-          if (recipeCount < 5) {
-            showDialog(
-              context: context,
-              builder: (context) => RecipeFeedbackDialog(recipeId: recipe.id!),
+          if (recipeCount <= 5) {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ThankYouScreen(recipeId: recipe.id!),
+              ),
+            ).then((shouldShowFeedback) {
+              // Once the Thank You screen is popped, check return value
+              if (kDebugMode) {
+                debugPrint('Should show feedback: $shouldShowFeedback');
+              }
+              if (shouldShowFeedback == true) {
+                if (kDebugMode) {
+                  debugPrint('Showing feedback dialog');
+                }
+                showDialog(
+                  context: globalNavigatorKey.currentContext!,
+                  builder: (ctx) => RecipeFeedbackDialog(recipeId: recipe.id!),
+                );
+              }
+            });
+          } else {
+            Navigator.pushReplacement(
+              context,
+              MaterialPageRoute(
+                builder: (context) => ThankYouScreen(recipeId: recipe.id!),
+              ),
             );
           }
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Recipe submitted successfully!')),
-          );
-
-          Navigator.pushReplacement(
-            context,
-            MaterialPageRoute(
-              builder: (context) => ThankYouScreen(recipeId: recipe.id!),
-            ),
-          );
         } else {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text('Recipe edited successfully!')),

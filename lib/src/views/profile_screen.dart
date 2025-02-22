@@ -396,18 +396,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
             ),
           ),
-            if (!isCurrentUser && !isGuestUser)
+          if (!isCurrentUser && !isGuestUser)
             Tooltip(
               message: isFollowing
-                ? 'Unfollow ${userData['display_name']}'
-                : 'Follow ${userData['display_name']}',
+                  ? 'Unfollow ${userData['display_name']}'
+                  : 'Follow ${userData['display_name']}',
               child: IconButton(
-              iconSize: 24,
-              icon: isFollowing
-                ? Icon(Icons.person_add_disabled_rounded)
-                : Icon(Icons.person_add_rounded),
-              color: isFollowing ? Colors.red[600] : Colors.green[600],
-              onPressed: _toggleFollow,
+                iconSize: 24,
+                icon: isFollowing
+                    ? Icon(Icons.person_add_disabled_rounded)
+                    : Icon(Icons.person_add_rounded),
+                color: isFollowing ? Colors.red[600] : Colors.green[600],
+                onPressed: _toggleFollow,
               ),
             ),
         ],
@@ -764,7 +764,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     final userId = userData['uid'];
 
     return FutureBuilder<List<Map<String, dynamic>>>(
-      future: recipeProvider.getContributedCollections(),
+      future: recipeProvider.getContributedCollections(userId),
       builder: (context, snapshot) {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return SizedBox(

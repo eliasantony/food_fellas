@@ -277,7 +277,6 @@ class _MainAppState extends State<MainApp> {
     });
 
     saveTokenToDatabase();
-    checkAndShowTutorial(context);
   }
 
   @override
@@ -328,6 +327,20 @@ class MainPage extends StatefulWidget {
 }
 
 class _MainPageState extends State<MainPage> {
+  bool _tutorialChecked = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Schedule it once after the widget is built.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!_tutorialChecked) {
+        checkAndShowTutorial(context);
+        _tutorialChecked = true;
+      }
+    });
+  }
+
   final List<Widget> _widgetOptions = <Widget>[
     HomeScreen(),
     DiscoverScreen(),

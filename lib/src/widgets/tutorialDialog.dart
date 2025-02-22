@@ -1,18 +1,28 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 Future<bool> shouldShowTutorial() async {
   final prefs = await SharedPreferences.getInstance();
+  if (kDebugMode) {
+    debugPrint('Tutorial shown: ${prefs.getBool('tutorial_shown')}');
+  }
   return prefs.getBool('tutorial_shown') ?? true;
 }
 
 Future<void> setTutorialShown() async {
   final prefs = await SharedPreferences.getInstance();
+  if (kDebugMode) {
+    debugPrint('Setting tutorial_shown to false');
+  }
   await prefs.setBool('tutorial_shown', false);
 }
 
 void checkAndShowTutorial(BuildContext context) async {
   if (await shouldShowTutorial()) {
+    if (kDebugMode) {
+      debugPrint('Showing tutorial');
+    }
     WidgetsBinding.instance.addPostFrameCallback((_) {
       showTutorialDialog(context);
     });
@@ -130,7 +140,8 @@ class _TutorialDialogState extends State<TutorialDialog> {
                                 vertical: 8.0, horizontal: 12.0),
                             child: RichText(
                               textAlign: TextAlign.center,
-                              text: _parseText(tutorialPages[index]['text']!),
+                              text: _parseText(
+                                  tutorialPages[index]['text']!, context),
                             ),
                           ),
                         ),
@@ -218,8 +229,10 @@ class _TutorialDialogState extends State<TutorialDialog> {
     );
   }
 
-  /// Parses text and makes words between ** bold
-  TextSpan _parseText(String text) {
+  TextSpan _parseText(String text, BuildContext context) {
+    Color baseColor = Theme.of(context).brightness == Brightness.dark
+        ? Colors.white
+        : Colors.black;
     List<TextSpan> spans = [];
     RegExp exp = RegExp(r'\*\*(.*?)\*\*');
     Iterable<RegExpMatch> matches = exp.allMatches(text);
@@ -231,7 +244,7 @@ class _TutorialDialogState extends State<TutorialDialog> {
       }
       spans.add(TextSpan(
         text: match.group(1),
-        style: TextStyle(fontWeight: FontWeight.bold),
+        style: const TextStyle(fontWeight: FontWeight.bold),
       ));
       currentIndex = match.end;
     }
@@ -241,7 +254,6 @@ class _TutorialDialogState extends State<TutorialDialog> {
     }
 
     return TextSpan(
-        style: TextStyle(fontSize: 14, color: Colors.grey[700]),
-        children: spans);
+        style: TextStyle(fontSize: 16, color: baseColor), children: spans);
   }
 }

@@ -121,21 +121,25 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
               children: [
                 GestureDetector(
                   onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => Scaffold(
-                          appBar: AppBar(),
-                          body: Center(
-                            child: PhotoView(
-                              imageProvider: FileImage(_selectedImage!),
-                              minScale: PhotoViewComputedScale.contained,
-                              maxScale: PhotoViewComputedScale.covered * 2,
+                    if (_selectedImage != null) {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => Scaffold(
+                            appBar: AppBar(),
+                            body: Center(
+                              child: PhotoView(
+                                imageProvider: FileImage(_selectedImage!),
+                                minScale: PhotoViewComputedScale.contained,
+                                maxScale: PhotoViewComputedScale.covered * 2,
+                              ),
                             ),
                           ),
                         ),
-                      ),
-                    );
+                      );
+                    } else {
+                      _pickImage();
+                    }
                   },
                   child: ClipRRect(
                     borderRadius: BorderRadius.only(
@@ -385,15 +389,44 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
 
   void _pickImage() async {
     final picker = ImagePicker();
-    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
 
+    showModalBottomSheet(
+      context: context,
+      builder: (BuildContext context) {
+        return SafeArea(
+          child: Wrap(
+            children: <Widget>[
+              ListTile(
+                leading: Icon(Icons.camera_alt),
+                title: Text('Take a photo'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final XFile? image =
+                      await picker.pickImage(source: ImageSource.camera);
+                  _processPickedImage(image);
+                },
+              ),
+              ListTile(
+                leading: Icon(Icons.photo_library),
+                title: Text('Choose from gallery'),
+                onTap: () async {
+                  Navigator.pop(context);
+                  final XFile? image =
+                      await picker.pickImage(source: ImageSource.gallery);
+                  _processPickedImage(image);
+                },
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  void _processPickedImage(XFile? image) async {
     if (image != null) {
-      // Convert XFile -> File
-      final original = File(image.path);
-
-      // Optionally, crop first (as you have with ImageCropper)
-      // Then compress/resize
-      final compressed = await compressImage(original);
+      final File original = File(image.path);
+      final File compressed = await compressImage(original);
 
       setState(() {
         _selectedImage = compressed;

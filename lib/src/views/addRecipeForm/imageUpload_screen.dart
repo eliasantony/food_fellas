@@ -275,29 +275,50 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   Future<void> _pickImage() async {
     try {
       final picker = ImagePicker();
-      final pickedImage = await picker.pickImage(source: ImageSource.gallery);
+      final ImageSource? selectedSource =
+          await showModalBottomSheet<ImageSource>(
+        context: context,
+        builder: (BuildContext context) {
+          return SafeArea(
+            child: Wrap(
+              children: <Widget>[
+                ListTile(
+                  leading: Icon(Icons.camera_alt),
+                  title: Text('Take a Photo'),
+                  onTap: () => Navigator.pop(context, ImageSource.camera),
+                ),
+                ListTile(
+                  leading: Icon(Icons.photo_library),
+                  title: Text('Choose from Gallery'),
+                  onTap: () => Navigator.pop(context, ImageSource.gallery),
+                ),
+              ],
+            ),
+          );
+        },
+      );
 
-      if (pickedImage != null) {
-        final File imageFile = File(pickedImage.path);
+      // If user cancels selection, return early
+      if (selectedSource == null) return;
 
-        // Check the file size
+      final XFile? image = await picker.pickImage(source: selectedSource);
+
+      if (image != null) {
+        File imageFile = File(image.path);
+
+        // Check file size and compress if needed
         final int imageSizeInBytes = await imageFile.length();
         final double imageSizeInMB = imageSizeInBytes / (1024 * 1024);
-        print('Original Image Size: ${imageSizeInMB.toStringAsFixed(2)} MB');
 
-        // Compress the image if it's larger than 2 MB (adjust threshold as needed)
-        File compressedImageFile = imageFile;
         if (imageSizeInMB > 2) {
-          print('Compressing image...');
-          compressedImageFile = await _compressImage(imageFile);
-          print('Image compressed successfully.');
+          imageFile = await _compressImage(imageFile);
         }
 
         setState(() {
-          widget.recipe.imageFile = compressedImageFile;
+          widget.recipe.imageFile = imageFile;
         });
 
-        widget.onDataChanged('imageFile', compressedImageFile);
+        widget.onDataChanged('imageFile', imageFile);
       }
     } catch (e) {
       print('Error picking image: $e');
@@ -319,7 +340,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
     // Resize or compress the image
     final int maxWidth = 1080; // Max width (adjust as needed)
     final int maxHeight = 1080; // Max height (adjust as needed)
-    final int quality = 85; // Compression quality (1-100)
+    final int quality = 70; // Compression quality (1-100)
 
     final img.Image resizedImage = img.copyResize(
       originalImage,
@@ -385,19 +406,6 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
       int endTime = DateTime.now().millisecondsSinceEpoch; // End timing
       int responseTime = endTime - startTime;
 
-      setState(() {
-        _isLoading = false;
-      });
-
-      final imageUrl = result.data['url'];
-
-      setState(() {
-        widget.recipe.imageUrl = imageUrl;
-      });
-
-      widget.onDataChanged('imageUrl', imageUrl);
-
-      // Log event in Firebase Analytics
       AnalyticsService.logEvent(
         name: "ai_image_generation_time",
         parameters: {
@@ -414,6 +422,20 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           "plating": selectedPlating,
         },
       );
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      final imageUrl = result.data['url'];
+
+      // Log event in Firebase Analytics
+
+      setState(() {
+        widget.recipe.imageUrl = imageUrl;
+      });
+
+      widget.onDataChanged('imageUrl', imageUrl);
     } catch (e) {
       setState(() {
         _isLoading = false;

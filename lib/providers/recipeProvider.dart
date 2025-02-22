@@ -175,14 +175,13 @@ class RecipeProvider extends ChangeNotifier {
   }
 
   // Method to fetch collections where the user is a contributor
-  Future<List<Map<String, dynamic>>> getContributedCollections() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) return [];
+  Future<List<Map<String, dynamic>>> getContributedCollections(String userId) async {
+    if (userId.isEmpty) return [];
 
     try {
       final sharedSnap = await FirebaseFirestore.instance
           .collection('users')
-          .doc(user.uid)
+          .doc(userId)
           .collection('sharedCollections')
           .get();
 
