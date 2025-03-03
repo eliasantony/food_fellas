@@ -9,11 +9,10 @@ import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:food_fellas/src/views/home_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/views/recipeDetails_screen.dart';
+import 'package:food_fellas/main.dart' show globalNavigatorKey;
 
 final FlutterLocalNotificationsPlugin flutterLocalNotificationsPlugin =
     FlutterLocalNotificationsPlugin();
-final GlobalKey<NavigatorState> globalNavigatorKey =
-    GlobalKey<NavigatorState>();
 
 /// Request notification permissions for iOS and Android (if needed).
 Future<NotificationSettings> requestNotificationPermissions() async {
@@ -175,6 +174,8 @@ Future<void> showNotification(
     platformChannelSpecifics,
     payload: payload,
   );
+
+  // handleNotificationNavigation(data);
 }
 
 void handleNotificationNavigation(Map<String, dynamic> data) {

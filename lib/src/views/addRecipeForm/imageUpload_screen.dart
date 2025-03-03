@@ -4,6 +4,7 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
+import 'package:food_fellas/src/services/imageCompression.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:lottie/lottie.dart';
@@ -192,30 +193,44 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           ),
         ),
         SizedBox(height: 8),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-          child: Row(
-            children: [
-              Text(
-                'Or let AI create a picture for you!',
-                style: TextStyle(fontWeight: FontWeight.bold),
-                textAlign: TextAlign.left,
-              ),
-            ],
+        // Only show AI options if recipe.source is not "image_to_recipe"
+        if (widget.recipe.source != "image_to_recipe") ...[
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Row(
+              children: [
+                Text(
+                  'Or let AI create a picture for you!',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                  textAlign: TextAlign.left,
+                ),
+              ],
+            ),
           ),
-        ),
-        _buildCustomizationOptions(),
-        SizedBox(height: 8),
-        ElevatedButton.icon(
-          onPressed: _generateImageWithAI,
-          icon: Icon(Icons.auto_awesome),
-          label: Text('Generate Image with AI'),
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Theme.of(context).colorScheme.primary,
-            foregroundColor: Theme.of(context).colorScheme.onPrimary,
-            padding: EdgeInsets.symmetric(horizontal: 30),
+          _buildCustomizationOptions(),
+          SizedBox(height: 8),
+          ElevatedButton.icon(
+            onPressed: _generateImageWithAI,
+            icon: Icon(Icons.auto_awesome),
+            label: Text('Generate Image with AI'),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              padding: EdgeInsets.symmetric(horizontal: 30),
+            ),
           ),
-        ),
+        ] else ...[
+          // Optionally, show a message that an image has already been provided
+          Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text(
+              'A real image is already uploaded, so AI generation is disabled.',
+              style: TextStyle(fontStyle: FontStyle.italic),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ],
       ],
     );
   }
@@ -306,19 +321,13 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
       if (image != null) {
         File imageFile = File(image.path);
 
-        // Check file size and compress if needed
-        final int imageSizeInBytes = await imageFile.length();
-        final double imageSizeInMB = imageSizeInBytes / (1024 * 1024);
-
-        if (imageSizeInMB > 2) {
-          imageFile = await _compressImage(imageFile);
-        }
+        final compressed = await compressImagePreservingAspectRatio(imageFile);
 
         setState(() {
-          widget.recipe.imageFile = imageFile;
+          widget.recipe.imageFile = compressed;
         });
 
-        widget.onDataChanged('imageFile', imageFile);
+        widget.onDataChanged('imageFile', compressed);
       }
     } catch (e) {
       print('Error picking image: $e');
@@ -326,38 +335,6 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         SnackBar(content: Text('Failed to pick image. Please try again.')),
       );
     }
-  }
-
-  Future<File> _compressImage(File imageFile) async {
-    // Read the image data
-    final Uint8List imageBytes = await imageFile.readAsBytes();
-    final img.Image? originalImage = img.decodeImage(imageBytes);
-
-    if (originalImage == null) {
-      throw Exception('Failed to decode image');
-    }
-
-    // Resize or compress the image
-    final int maxWidth = 1080; // Max width (adjust as needed)
-    final int maxHeight = 1080; // Max height (adjust as needed)
-    final int quality = 70; // Compression quality (1-100)
-
-    final img.Image resizedImage = img.copyResize(
-      originalImage,
-      width: maxWidth,
-      height: maxHeight,
-    );
-
-    // Encode the resized/compressed image to JPEG format
-    final Uint8List compressedBytes =
-        Uint8List.fromList(img.encodeJpg(resizedImage, quality: quality));
-
-    // Save the compressed image back to a temporary file
-    final String tempDir = (await getTemporaryDirectory()).path;
-    final File compressedImageFile = File('$tempDir/compressed_image.jpg');
-    await compressedImageFile.writeAsBytes(compressedBytes);
-
-    return compressedImageFile;
   }
 
   Future<void> _generateImageWithAI() async {

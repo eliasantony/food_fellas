@@ -10,6 +10,7 @@ import 'package:flutter_image_compress/flutter_image_compress.dart';
 import 'package:food_fellas/src/models/aiPhotoRecognitionModel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
+import 'package:food_fellas/src/services/imageCompression.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -191,6 +192,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                                 'Enter a short description of the dish...',
                             border: OutlineInputBorder(),
                           ),
+                          maxLines: 3,
                         ),
                       ),
                       IconButton(
@@ -426,7 +428,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   void _processPickedImage(XFile? image) async {
     if (image != null) {
       final File original = File(image.path);
-      final File compressed = await compressImage(original);
+      final File compressed = await compressImagePreservingAspectRatio(original);
 
       setState(() {
         _selectedImage = compressed;
@@ -485,10 +487,8 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
       );
       // --- End API call timing ---
       final responseText = response?.text ?? '';
-      print('Response: $responseText');
       // Extract the JSON recipe from the AI response
       final recipeJson = extractJsonRecipe(responseText);
-      print('Recipe JSON: $recipeJson');
 
       if (recipeJson != null) {
         // Add the image URL to the recipe JSON object

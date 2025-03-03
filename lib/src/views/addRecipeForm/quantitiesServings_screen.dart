@@ -80,6 +80,12 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                                   border: OutlineInputBorder(),
                                 ),
                                 keyboardType: TextInputType.text,
+                                validator: (value) {
+                                  if (value == null || value.isEmpty) {
+                                    return 'Please enter an amount';
+                                  }
+                                  return null;
+                                },
                                 onChanged: (newValue) {
                                   setState(() {
                                     if (newValue.isNotEmpty) {

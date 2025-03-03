@@ -127,20 +127,29 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
             ),
           ),
           // "Add Step" button stays pinned at the bottom
-          Padding(
+            Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16.0),
             child: ElevatedButton(
-              onPressed: _addStep,
+              onPressed: () {
+              _addStep();
+              // After adding the step, focus on the new TextFormField
+              Future.delayed(Duration(milliseconds: 100), () {
+                if (_itemKeys.isNotEmpty) {
+                FocusScope.of(context).requestFocus(FocusNode(
+                  debugLabel: 'step_${_controllers.length - 1}'));
+                }
+              });
+              },
               style: ElevatedButton.styleFrom(
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                foregroundColor: Theme.of(context).colorScheme.onPrimary,
-                padding: EdgeInsets.symmetric(horizontal: 30),
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              foregroundColor: Theme.of(context).colorScheme.onPrimary,
+              padding: EdgeInsets.symmetric(horizontal: 30),
               ),
               child: Text(
-                'Add Step',
-                style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                      color: Theme.of(context).colorScheme.onPrimary,
-                    ),
+              'Add Step',
+              style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                  color: Theme.of(context).colorScheme.onPrimary,
+                ),
               ),
             ),
           ),

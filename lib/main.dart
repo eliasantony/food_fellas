@@ -241,6 +241,8 @@ class _MainAppState extends State<MainApp> {
     super.initState();
     // Foreground messages
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+      if (kDebugMode)
+        debugPrint('onMessage event was published: ${message.data}');
       final notification = message.notification;
       debugPrint('onMessage event was published: ${message.data}');
       if (notification != null) {
@@ -482,8 +484,9 @@ class _MainPageState extends State<MainPage> {
                 "Using the AI Chat feature is only available for registered users. Please log in or sign up to continue.",
               );
             } else {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (context) => AddRecipeForm()));
+              BottomNavBarProvider bottomNavBarProvider =
+                  Provider.of<BottomNavBarProvider>(context, listen: false);
+              bottomNavBarProvider.setIndex(3);
             }
           },
           icon: const Icon(Icons.chat),

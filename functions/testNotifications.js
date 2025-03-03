@@ -27,7 +27,7 @@ const messaging = admin.messaging();
 const requestedTypesArg = process.argv[2] || "all";
 const requestedTypes = requestedTypesArg.split(",").map(s => s.trim().toLowerCase());
 
-const token = process.argv[3] || 'dDd4B32OQuizNsplGIdnCL:APA91bFtnTFUes0nEv8JfR7TCYTCCXcH0wCEmjxW5h5SZV5j-RwMP5Bv79oyVEi7ySBjVmiS-40m8eF1Fa8O0PINodQVJJXYngeohpZyzyw50P6m5I_R91U';
+const token = process.argv[3] || 'dDoAQCRcS0hcj4xgEcyNu-:APA91bFMWqKIxFphIpUUQVo9hs5RvTDqQW0UAxvN7ywHr-4bWX04wmKZkQ7HWPJer5cHWxBT-DwiXSMg6uxSc8O3OlJSexqlwCGAibNIrCQS6ljQfXygTzE';
 const recipeId = process.argv[4] || '7lYvKQa6pq0dvCrWcYCU';
 const commentId = process.argv[5] || '423ZhGcyNhD1ZkvXLRwA';
 const followerUid = process.argv[6] || 'eW2mRlQLIffkpck4ku9O6nXn9ZV2';

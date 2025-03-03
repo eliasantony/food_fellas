@@ -58,20 +58,22 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   }
 
   void _filterIngredients(String query) {
+    final trimmedQuery = query.trim();
     setState(() {
-      searchQuery = query;
+      searchQuery = trimmedQuery;
       filteredIngredients = availableIngredients.where((ingredient) {
         return ingredient.ingredientName
             .toLowerCase()
-            .contains(query.toLowerCase());
+            .contains(trimmedQuery.toLowerCase());
       }).toList();
 
-      // If no matching ingredients and query is not empty, show an option to add new ingredient
-      if (filteredIngredients.isEmpty && query.isNotEmpty) {
-        showAddIngredientOption = true;
-      } else {
-        showAddIngredientOption = false;
-      }
+      // Determine if any ingredient's name exactly matches the query (ignoring case)
+      bool exactMatchFound = availableIngredients.any((ingredient) =>
+          ingredient.ingredientName.toLowerCase() ==
+          trimmedQuery.toLowerCase());
+
+      // If the trimmed query is not empty and no exact match is found, show add option.
+      showAddIngredientOption = trimmedQuery.isNotEmpty && !exactMatchFound;
     });
   }
 
