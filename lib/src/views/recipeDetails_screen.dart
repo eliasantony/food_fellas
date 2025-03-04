@@ -1073,8 +1073,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               ? CachedNetworkImage(
                   imageUrl: imageUrl!,
                   progressIndicatorBuilder: (context, url, downloadProgress) =>
-                      CircularProgressIndicator(
-                          value: downloadProgress.progress),
+                      SizedBox(
+                    width: 30,
+                    height: 30,
+                    child: CircularProgressIndicator(
+                        value: downloadProgress.progress),
+                  ),
                   errorWidget: (context, url, error) => const Icon(
                     Icons.broken_image,
                     size: 80,
@@ -1502,7 +1506,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         padding: const EdgeInsets.all(16.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
+          children: [
             Text(
               'Rate this Recipe!',
               style: Theme.of(context).textTheme.titleLarge,
@@ -1510,36 +1514,36 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             const SizedBox(height: 8),
             Center(
               child: RatingBar.builder(
-              initialRating: userRating,
-              minRating: 1,
-              direction: Axis.horizontal,
-              allowHalfRating: false,
-              itemCount: 5,
-              itemSize: 40.0,
-              itemBuilder: (context, _) => const Icon(
-                Icons.star,
-                color: Colors.amber,
-              ),
-              onRatingUpdate: _updateRating,
+                initialRating: userRating,
+                minRating: 1,
+                direction: Axis.horizontal,
+                allowHalfRating: false,
+                itemCount: 5,
+                itemSize: 40.0,
+                itemBuilder: (context, _) => const Icon(
+                  Icons.star,
+                  color: Colors.amber,
+                ),
+                onRatingUpdate: _updateRating,
               ),
             ),
             const SizedBox(height: 16),
             TextFormField(
               controller: _commentController,
               decoration: InputDecoration(
-              labelText: 'Leave a comment',
-              border: const OutlineInputBorder(),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.send),
-                onPressed: _submitComment,
-              ),
+                labelText: 'Leave a comment',
+                border: const OutlineInputBorder(),
+                suffixIcon: IconButton(
+                  icon: const Icon(Icons.send),
+                  onPressed: _submitComment,
+                ),
               ),
               maxLines: 3,
               validator: (value) {
-              if (value == null || value.trim().isEmpty) {
-                return 'Comment cannot be empty';
-              }
-              return null;
+                if (value == null || value.trim().isEmpty) {
+                  return 'Comment cannot be empty';
+                }
+                return null;
               },
             ),
           ],

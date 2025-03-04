@@ -11,24 +11,26 @@ class Ingredient {
     this.approved = false, // Default to false for new ingredients
   });
 
-  // This method will be used to create an Ingredient object from Firebase data
+  // Convert Firestore document to Ingredient object
   factory Ingredient.fromDocumentSnapshot(DocumentSnapshot doc) {
+    final data = doc.data() as Map<String, dynamic>; // Ensure type safety
     return Ingredient(
-      ingredientName: doc['IngredientName'],
-      category: doc['ingredientCatgory'],
-      approved: doc['approved'] ?? false,
+      ingredientName: data['ingredientName'] ?? 'Unknown', // Fix field name
+      category: data['category'] ?? 'Other', // Fix field name
+      approved: data['approved'] ?? false,
     );
   }
 
+  // Convert JSON to Ingredient object
   factory Ingredient.fromJson(Map<String, dynamic> json) {
     return Ingredient(
-      ingredientName: json['ingredientName'],
-      category: json['category'],
+      ingredientName: json['ingredientName'] ?? 'Unknown',
+      category: json['category'] ?? 'Other',
       approved: json['approved'] ?? false,
     );
   }
 
-  // This method will be used to convert an Ingredient object to a JSON object
+  // Convert Ingredient object to Firestore JSON
   Map<String, dynamic> toJson() {
     return {
       'ingredientName': ingredientName,

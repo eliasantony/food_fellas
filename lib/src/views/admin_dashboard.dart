@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/feedbackProvider.dart';
 import 'package:food_fellas/src/views/addRecipeForm/importRecipes_screen.dart';
+import 'package:food_fellas/src/widgets/unaproved_ingredients.dart';
 import 'package:provider/provider.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
@@ -13,12 +14,14 @@ class AdminDashboardScreen extends StatelessWidget {
     final feedbackProvider = Provider.of<FeedbackProvider>(context);
 
     return DefaultTabController(
-      length: 3, // Updated to 3 tabs
+      length: 4, // Updated to 3 tabs
       child: Scaffold(
         appBar: AppBar(
           title: Text('Admin Dashboard'),
           bottom: TabBar(
+            isScrollable: true,
             tabs: [
+              Tab(text: 'Unapproved Ingredients'), // New Tab
               Tab(text: 'Overall Feedback'),
               Tab(text: 'Recipe Feedback'),
               Tab(text: 'Import Recipes'),
@@ -27,6 +30,8 @@ class AdminDashboardScreen extends StatelessWidget {
         ),
         body: TabBarView(
           children: [
+            // New Unapproved Ingredients Tab
+            UnapprovedIngredientsTab(),
             // Overall Feedback Tab
             FeedbackList(
               stream: feedbackProvider.getOverallFeedback(),
@@ -52,7 +57,8 @@ class FeedbackList extends StatelessWidget {
   final Stream<QuerySnapshot> stream;
   final String feedbackType;
 
-  const FeedbackList({super.key, required this.stream, required this.feedbackType});
+  const FeedbackList(
+      {super.key, required this.stream, required this.feedbackType});
 
   @override
   Widget build(BuildContext context) {

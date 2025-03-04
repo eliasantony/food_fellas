@@ -72,8 +72,8 @@ void main() async {
   }
 
   FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
-  //await requestNotificationPermissions();
-  //await initLocalNotifications();
+  await requestNotificationPermissions();
+  await initLocalNotifications();
 
   if (Platform.isAndroid) {
     // On Android, it's safe to call getToken() right away
@@ -254,7 +254,11 @@ class _MainAppState extends State<MainApp> {
     // App opened via notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       debugPrint('onMessageOpenedApp event was published: ${message.data}');
-      handleNotificationNavigation(message.data);
+      if (message != null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          handleNotificationNavigation(message.data);
+        });
+      }
     });
 
     FirebaseMessaging.instance

@@ -39,7 +39,7 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         Provider.of<IngredientProvider>(context, listen: false);
 
     if (!ingredientProvider.isLoaded) {
-      ingredientProvider.fetchIngredients().then((_) {
+      ingredientProvider.fetchIngredients(includeUnapproved: true).then((_) {
         setState(() {
           availableIngredients = ingredientProvider.ingredients;
         });
@@ -168,27 +168,57 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
     // Use the improved dialog to confirm the ingredient name and select a category.
     Map<String, String>? result =
         await _showAddNewIngredientDialog(ingredientName);
+
     if (result != null) {
-      String newName = result['name']!;
+      String newName = result['name']!.trim().toLowerCase(); // Normalize input
       String category = result['category']!;
+
+      final ingredientsCollection =
+          FirebaseFirestore.instance.collection('ingredients');
+
+      debugPrint('Checking if ingredient already exists: $newName');
+
+      // Check if ingredient already exists
+      final existingIngredientQuery = await ingredientsCollection
+          .where('ingredientName', isEqualTo: newName)
+          .get();
+
+      if (existingIngredientQuery.docs.isNotEmpty) {
+        // If the ingredient already exists, show a message
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Ingredient "$newName" already exists.')),
+        );
+        debugPrint('Ingredient "$newName" already exists in Firestore.');
+        return;
+      }
+
+      // If not found, add the new ingredient
       Ingredient newIngredient = Ingredient(
         ingredientName: newName,
         category: category,
         approved: false,
       );
 
-      // Add to Firestore
-      final ingredientsCollection =
-          FirebaseFirestore.instance.collection('ingredients');
-      await ingredientsCollection.add(newIngredient.toJson());
+      debugPrint('Adding new ingredient to Firestore...');
+      debugPrint('Ingredient data: ${newIngredient.toJson()}');
 
-      // Update local lists and automatically select the new ingredient.
-      setState(() {
-        availableIngredients.add(newIngredient);
-        filteredIngredients.add(newIngredient);
-        showAddIngredientOption = false;
-        _toggleIngredientSelection(true, newIngredient);
-      });
+      try {
+        await ingredientsCollection.add(newIngredient.toJson());
+        debugPrint('New ingredient added to Firestore.');
+
+        // Update local lists and automatically select the new ingredient.
+        setState(() {
+          availableIngredients.add(newIngredient);
+          filteredIngredients.add(newIngredient);
+          showAddIngredientOption = false;
+          _toggleIngredientSelection(true, newIngredient);
+        });
+      } catch (e) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to add ingredient: $e')),
+        );
+        debugPrint('Failed to add ingredient: $e');
+      }
     }
   }
 
@@ -239,7 +269,13 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
                 items: categories.map((String value) {
                   return DropdownMenuItem<String>(
                     value: value,
-                    child: Text(value),
+                    child: Row(
+                      children: [
+                        Text(categoryEmojis[value] ?? '🍽️'),
+                        const SizedBox(width: 8),
+                        Text(value),
+                      ],
+                    ),
                   );
                 }).toList(),
                 onChanged: (newValue) {
