@@ -108,6 +108,15 @@ void main() async {
 
   final appLinks = AppLinks();
 
+  if (Platform.isIOS) {
+    const EventChannel eventChannel = EventChannel("OpenURL");
+    eventChannel.receiveBroadcastStream().listen((dynamic link) {
+      if (link is String) {
+        _handleIncomingLink(Uri.parse(link));
+      }
+    });
+  }
+
   // Check for an initial link
   final initialUri = await appLinks.getInitialLink();
   if (initialUri != null) {
