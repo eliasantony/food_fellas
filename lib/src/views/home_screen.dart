@@ -702,7 +702,8 @@ class _HomeScreenState extends State<HomeScreen> {
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Top Rated') {
                 // We want to show the “Discover” tab with sort = avgRating desc
-                searchProvider.setSortOrder('averageRating:desc');
+                searchProvider
+                    .setSortOrder('averageRating:desc');
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Most Rated') {
                 // We want to show the “Discover” tab with sort = avgRating desc

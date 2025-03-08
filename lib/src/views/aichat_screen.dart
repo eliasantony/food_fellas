@@ -849,11 +849,16 @@ class _AIChatScreenState extends State<AIChatScreen> {
               },
             ),
             ElevatedButton(
-              child: Text('Clear'),
               onPressed: () {
                 Navigator.of(context).pop(); // Close the dialog
                 _clearChat(); // Proceed to clear the chat
               },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
+              child: Text('Clear',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary)),
             ),
           ],
         );

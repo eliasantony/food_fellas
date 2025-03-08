@@ -57,3 +57,6 @@ node_modules
 populateTageCollection.js
 
 tutorial*.mov
+
+# FVM Version Cache
+.fvm/

@@ -162,6 +162,44 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
             textAlign: TextAlign.left,
           ),
         ),
+// Row of Selected Tags
+        if (selectedTags.isNotEmpty)
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Selected Tags:',
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                SizedBox(height: 8),
+                SizedBox(
+                  height: 50, // Adjust the height as needed
+                  child: ListView(
+                    scrollDirection: Axis.horizontal,
+                    children: selectedTags.map((tag) {
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 4.0),
+                        child: Chip(
+                          label: Text('${tag.icon} ${tag.name}'),
+                          onDeleted: () {
+                            setState(() {
+                              selectedTags.remove(tag);
+                              widget.onDataChanged(
+                                  'tags', selectedTags.toList());
+                            });
+                          },
+                          deleteIcon: Icon(Icons.close, size: 16),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+              ],
+            ),
+          ),
         Expanded(
           child: Form(
             key: widget.formKey,

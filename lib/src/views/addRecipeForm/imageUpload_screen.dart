@@ -226,7 +226,6 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
             padding: const EdgeInsets.all(16.0),
             child: Text(
               'A real image is already uploaded, so AI generation is disabled.',
-              style: TextStyle(fontStyle: FontStyle.italic),
               textAlign: TextAlign.center,
             ),
           ),

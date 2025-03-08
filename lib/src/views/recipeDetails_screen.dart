@@ -974,7 +974,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       ),
       // Rating Section
       Padding(
-        padding: const EdgeInsets.all(8.0),
+        padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
           children: [
@@ -983,6 +983,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
             // Description
             Text(
               description,
+              textAlign: TextAlign.center,
               style: Theme.of(context).textTheme.bodyMedium,
             ),
           ],
@@ -1115,6 +1116,8 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                     fontWeight: FontWeight.bold,
                   ),
                   textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                 ),
                 const SizedBox(height: 4),
                 // Author Name

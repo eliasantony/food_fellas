@@ -69,6 +69,53 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
     super.dispose();
   }
 
+  void _confirmExit() {
+    if (_isRecipeNotEmpty()) {
+      showDialog(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: Text('Discard Changes?'),
+            content: Text(
+                'You have unsaved changes. Are you sure you want to leave?'),
+            actions: [
+              TextButton(
+                child: Text('Leave'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).pop(); // Close the form
+                },
+              ),
+              ElevatedButton(
+                child: Text('Cancel',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary)),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+              ),
+            ],
+          );
+        },
+      );
+    } else {
+      Navigator.of(context).pop();
+    }
+  }
+
+  /// Checks if the recipe form is not empty (has any user input).
+  bool _isRecipeNotEmpty() {
+    return recipe.title.isNotEmpty ||
+        recipe.description.isNotEmpty ||
+        recipe.ingredients.isNotEmpty ||
+        recipe.tags.isNotEmpty ||
+        recipe.cookingSteps.isNotEmpty ||
+        recipe.imageFile != null;
+  }
+
   @override
   Widget build(BuildContext context) {
     final currentUser = FirebaseAuth.instance.currentUser;
@@ -100,6 +147,12 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         appBar: AppBar(
           title: Text(
               widget.initialRecipe == null ? 'Add a Recipe' : 'Edit Recipe'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () {
+              _confirmExit();
+            },
+          ),
         ),
         body: Column(
           children: <Widget>[

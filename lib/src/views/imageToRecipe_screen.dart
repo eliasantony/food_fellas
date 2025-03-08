@@ -193,6 +193,10 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                             border: OutlineInputBorder(),
                           ),
                           maxLines: 3,
+                          textInputAction: TextInputAction.done,
+                          onEditingComplete: () {
+                            FocusScope.of(context).unfocus();
+                          },
                         ),
                       ),
                       IconButton(
@@ -428,7 +432,8 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   void _processPickedImage(XFile? image) async {
     if (image != null) {
       final File original = File(image.path);
-      final File compressed = await compressImagePreservingAspectRatio(original);
+      final File compressed =
+          await compressImagePreservingAspectRatio(original);
 
       setState(() {
         _selectedImage = compressed;

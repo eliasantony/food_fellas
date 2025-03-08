@@ -399,6 +399,7 @@ class SearchProvider with ChangeNotifier {
 
     // 2) For user‑specific sections, check if the user is not anonymous
     User? currentUser = FirebaseAuth.instance.currentUser;
+    final userId = currentUser?.uid ?? '';
     if (currentUser != null && !currentUser.isAnonymous) {
       _recentlyViewedCached =
           await fetchRecentlyViewedRecipes(userId, limit: 10);
@@ -415,6 +416,7 @@ class SearchProvider with ChangeNotifier {
 
   void invalidateHomeRows() {
     _homeRowsFetched = false;
+    fetchHomeRowsOnce(FirebaseAuth.instance.currentUser?.uid ?? '');
   }
 
   Future<void> fetchFuzzyRecipes({

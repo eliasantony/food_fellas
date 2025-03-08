@@ -24,9 +24,13 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
     'kg',
     'ml',
     'pieces',
+    'slices',
     'tbsp',
     'tsp',
     'pinch',
+    'unit',
+    'bottle',
+    'can',
     'Other',
   ];
 

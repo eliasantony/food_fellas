@@ -176,8 +176,6 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
       final ingredientsCollection =
           FirebaseFirestore.instance.collection('ingredients');
 
-      debugPrint('Checking if ingredient already exists: $newName');
-
       // Check if ingredient already exists
       final existingIngredientQuery = await ingredientsCollection
           .where('ingredientName', isEqualTo: newName)
@@ -188,7 +186,6 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Ingredient "$newName" already exists.')),
         );
-        debugPrint('Ingredient "$newName" already exists in Firestore.');
         return;
       }
 
@@ -199,12 +196,8 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         approved: false,
       );
 
-      debugPrint('Adding new ingredient to Firestore...');
-      debugPrint('Ingredient data: ${newIngredient.toJson()}');
-
       try {
         await ingredientsCollection.add(newIngredient.toJson());
-        debugPrint('New ingredient added to Firestore.');
 
         // Update local lists and automatically select the new ingredient.
         setState(() {
@@ -217,7 +210,6 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Failed to add ingredient: $e')),
         );
-        debugPrint('Failed to add ingredient: $e');
       }
     }
   }
@@ -254,6 +246,7 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
             children: [
               const Text('Confirm ingredient name and select a category:'),
               TextFormField(
+                textCapitalization: TextCapitalization.words,
                 initialValue: initialName,
                 decoration: const InputDecoration(labelText: 'Ingredient Name'),
                 onChanged: (value) {
@@ -403,14 +396,7 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
   }
 
   Widget _buildCategorizedIngredients() {
-    // Build a Map of category to list of ingredients
-    Map<String, List<Ingredient>> categorizedIngredients = {};
-    for (var ingredient in availableIngredients) {
-      categorizedIngredients.putIfAbsent(ingredient.category, () => []);
-      categorizedIngredients[ingredient.category]!.add(ingredient);
-    }
-
-    // Define the desired category order
+    // Define the correct categories
     List<String> categoryOrder = [
       'Vegetable',
       'Fruit',
@@ -427,12 +413,44 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
       'Other',
     ];
 
+    // Map of categories to ingredients
+    Map<String, List<Ingredient>> categorizedIngredients = {};
+    Set<String> unknownCategories = {}; // Track unknown categories
+
+    for (var ingredient in availableIngredients) {
+      // Trim and normalize the category name
+      String normalizedCategory = ingredient.category.trim();
+
+      // Ensure ingredient has a valid name
+      if (ingredient.ingredientName == null ||
+          ingredient.ingredientName.trim().isEmpty ||
+          ingredient.ingredientName.toLowerCase() == "unknown") {
+        continue; // Skip invalid or unknown ingredients
+      }
+
+      // If category is unknown, track it but still show the ingredient
+      if (!categoryOrder.contains(normalizedCategory)) {
+        unknownCategories.add(normalizedCategory);
+        normalizedCategory = 'Other';
+      }
+
+      // Add the ingredient under its category
+      categorizedIngredients.putIfAbsent(normalizedCategory, () => []);
+      categorizedIngredients[normalizedCategory]!.add(ingredient);
+    }
+
+    // Log unknown categories once
+    if (unknownCategories.isNotEmpty) {
+      debugPrint('Unknown categories found: ${unknownCategories.join(', ')}');
+    }
+
+    // Build UI
     List<Widget> categoryWidgets = [];
     for (String category in categoryOrder) {
       if (categorizedIngredients.containsKey(category)) {
         List<Ingredient> ingredients = categorizedIngredients[category]!;
 
-        // Sort alphabetically (ignoring case)
+        // Sort alphabetically
         ingredients.sort((a, b) => a.ingredientName
             .toLowerCase()
             .compareTo(b.ingredientName.toLowerCase()));
@@ -442,16 +460,8 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
             visualDensity: const VisualDensity(vertical: -4, horizontal: 0),
             contentPadding:
                 const EdgeInsets.symmetric(vertical: 4.0, horizontal: 16.0),
-            title: Row(
-              children: [
-                Text(ingredient.ingredientName),
-                if (!ingredient.approved)
-                  const Text(
-                    ' *',
-                    style: TextStyle(color: Colors.red),
-                  ),
-              ],
-            ),
+            title: Text(
+                ingredient.ingredientName), // Ensure correct name is displayed
             value: _isSelected(ingredient),
             onChanged: (bool? value) {
               _toggleIngredientSelection(value, ingredient);
