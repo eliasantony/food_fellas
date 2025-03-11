@@ -39,6 +39,22 @@ ChatUser geminiUser = ChatUser(
       "https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/FoodFellas_Assistant.png?alt=media&token=a6f11228-1b4f-42f7-9dbb-5844e3093431",
 );
 
+String cleanJsonString(String jsonString) {
+  // Remove any trailing commas inside objects or arrays (JSON doesn't allow them)
+  jsonString = jsonString.replaceAll(RegExp(r',\s*([\]}])'), '');
+
+  // Remove invisible control characters (can corrupt JSON)
+  jsonString = jsonString.replaceAll(RegExp(r'[\u0000-\u001F]'), '');
+
+  // Remove a comma right before the closing square bracket of the "tags" array
+  jsonString = jsonString.replaceAll(RegExp(r',\s*\]'), ']');
+
+  // Ensure proper formatting
+  jsonString = jsonString.trim();
+
+  return jsonString;
+}
+
 // Helper function to extract and parse the JSON code block
 Map<String, dynamic>? extractJsonRecipe(String text) {
   try {
@@ -59,13 +75,16 @@ Map<String, dynamic>? extractJsonRecipe(String text) {
           },
         );
 
-        final Map<String, dynamic> decoded = json.decode(jsonString);
+        final cleanedJsonString = cleanJsonString(jsonString);
+        final Map<String, dynamic> decoded = json.decode(cleanedJsonString);
         if (decoded.containsKey('title') &&
             decoded.containsKey('description') &&
             decoded.containsKey('ingredients') &&
             decoded.containsKey('cookingSteps') &&
             decoded.containsKey('tags')) {
           return decoded;
+        } else {
+          debugPrint("Invalid JSON format: Missing required fields.");
         }
       }
     }

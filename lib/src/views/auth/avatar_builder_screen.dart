@@ -42,136 +42,179 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
     }
   }
 
+  Future<bool> _showExitConfirmationDialog(BuildContext context) async {
+    return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Discard changes?'),
+            content: const Text(
+                'Are you sure you want to exit without saving your avatar?'),
+            actions: [
+              TextButton(
+                child: const Text('Leave'),
+                onPressed: () {
+                  Navigator.pop(context, true); // Return true when leaving
+                },
+              ),
+              ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context, false); // Return false when canceling
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                child: Text('Cancel',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary)),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
+
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Avatar Creator'),
-      ),
-      body: Column(
-        children: [
-          // Avatar Preview with Screenshot
-          Screenshot(
-            controller: screenshotController,
-            child: SizedBox(
-              height: 200.0,
-              child: Center(
-                child: PeepAvatar.fromAtoms(
-                  face: selectedFace,
-                  head: selectedHead,
-                  facialHair: selectedFacialHair,
-                  accessory: selectedAccessory,
-                  backgroundColor: backgroundColor,
-                  size: 160.0,
+    return PopScope<Object?>(
+      canPop: false, // Prevents immediate popping without confirmation
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (!didPop) {
+          bool shouldExit = await _showExitConfirmationDialog(context);
+          if (shouldExit) {
+            Navigator.of(context).pop(); // Allow popping
+          }
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: const Text('Avatar Creator'),
+        ),
+        body: Column(
+          children: [
+            // Avatar Preview with Screenshot
+            Screenshot(
+              controller: screenshotController,
+              child: SizedBox(
+                height: 200.0,
+                child: Center(
+                  child: PeepAvatar.fromAtoms(
+                    face: selectedFace,
+                    head: selectedHead,
+                    facialHair: selectedFacialHair,
+                    accessory: selectedAccessory,
+                    backgroundColor: backgroundColor,
+                    size: 160.0,
+                  ),
                 ),
               ),
             ),
-          ),
-          const SizedBox(height: 10),
-          buildColorPicker(),
-          const SizedBox(height: 20),
+            const SizedBox(height: 10),
+            buildColorPicker(),
+            const SizedBox(height: 20),
 
-          // Category Selector + GridView + Bottom Button in a Container
-          Expanded(
-            child: Container(
-              decoration: BoxDecoration(
-                color: Theme.of(context).brightness == Brightness.dark
-                    ? Colors.grey[600]
-                    : Colors.transparent,
-                borderRadius: const BorderRadius.only(
-                  topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24),
+            // Category Selector + GridView + Bottom Button in a Container
+            Expanded(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Theme.of(context).brightness == Brightness.dark
+                      ? Colors.grey[600]
+                      : Colors.transparent,
+                  borderRadius: const BorderRadius.only(
+                    topLeft: Radius.circular(24),
+                    topRight: Radius.circular(24),
+                  ),
                 ),
-              ),
-              child: Column(
-                children: [
-                  // Category Selector
-                  buildCategorySelectorContainer(),
+                child: Column(
+                  children: [
+                    // Category Selector
+                    buildCategorySelectorContainer(),
 
-                  // Grid View
-                  Expanded(
-                    child: Padding(
-                      padding: const EdgeInsets.all(8.0),
-                      child: GridView.builder(
-                        gridDelegate:
-                            const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 8.0,
-                          mainAxisSpacing: 8.0,
-                        ),
-                        itemCount: currentAtoms.length,
-                        itemBuilder: (context, index) {
-                          PeepAtom atom = currentAtoms[index];
-                          bool isSelected = selectedAtom == atom;
-                          return GestureDetector(
-                            onTap: () => _onAtomSelected(atom),
-                            child: Container(
-                              decoration: BoxDecoration(
-                                border: Border.all(
-                                  color: isSelected
-                                      ? Theme.of(context).colorScheme.primary
+                    // Grid View
+                    Expanded(
+                      child: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: GridView.builder(
+                          gridDelegate:
+                              const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 4,
+                            crossAxisSpacing: 8.0,
+                            mainAxisSpacing: 8.0,
+                          ),
+                          itemCount: currentAtoms.length,
+                          itemBuilder: (context, index) {
+                            PeepAtom atom = currentAtoms[index];
+                            bool isSelected = selectedAtom == atom;
+                            return GestureDetector(
+                              onTap: () => _onAtomSelected(atom),
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  border: Border.all(
+                                    color: isSelected
+                                        ? Theme.of(context).colorScheme.primary
+                                        : Colors.transparent,
+                                    width: 2.0,
+                                  ),
+                                  borderRadius: BorderRadius.circular(8.0),
+                                  color: Theme.of(context).brightness ==
+                                          Brightness.dark
+                                      ? Colors.grey[600]
                                       : Colors.transparent,
-                                  width: 2.0,
                                 ),
-                                borderRadius: BorderRadius.circular(8.0),
-                                color: Theme.of(context).brightness ==
-                                        Brightness.dark
-                                    ? Colors.grey[600]
-                                    : Colors.transparent,
-                              ),
-                              child: Center(
-                                child: PeepImage(
-                                  peepAtom: atom,
-                                  size: (selectedCategory == 'Face' ||
-                                          selectedCategory == 'Accessories')
-                                      ? 96
-                                      : 64,
+                                child: Center(
+                                  child: PeepImage(
+                                    peepAtom: atom,
+                                    size: (selectedCategory == 'Face' ||
+                                            selectedCategory == 'Accessories')
+                                        ? 96
+                                        : 64,
+                                  ),
                                 ),
                               ),
-                            ),
-                          );
-                        },
+                            );
+                          },
+                        ),
                       ),
                     ),
-                  ),
 
-                  // Bottom Button
-                  Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 24.0),
-                    child: ElevatedButton.icon(
-                      onPressed: () async {
-                        Uint8List? capturedImage =
-                            await screenshotController.capture();
-                        if (capturedImage != null) {
-                          Navigator.pop(context, capturedImage);
-                        }
-                      },
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: Theme.of(context).colorScheme.primary,
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 30, vertical: 12),
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(24),
+                    // Bottom Button
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 24.0),
+                      child: ElevatedButton.icon(
+                        onPressed: () async {
+                          Uint8List? capturedImage =
+                              await screenshotController.capture();
+                          if (capturedImage != null) {
+                            Navigator.pop(context, capturedImage);
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor:
+                              Theme.of(context).colorScheme.primary,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 30, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(24),
+                          ),
                         ),
-                      ),
-                      icon: Icon(
-                        Icons.check,
-                        color: Theme.of(context).colorScheme.onPrimary,
-                      ),
-                      label: Text(
-                        'Use Avatar',
-                        style: TextStyle(
+                        icon: Icon(
+                          Icons.check,
                           color: Theme.of(context).colorScheme.onPrimary,
-                          fontWeight: FontWeight.bold,
+                        ),
+                        label: Text(
+                          'Use Avatar',
+                          style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

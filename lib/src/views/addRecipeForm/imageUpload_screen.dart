@@ -45,6 +45,8 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   String selectedStyle = 'Bright and Airy';
   String selectedPlating = 'Minimalist';
 
+  bool _hasGeneratedAIImage = false;
+
   @override
   void dispose() {
     // _promptController.dispose();
@@ -194,7 +196,8 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         ),
         SizedBox(height: 8),
         // Only show AI options if recipe.source is not "image_to_recipe"
-        if (widget.recipe.source != "image_to_recipe") ...[
+        if (widget.recipe.source != 'image_to_recipe' &&
+            !widget.recipe.hasGeneratedAIImage) ...[
           Padding(
             padding:
                 const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
@@ -211,11 +214,13 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
           _buildCustomizationOptions(),
           SizedBox(height: 8),
           ElevatedButton.icon(
-            onPressed: _generateImageWithAI,
+            onPressed: _hasGeneratedAIImage ? null : _generateImageWithAI,
             icon: Icon(Icons.auto_awesome),
             label: Text('Generate Image with AI'),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
+              backgroundColor: _hasGeneratedAIImage
+                  ? Colors.grey // Disable color
+                  : Theme.of(context).colorScheme.primary,
               foregroundColor: Theme.of(context).colorScheme.onPrimary,
               padding: EdgeInsets.symmetric(horizontal: 30),
             ),
@@ -337,6 +342,7 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   }
 
   Future<void> _generateImageWithAI() async {
+    if (_hasGeneratedAIImage) return; // Prevent multiple generations
     // Build the prompt
     String ingredientList = widget.recipe.ingredients
         .take(3)
@@ -399,18 +405,21 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         },
       );
 
-      setState(() {
-        _isLoading = false;
-      });
-
       final imageUrl = result.data['url'];
 
-      // Log event in Firebase Analytics
+      // Clear any previously uploaded image
+      setState(() {
+        widget.recipe.imageFile = null; // Remove local image
+        widget.recipe.imageUrl = imageUrl;
+        _hasGeneratedAIImage = true; // Disable AI image button
+        _isLoading = false;
+      });
 
       setState(() {
         widget.recipe.imageUrl = imageUrl;
       });
 
+      widget.onDataChanged('imageFile', null);
       widget.onDataChanged('imageUrl', imageUrl);
     } catch (e) {
       setState(() {

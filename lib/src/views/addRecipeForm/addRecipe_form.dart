@@ -69,43 +69,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
     super.dispose();
   }
 
-  void _confirmExit() {
-    if (_isRecipeNotEmpty()) {
-      showDialog(
-        context: context,
-        builder: (BuildContext context) {
-          return AlertDialog(
-            title: Text('Discard Changes?'),
-            content: Text(
-                'You have unsaved changes. Are you sure you want to leave?'),
-            actions: [
-              TextButton(
-                child: Text('Leave'),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                  Navigator.of(context).pop(); // Close the form
-                },
-              ),
-              ElevatedButton(
-                child: Text('Cancel',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary)),
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                ),
-              ),
-            ],
-          );
-        },
-      );
-    } else {
-      Navigator.of(context).pop();
-    }
-  }
-
   /// Checks if the recipe form is not empty (has any user input).
   bool _isRecipeNotEmpty() {
     return recipe.title.isNotEmpty ||
@@ -114,6 +77,58 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         recipe.tags.isNotEmpty ||
         recipe.cookingSteps.isNotEmpty ||
         recipe.imageFile != null;
+  }
+
+  void _logFormCancellation() {
+    final duration = DateTime.now().difference(_formStartTime);
+    String? currentStepName = _buildEasySteps()[_currentStep].title;
+
+    AnalyticsService.logEvent(
+      name: "recipe_form_cancelled",
+      parameters: {
+        "source": recipe.source ?? 'manual',
+        "duration_seconds": duration.inSeconds,
+        "cancelled_at_step": currentStepName ?? 'Unknown',
+      },
+    );
+  }
+
+  Future<bool> _showExitConfirmationDialog(BuildContext context) async {
+    if (_isRecipeNotEmpty()) {
+      return await showDialog<bool>(
+            context: context,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text('Discard Changes?'),
+                content: const Text(
+                    'You have unsaved changes. Are you sure you want to leave?'),
+                actions: [
+                  TextButton(
+                    child: const Text('Leave'),
+                    onPressed: () {
+                      Navigator.of(context)
+                          .pop(true); // Return true when leaving
+                    },
+                  ),
+                  ElevatedButton(
+                    onPressed: () {
+                      Navigator.of(context)
+                          .pop(false); // Return false when canceling
+                    },
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    child: Text('Cancel',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary)),
+                  ),
+                ],
+              );
+            },
+          ) ??
+          false;
+    }
+    return true;
   }
 
   @override
@@ -127,21 +142,20 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
     }
 
     return PopScope(
-      // This callback is invoked when a pop is triggered (i.e. the user cancels the form).
-      // Here we log the cancellation along with the current step and time spent.
-      // Use the new onPopInvokedWithResult signature.
-      onPopInvokedWithResult: (bool popResult, dynamic result) {
-        final duration = DateTime.now().difference(_formStartTime);
-        // Get the step title from your EasySteps list:
-        String? currentStepName = _buildEasySteps()[_currentStep].title;
-        AnalyticsService.logEvent(
-          name: "recipe_form_cancelled",
-          parameters: {
-            "source": recipe.source ?? 'manual',
-            "duration_seconds": duration.inSeconds,
-            "cancelled_at_step": currentStepName ?? 'Unknown',
-          },
-        );
+      canPop: false, // Prevents immediate popping without confirmation
+      onPopInvokedWithResult: (bool didPop, dynamic result) async {
+        if (!didPop) {
+          bool shouldExit = await _showExitConfirmationDialog(context);
+
+          if (shouldExit) {
+            _logFormCancellation(); // Log the form cancellation event
+            result.complete(true); // Allow exit
+          } else {
+            if (result != null) {
+              result.complete(false);
+            }
+          }
+        }
       },
       child: Scaffold(
         appBar: AppBar(
@@ -150,7 +164,12 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           leading: IconButton(
             icon: Icon(Icons.arrow_back),
             onPressed: () {
-              _confirmExit();
+              _showExitConfirmationDialog(context).then((shouldExit) {
+                if (shouldExit) {
+                  _logFormCancellation(); // Log the form cancellation event
+                  Navigator.pop(context);
+                }
+              });
             },
           ),
         ),
@@ -650,7 +669,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           break;
         case 'tags':
           recipe.tags = List<Tag>.from(value);
-          print('Tags: ${recipe.tags}');
           break;
         case 'imageFile':
           recipe.imageFile = value;

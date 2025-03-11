@@ -1,4 +1,6 @@
+import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/src/models/autoStepSelection_config.dart';
 import '../../models/recipe.dart';
 
 class CookingStepsPage extends StatefulWidget {
@@ -21,6 +23,8 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
   List<TextEditingController> _controllers = [];
   final ScrollController _scrollController = ScrollController();
   List<GlobalKey> _itemKeys = [];
+
+  bool _isLoading = false; // Loading state for AI request
 
   @override
   void initState() {
@@ -127,30 +131,62 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
             ),
           ),
           // "Add Step" button stays pinned at the bottom
-            Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16.0),
-            child: ElevatedButton(
-              onPressed: () {
-              _addStep();
-              // After adding the step, focus on the new TextFormField
-              Future.delayed(Duration(milliseconds: 100), () {
-                if (_itemKeys.isNotEmpty) {
-                FocusScope.of(context).requestFocus(FocusNode(
-                  debugLabel: 'step_${_controllers.length - 1}'));
-                }
-              });
-              },
-              style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              padding: EdgeInsets.symmetric(horizontal: 30),
-              ),
-              child: Text(
-              'Add Step',
-              style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                  color: Theme.of(context).colorScheme.onPrimary,
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            child: Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ElevatedButton.icon(
+                  onPressed: () {
+                    _addStep();
+                    // After adding the step, focus on the new TextFormField
+                    Future.delayed(Duration(milliseconds: 100), () {
+                      if (_itemKeys.isNotEmpty) {
+                        FocusScope.of(context).requestFocus(FocusNode(
+                            debugLabel: 'step_${_controllers.length - 1}'));
+                      }
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Theme.of(context).colorScheme.primary,
+                    foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                    padding: EdgeInsets.symmetric(horizontal: 15),
+                  ),
+                  icon: Icon(Icons.add),
+                  label: Text(
+                    'Add Step',
+                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                          color: Theme.of(context).colorScheme.onPrimary,
+                        ),
+                  ),
                 ),
-              ),
+                if (widget.recipe.source != 'image_to_recipe' &&
+                    widget.recipe.source != 'ai_chat' &&
+                    !widget.recipe.hasGeneratedAISteps) ...[
+                  SizedBox(width: 12),
+                  ElevatedButton.icon(
+                    onPressed: (widget.recipe.hasGeneratedAISteps || _isLoading)
+                        ? null
+                        : _generateCookingStepsWithAI,
+                    icon: _isLoading
+                        ? SizedBox(
+                            width: 8,
+                            height: 8,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                            ))
+                        : Icon(Icons.auto_awesome),
+                    label: Text('AI Generate'),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: (widget.recipe.hasGeneratedAISteps)
+                          ? Colors.grey
+                          : Theme.of(context).colorScheme.primary,
+                      foregroundColor: Theme.of(context).colorScheme.onPrimary,
+                      padding: EdgeInsets.symmetric(horizontal: 15),
+                    ),
+                  ),
+                ]
+              ],
             ),
           ),
         ],
@@ -159,6 +195,7 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
   }
 
   void _addStep() {
+    print(widget.recipe.source);
     setState(() {
       _controllers.add(TextEditingController());
       widget.recipe.cookingSteps.add('');
@@ -195,5 +232,134 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
 
       widget.onDataChanged('cookingSteps', widget.recipe.cookingSteps);
     });
+  }
+
+  Future<void> _generateCookingStepsWithAI() async {
+    if (widget.recipe.hasGeneratedAISteps) return;
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    final model = getAutoStepSelection(recipe: widget.recipe);
+
+    final prompt = '''
+  Generate a structured step-by-step cooking guide for the following recipe:
+  Title: "${widget.recipe.title}"
+  Description: "${widget.recipe.description}"
+  Cooking Time: "${widget.recipe.totalTime ?? "Unknown"} minutes"
+  Ingredients: ${widget.recipe.ingredients.map((i) => i.ingredient.ingredientName).join(", ")}
+  
+  Please return just the numbered steps, nothing else.
+  ''';
+
+    try {
+      final response = await model?.generateContent([Content.text(prompt)]);
+      final responseText = response?.text ?? '';
+
+      if (responseText.isEmpty) {
+        throw Exception('No steps returned from AI.');
+      }
+
+      // Strip numbering (e.g., "1. Add salt" -> "Add salt")
+      List<String> generatedSteps = responseText
+          .split('\n')
+          .where((s) => s.trim().isNotEmpty)
+          .map((step) => step.replaceFirst(RegExp(r'^\d+\.\s*'), ''))
+          .toList();
+
+      if (generatedSteps.isEmpty) {
+        throw Exception('Invalid AI response.');
+      }
+
+      setState(() {
+        _isLoading = false;
+      });
+
+      if (!mounted) {
+        return; // Ensure widget is still in the tree before opening dialog
+      }
+
+      Future.delayed(Duration(milliseconds: 100), () {
+        _showConfirmationDialog(generatedSteps);
+      });
+    } catch (e) {
+      setState(() {
+        _isLoading = false;
+      });
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error generating steps: $e')),
+      );
+    }
+  }
+
+  void _showConfirmationDialog(List<String> generatedSteps) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: Text('AI-Generated Steps'),
+          content: Container(
+            width: double.maxFinite, // Ensure it takes full width
+            child: Column(
+              mainAxisSize:
+                  MainAxisSize.min, // Ensures it does not expand infinitely
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Instructions',
+                  style: Theme.of(context).textTheme.headlineSmall,
+                ),
+                const SizedBox(height: 8),
+                Flexible(
+                  // Ensures proper height management
+                  child: ListView.separated(
+                    shrinkWrap: true, // Prevents infinite height issue
+                    physics:
+                        AlwaysScrollableScrollPhysics(), // Allows scrolling
+                    itemCount: generatedSteps.length,
+                    separatorBuilder: (context, index) => Divider(),
+                    itemBuilder: (context, index) {
+                      return ListTile(
+                        leading: CircleAvatar(
+                          radius: 16,
+                          child: Text('${index + 1}'),
+                        ),
+                        title: Text(generatedSteps[index]),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context); // Discard AI steps
+              },
+              child: Text('Discard'),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                setState(() {
+                  widget.recipe.cookingSteps = generatedSteps;
+                  widget.recipe.hasGeneratedAISteps = true;
+                });
+                _initializeControllers();
+                widget.onDataChanged('cookingSteps', generatedSteps);
+                Navigator.pop(context);
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary),
+              child: Text('Apply Steps',
+                  style: TextStyle(
+                      color: Theme.of(context).colorScheme.onPrimary)),
+            ),
+          ],
+        );
+      },
+    );
   }
 }

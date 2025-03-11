@@ -27,6 +27,9 @@ class Recipe {
   File? imageFile;
   List<double>? embeddings;
   String? source;
+  bool hasGeneratedAISteps = false;
+  bool hasGeneratedAITags = false;
+  bool hasGeneratedAIImage = false;
 
   Recipe({
     this.id,
@@ -52,6 +55,9 @@ class Recipe {
     this.imageFile,
     this.embeddings,
     this.source,
+    this.hasGeneratedAISteps = false,
+    this.hasGeneratedAITags = false,
+    this.hasGeneratedAIImage = false,
   })  : ingredients = ingredients ?? [],
         cookingSteps = cookingSteps ?? [],
         tags = tags ?? [];
@@ -94,6 +100,10 @@ class Recipe {
       embeddings: json['embeddings'] != null
           ? List<double>.from(json['embeddings'])
           : null,
+      source: json['source'],
+      hasGeneratedAIImage: json['hasGeneratedAIImage'] ?? false,
+      hasGeneratedAISteps: json['hasGeneratedAISteps'] ?? false,
+      hasGeneratedAITags: json['hasGeneratedAITags'] ?? false,
     );
   }
 

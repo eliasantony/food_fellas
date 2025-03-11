@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/src/models/autoTagSelection_config.dart';
@@ -94,11 +95,14 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
     try {
       final model = getAutoTagSelection(
           recipe: widget.recipe, categorizedTags: categorizedTags);
-      final prompt =
-          '''Select as many relevant tags as possible based on this recipe:
-        ${widget.recipe.toJson()} 
-        Available tags: ${categorizedTags.keys.join(", ")}.
-        Return just the tag names seperated by a comma.''';
+      final prompt = '''
+Select the most relevant tags based on this recipe:
+Title: "${widget.recipe.title}"
+Description: "${widget.recipe.description}"
+Ingredients: ${widget.recipe.ingredients.map((i) => i.ingredient.ingredientName).join(", ")}
+Available tags: ${categorizedTags.values.expand((list) => list).map((tag) => tag.name).join(", ")}
+Return ONLY the tag names as a comma-separated list, without categories or explanations.
+''';
 
       final currentUser = FirebaseAuth.instance.currentUser;
       if (await checkLimitExceeded(currentUser!.uid)) {
@@ -116,7 +120,7 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
       final response = await model?.generateContent([Content.text(prompt)]);
       // 2) Track usage tokens
       final usedTokens = response?.usageMetadata?.totalTokenCount ?? 0;
-      print('Used tokens: $usedTokens');
+      if (kDebugMode) debugPrint('Used tokens: $usedTokens');
 
       // 3) Store or update user’s total tokens
       await updateUserTokenUsage(currentUser.uid, usedTokens);
@@ -125,12 +129,15 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
           responseText.split(',').map((tag) => tag.trim()).toList() ?? [];
 
       // Update selected tags
-      final allTags = Provider.of<TagProvider>(context, listen: false).tags;
       Set<Tag> newSelectedTags = {};
+      final allTags = Provider.of<TagProvider>(context, listen: false).tags;
+
       for (var tagName in tagNames) {
         Tag? tag = _findTagByName(tagName, allTags);
         if (tag != null) {
           newSelectedTags.add(tag);
+        } else {
+          if (kDebugMode) debugPrint('Tag not found: $tagName');
         }
       }
 
@@ -139,7 +146,14 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
         isLoading = false;
       });
 
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text('Auto-selected tags! 🏷️'),
+        ),
+      );
+
       widget.onDataChanged('tags', selectedTags.toList());
+      widget.onDataChanged('hasGeneratedAITags', true);
     } catch (e) {
       setState(() {
         isLoading = false;
@@ -245,31 +259,46 @@ class _TagsSelectionPageState extends State<TagsSelectionPage> {
             ),
           ),
         ),
-        Center(
-          child: ElevatedButton.icon(
-            onPressed: isLoading ? null : _autoSelectTagsWithAI,
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Theme.of(context).colorScheme.primary,
-              foregroundColor: Theme.of(context).colorScheme.onPrimary,
-              padding: EdgeInsets.symmetric(horizontal: 30),
+        if (widget.recipe.source != 'image_to_recipe' &&
+            widget.recipe.source != 'ai_chat' &&
+            !widget.recipe.hasGeneratedAITags) ...[
+          Center(
+            child: ElevatedButton.icon(
+              onPressed: isLoading
+                  ? null
+                  : (widget.recipe.hasGeneratedAITags
+                      ? null
+                      : _autoSelectTagsWithAI),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: widget.recipe.hasGeneratedAITags
+                    ? Colors.grey
+                    : Theme.of(context).colorScheme.primary,
+                foregroundColor: widget.recipe.hasGeneratedAITags
+                    ? Colors.white
+                    : Theme.of(context).colorScheme.onPrimary,
+                padding: EdgeInsets.symmetric(horizontal: 30),
+              ),
+              icon: isLoading
+                  ? SizedBox(
+                      width: 8,
+                      height: 8,
+                      child: CircularProgressIndicator(color: Colors.white))
+                  : Icon(
+                      Icons.auto_awesome,
+                      color: Theme.of(context).colorScheme.onPrimary,
+                      size: 16,
+                    ),
+              label: isLoading
+                  ? SizedBox.shrink()
+                  : Text(
+                      'Auto-Select Tags with AI',
+                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                            color: Theme.of(context).colorScheme.onPrimary,
+                          ),
+                    ),
             ),
-            icon: isLoading
-                ? CircularProgressIndicator(color: Colors.white)
-                : Icon(
-                    Icons.auto_awesome,
-                    color: Theme.of(context).colorScheme.onPrimary,
-                    size: 16,
-                  ),
-            label: isLoading
-                ? SizedBox.shrink()
-                : Text(
-                    'Auto-Select Tags with AI',
-                    style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.onPrimary,
-                        ),
-                  ),
           ),
-        ),
+        ],
       ],
     );
   }

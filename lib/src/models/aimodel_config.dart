@@ -66,7 +66,7 @@ Once a user chooses a recipe, provide a JSON output with the following structure
   ],
   "tags": [
     {"id": "String", "name": "String", "icon": "Emoji", "category": "String"}
-  ],
+  ]
 }
 ```
 
@@ -147,7 +147,7 @@ Example:
   "tags": [
     {"id": "tag1", "name": "Vegetarian", "icon": "🥕", "category": "Dietary Preferences"},
     {"id": "tag2", "name": "Italian", "icon": "🍕", "category": "Cuisines"}
-  ],
+  ]
 }
 ```
 Only use following Categories for the Ingredients: "Vegetable","Fruit","Grain","Protein","Dairy","Spice & Seasoning","Fat & Oil","Herb","Seafood","Condiment","Nuts & Seeds","Legume","Other". Try finding the most suitable category for each ingredient.

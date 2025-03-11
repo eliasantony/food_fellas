@@ -6,8 +6,10 @@ import 'dart:typed_data';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/views/auth/avatar_builder_screen.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:provider/provider.dart';
 // Import other necessary packages and your models
 
 class EditProfileScreen extends StatefulWidget {
@@ -28,6 +30,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   List<String> selectedFavoriteCuisines = [];
   String? selectedCookingSkillLevel;
   Uint8List? _profileImage; // For the profile picture/avatar
+  bool _hasUnsavedChanges = false; // Track changes
 
   @override
   void initState() {
@@ -48,6 +51,19 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         List<String>.from(widget.userData['favoriteCuisines'] ?? []);
     selectedCookingSkillLevel = widget.userData['cookingSkillLevel'];
     // Load the profile image/avatar
+
+    // Add listeners to track changes
+    _displayNameController.addListener(() => _setUnsavedChanges());
+    _shortDescriptionController.addListener(() => _setUnsavedChanges());
+    _preferredServingsController.addListener(() => _setUnsavedChanges());
+  }
+
+  void _setUnsavedChanges() {
+    if (!_hasUnsavedChanges) {
+      setState(() {
+        _hasUnsavedChanges = true;
+      });
+    }
   }
 
   @override
@@ -97,6 +113,10 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         .doc(widget.userData['uid'])
         .update(updatedData);
 
+    // Update the local user data inside provider
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    userProvider.updateUserData(widget.userData['uid']);
+
     // Close the loading indicator
     Navigator.of(context).pop();
 
@@ -108,60 +128,143 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('Edit Profile'),
-      ),
-      body: SingleChildScrollView(
-        padding: EdgeInsets.all(16.0),
-        child: Column(
-          children: [
-            // Profile Picture Section
-            _buildProfilePictureSection(),
-            SizedBox(height: 20),
-            // Display Name
-            TextField(
-              controller: _displayNameController,
-              decoration: InputDecoration(labelText: 'Display Name'),
-            ),
-            SizedBox(height: 20),
-            // Short Description
-            TextField(
-              controller: _shortDescriptionController,
-              decoration: InputDecoration(labelText: 'Short Description'),
-            ),
-            SizedBox(height: 20),
-            // Preferred Servings
-            TextField(
-              controller: _preferredServingsController,
-              decoration: InputDecoration(labelText: 'Preferred Servings'),
-              keyboardType: TextInputType.number,
-            ),
-            SizedBox(height: 20),
-            // Dietary Preferences
-            _buildDietaryPreferencesSection(),
-            SizedBox(height: 20),
-            // Favorite Cuisines
-            _buildFavoriteCuisinesSection(),
-            SizedBox(height: 20),
-            // Cooking Skill Level
-            _buildCookingSkillLevelSection(),
-            SizedBox(height: 20),
-            // Save Button
-            ElevatedButton(
-              onPressed: _saveProfile,
-              child: Text(
-                'Save Changes',
-                style: TextStyle(color: Theme.of(context).canvasColor),
+    return PopScope(
+      canPop: false, // Prevents immediate popping without confirmation
+      onPopInvokedWithResult: (bool didPop, Object? result) async {
+        if (!didPop && _hasUnsavedChanges) {
+          bool shouldExit = await _showExitConfirmationDialog(context);
+          if (shouldExit && mounted && Navigator.canPop(context)) {
+            Navigator.pop(context, true);
+          }
+        } else if (mounted && Navigator.canPop(context)) {
+          Navigator.pop(context, true);
+        }
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          title: Text('Edit Profile'),
+          leading: IconButton(
+            icon: Icon(Icons.arrow_back),
+            onPressed: () async {
+              bool shouldExit = await _showExitConfirmationDialog(context);
+              if (shouldExit) {
+                Navigator.pop(context);
+              }
+            },
+          ),
+        ),
+        body: SingleChildScrollView(
+          padding: EdgeInsets.all(16.0),
+          child: Column(
+            children: [
+              // Profile Picture Section
+              _buildProfilePictureSection(),
+              SizedBox(height: 20),
+              // Display Name
+              TextField(
+                controller: _displayNameController,
+                decoration: InputDecoration(labelText: 'Display Name'),
               ),
-              style: ButtonStyle(
-                  backgroundColor:
-                      WidgetStateProperty.all(Theme.of(context).primaryColor)),
-            ),
-          ],
+              SizedBox(height: 20),
+              // Short Description
+              TextField(
+                controller: _shortDescriptionController,
+                decoration: InputDecoration(labelText: 'Short Description'),
+              ),
+              SizedBox(height: 20),
+              // Preferred Servings
+              TextField(
+                controller: _preferredServingsController,
+                decoration: InputDecoration(labelText: 'Preferred Servings'),
+                keyboardType: TextInputType.number,
+              ),
+              SizedBox(height: 20),
+              // Dietary Preferences
+              _buildDietaryPreferencesSection(),
+              SizedBox(height: 20),
+              // Favorite Cuisines
+              _buildFavoriteCuisinesSection(),
+              SizedBox(height: 20),
+              // Cooking Skill Level
+              _buildCookingSkillLevelSection(),
+              SizedBox(height: 20),
+              // Save Button
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16.0),
+                child: SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton(
+                    onPressed: _saveProfile,
+                    style: ElevatedButton.styleFrom(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 30,
+                        vertical: 15,
+                      ),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    child: Text(
+                      'Save Changes',
+                      style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
+  }
+
+  Future<bool> _showExitConfirmationDialog(BuildContext context) async {
+    if (!_hasUnsavedChanges) return true; // Allow exit if no changes were made
+
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: const Text('Save changes?'),
+            content: const Text(
+                'You have unsaved changes. Do you want to save them before leaving?'),
+            actions: [
+              TextButton(
+                child: const Text('Discard'),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context, true);
+                  }
+                },
+              ),
+              TextButton(
+                child: const Text('Cancel'),
+                onPressed: () {
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context, false);
+                  }
+                },
+              ),
+              ElevatedButton(
+                child: Text('Save',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary)),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                ),
+                onPressed: () async {
+                  await _saveProfile();
+                  if (Navigator.canPop(context)) {
+                    Navigator.pop(context, true);
+                  }
+                },
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 
   Widget _buildProfilePictureSection() {
@@ -203,6 +306,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (pickedFile != null) {
       setState(() {
         _profileImage = File(pickedFile.path).readAsBytesSync();
+        _setUnsavedChanges(); // Mark profile image change
       });
     }
   }
@@ -217,6 +321,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
     if (result != null && result is Uint8List) {
       setState(() {
         _profileImage = result;
+        _setUnsavedChanges(); // Mark profile image change
       });
     }
   }

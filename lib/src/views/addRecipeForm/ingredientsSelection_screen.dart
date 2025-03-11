@@ -176,9 +176,12 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
       final ingredientsCollection =
           FirebaseFirestore.instance.collection('ingredients');
 
-      // Check if ingredient already exists
+      // Check if ingredient already exists (case-insensitive)
       final existingIngredientQuery = await ingredientsCollection
           .where('ingredientName', isEqualTo: newName)
+          .get();
+      final existingIngredientQueryCapitalized = await ingredientsCollection
+          .where('ingredientName', isEqualTo: newName.toUpperCase())
           .get();
 
       if (existingIngredientQuery.docs.isNotEmpty) {
@@ -319,9 +322,16 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
         children.add(
           ListTile(
             leading: const Icon(Icons.add),
-            title: Text('Add "$searchQuery" as a new ingredient'),
+            title: Text(
+                'Add "${searchQuery.split(' ').map((word) => word.isNotEmpty ? word[0].toUpperCase() + word.substring(1) : '').join(' ')}" as a new ingredient'),
             onTap: () {
-              _addNewIngredient(searchQuery);
+              final searchQueryCapitalized = searchQuery
+                  .split(' ')
+                  .map((word) => word.isNotEmpty
+                      ? word[0].toUpperCase() + word.substring(1)
+                      : '')
+                  .join(' ');
+              _addNewIngredient(searchQueryCapitalized);
             },
           ),
         );
