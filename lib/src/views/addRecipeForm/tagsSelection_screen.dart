@@ -3,8 +3,10 @@ import 'package:firebase_vertexai/firebase_vertexai.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/tagProvider.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/models/autoTagSelection_config.dart';
 import 'package:food_fellas/src/utils/aiTokenUsage.dart';
+import 'package:food_fellas/src/views/subscriptionScreen.dart';
 import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 import '../../models/tag.dart';
@@ -105,12 +107,22 @@ Return ONLY the tag names as a comma-separated list, without categories or expla
 ''';
 
       final currentUser = FirebaseAuth.instance.currentUser;
-      if (await checkLimitExceeded(currentUser!.uid)) {
+      final userProvider =
+          Provider.of<UserDataProvider>(context, listen: false);
+      final isSubscribed = userProvider.userData?['subscribed'] ?? false;
+      if (await canUseAiChat(currentUser!.uid, isSubscribed, 2000) == false) {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(
-              'You have exceeded your monthly AI usage limit. Please try again next month.',
+              'You have exceeded your daily AI usage limit. Please try again tommorow.',
+            ),
+            action: SnackBarAction(
+              label: "Upgrade",
+              onPressed: () {
+                Navigator.push(context,
+                    MaterialPageRoute(builder: (_) => SubscriptionScreen()));
+              },
             ),
           ),
         );
@@ -123,7 +135,7 @@ Return ONLY the tag names as a comma-separated list, without categories or expla
       if (kDebugMode) debugPrint('Used tokens: $usedTokens');
 
       // 3) Store or update user’s total tokens
-      await updateUserTokenUsage(currentUser.uid, usedTokens);
+      await updateDailyTokenUsage(currentUser.uid, usedTokens);
       final responseText = response?.text ?? '';
       final tagNames =
           responseText.split(',').map((tag) => tag.trim()).toList() ?? [];

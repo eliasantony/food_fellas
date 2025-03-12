@@ -14,6 +14,7 @@ import 'package:flutter_svg/flutter_svg.dart';
 import 'package:food_fellas/providers/bottomNavBarProvider.dart';
 import 'package:food_fellas/providers/chatProvider.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/models/aimodel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
@@ -21,6 +22,7 @@ import 'package:food_fellas/src/utils/aiTokenUsage.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/addRecipeForm/feedback_dialog.dart';
 import 'package:food_fellas/src/views/guestUserScreen.dart';
+import 'package:food_fellas/src/views/subscriptionScreen.dart';
 import 'package:food_fellas/src/widgets/chatRecipeCard.dart';
 import 'package:food_fellas/src/widgets/feedbackModal.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
@@ -574,29 +576,41 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
   Future<void> _sendMessage(ChatMessage chatMessage) async {
     final chatProvider = Provider.of<ChatProvider>(context, listen: false);
-    final searchProvider =
-        Provider.of<SearchProvider>(context, listen: false); // (NEW)
+    final searchProvider = Provider.of<SearchProvider>(context, listen: false);
     final currentUser = FirebaseAuth.instance.currentUser;
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final isSubscribed = userProvider.userData?['subscribed'] ?? false;
+
+    // Estimate token usage; adjust your logic as needed.
+    int estimatedTokens = chatMessage.text.length ~/ 4; // rough estimate
+
+    // Check daily usage before sending.
+    bool allowed = await canUseAiChat(userId, isSubscribed, estimatedTokens);
+    if (!allowed) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+              "You've reached your daily AI Chat limit. Upgrade to Premium for more usage."),
+          action: SnackBarAction(
+            label: "Upgrade",
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => SubscriptionScreen()));
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
+    // If allowed, update the daily usage and proceed.
+    await updateDailyTokenUsage(userId, estimatedTokens);
 
     // Add the user's message to the UI
     chatProvider.addMessages([chatMessage], saveToFirestore: true);
 
     _addTypingUser(geminiUser);
-
-    // Check if user exceeded limit
-    bool exceeded = await checkLimitExceeded(currentUser!.uid);
-    if (exceeded) {
-      //setState(() => isLoading = false);
-      _removeTypingUser(geminiUser);
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            'You have exceeded your monthly AI usage limit. Please try again next month.',
-          ),
-        ),
-      );
-      return; // Stop further processing
-    }
     try {
       //setState(() => isLoading = true);
       int startTime = DateTime.now().millisecondsSinceEpoch; // Start timing
@@ -624,9 +638,6 @@ class _AIChatScreenState extends State<AIChatScreen> {
       // 2) Track usage tokens
       final usedTokens = response.usageMetadata?.totalTokenCount ?? 0;
       print('Used tokens: $usedTokens');
-
-      // 3) Store or update user’s total tokens
-      await updateUserTokenUsage(currentUser.uid, usedTokens);
 
       // 4) Extract JSON recipe
       final recipeJson = extractJsonRecipe(responseText);

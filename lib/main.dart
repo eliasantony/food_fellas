@@ -22,6 +22,7 @@ import 'package:food_fellas/providers/tagProvider.dart';
 import 'package:food_fellas/providers/themeProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/services/firebase_messaging_service.dart';
+import 'package:food_fellas/src/services/subscriptionService.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/auth/welcome_screen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
@@ -132,6 +133,10 @@ void main() async {
       _handleIncomingLink(uri);
     }
   });
+
+  // Initialize subscription service.
+  final subscriptionService = SubscriptionService();
+  await subscriptionService.init();
 
   runApp(
     MultiProvider(

@@ -4,21 +4,25 @@ import 'dart:io';
 import 'dart:ui';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_image_compress/flutter_image_compress.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/models/aiPhotoRecognitionModel_config.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/services/imageCompression.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:food_fellas/src/views/subscriptionScreen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:photo_view/photo_view.dart';
+import 'package:provider/provider.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ImageToRecipeScreen extends StatefulWidget {
@@ -441,7 +445,78 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
     }
   }
 
+  Future<bool> canUseImageToRecipe(String userId) async {
+    final userDoc =
+        await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final lastUsedTimestamp =
+        userDoc.data()?['lastImageToRecipeDate'] as Timestamp?;
+
+    // Allow one per week
+    if (lastUsedTimestamp != null) {
+      DateTime lastUsed = lastUsedTimestamp.toDate();
+      DateTime now = DateTime.now();
+
+      // Get the first day of the current week (Monday)
+      DateTime startOfCurrentWeek =
+          DateTime(now.year, now.month, now.day - (now.weekday - 1));
+
+      // Get the first day of the last week (Monday)
+      DateTime startOfLastWeek = startOfCurrentWeek.subtract(Duration(days: 7));
+
+      // Check if the last used date is within the current week (Monday to Sunday)
+      if (lastUsed.isAfter(startOfCurrentWeek.subtract(Duration(days: 1)))) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   void _startProcessing() async {
+    final userId = FirebaseAuth.instance.currentUser!.uid;
+    final isSubscribed = Provider.of<UserDataProvider>(context, listen: false)
+            .userData?['subscribed'] ??
+        false;
+
+    bool canUse = await canUseImageToRecipe(userId);
+    if (!isSubscribed && !canUse) {
+      // Prompt to upgrade
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Upgrade to Premium? ✨"),
+          content: Text(
+            "Free users can only use Image-to-Recipe once per week. Upgrade to Premium for unlimited access.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Not Now"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to your subscription screen or initiate purchase flow.
+                // For example:
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => SubscriptionScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary),
+              child: Text("Upgrade"),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+
+    // If allowed, proceed and then update last used date in Firestore:
+    await FirebaseFirestore.instance.collection('users').doc(userId).update({
+      'lastImageToRecipeDate': Timestamp.now(),
+    });
     setState(() {
       _isLoading = true;
     });

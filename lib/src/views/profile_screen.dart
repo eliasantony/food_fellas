@@ -14,6 +14,7 @@ import 'package:food_fellas/src/views/guestUserScreen.dart';
 import 'package:food_fellas/src/views/imageToRecipe_screen.dart';
 import 'package:food_fellas/src/views/settings_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
+import 'package:food_fellas/src/views/subscriptionScreen.dart';
 import 'package:food_fellas/src/views/userFollowerList_screen.dart';
 import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
@@ -1001,13 +1002,65 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
+  void _handleCreateCollectionTap(BuildContext context) async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    // Query the user's current collection count.
+    final collectionsSnapshot = await FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('collections')
+        .get();
+    final collectionsCount = collectionsSnapshot.docs.length;
+
+    // Get subscription status from your provider.
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final isSubscribed = userProvider.userData?['subscribed'] ?? false;
+
+    // Free users can create only up to 2 collections.
+    if (!isSubscribed && collectionsCount >= 2) {
+      // Show a subscription prompt dialog.
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Upgrade to Premium? ✨"),
+          content: Text(
+            "You have reached your limit of 2 collections. Upgrade to Premium for unlimited collections and other benefits!",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Not Now"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to your subscription screen or initiate purchase flow.
+                // For example:
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => SubscriptionScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary),
+              child: Text("Upgrade"),
+            ),
+          ],
+        ),
+      );
+    } else {
+      // Allow user to create a new collection.
+      showCreateCollectionDialog(context);
+    }
+  }
+
 // Create New Collection Card
   Widget _buildCreateCollectionCard(BuildContext context, ThemeData theme) {
     return GestureDetector(
-      onTap: () {
-        // Show dialog to create new collection
-        showCreateCollectionDialog(context);
-      },
+      onTap: () => _handleCreateCollectionTap(context),
       child: Card(
         margin: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
         child: Container(

@@ -1,15 +1,34 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-Future<void> updateUserTokenUsage(String userId, int usedTokens) async {
-  // Determine "YYYY-MM" as the doc ID, so usage is tracked monthly
+// Returns a string like "2025-03-06" (YYYY-MM-DD) for today's date.
+String getTodayDocId() {
   final now = DateTime.now();
-  final yearMonth = "${now.year}-${now.month.toString().padLeft(2, '0')}";
+  return "${now.year}-${now.month.toString().padLeft(2, '0')}-${now.day.toString().padLeft(2, '0')}";
+}
 
+// Retrieves today's token usage for a given user.
+Future<int> getDailyTokenUsage(String userId) async {
+  final todayId = getTodayDocId();
   final usageRef = FirebaseFirestore.instance
       .collection('users')
       .doc(userId)
-      .collection('usage')
-      .doc(yearMonth);
+      .collection('daily_usage')
+      .doc(todayId);
+
+  final usageSnapshot = await usageRef.get();
+  if (!usageSnapshot.exists) return 0;
+  final totalTokensUsed = usageSnapshot.data()?['totalTokensUsed'] ?? 0;
+  return totalTokensUsed;
+}
+
+// Updates today's token usage by incrementing it by usedTokens.
+Future<void> updateDailyTokenUsage(String userId, int usedTokens) async {
+  final todayId = getTodayDocId();
+  final usageRef = FirebaseFirestore.instance
+      .collection('users')
+      .doc(userId)
+      .collection('daily_usage')
+      .doc(todayId);
 
   await usageRef.set({
     'totalTokensUsed': FieldValue.increment(usedTokens),
@@ -17,31 +36,16 @@ Future<void> updateUserTokenUsage(String userId, int usedTokens) async {
   }, SetOptions(merge: true));
 }
 
-Future<bool> checkLimitExceeded(String userId) async {
-  const tokenLimit = 250000;
-
-  // Fetch user role
-  final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
-  final userSnapshot = await userRef.get();
-  final userRole = userSnapshot.data()?['role'] ?? 'user';
-
-  // If user is admin, return false
-  if (userRole == 'admin') {
-    return false;
-  }
-
-  final now = DateTime.now();
-  final yearMonth = "${now.year}-${now.month.toString().padLeft(2, '0')}";
-
-  final usageRef = FirebaseFirestore.instance
-      .collection('users')
-      .doc(userId)
-      .collection('usage')
-      .doc(yearMonth);
-
-  final usageSnapshot = await usageRef.get();
-  if (!usageSnapshot.exists) return false; // no usage yet => not exceeded
-
-  final totalTokensUsed = usageSnapshot.data()?['totalTokensUsed'] ?? 0;
-  return totalTokensUsed > tokenLimit;
+// Checks whether the user is allowed to use AI chat given newTokens,
+// using a different limit for free vs. premium users.
+Future<bool> canUseAiChat(
+    String userId, bool isSubscribed, int newTokens) async {
+  // Set limits: free daily limit vs. premium daily limit.
+  const freeLimit = 30000;
+  const premiumLimit = 750000;
+  final limit = isSubscribed ? premiumLimit : freeLimit;
+  final currentUsage = await getDailyTokenUsage(userId);
+  return (currentUsage + newTokens) <= limit;
 }
+
+

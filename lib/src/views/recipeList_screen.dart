@@ -8,6 +8,7 @@ import 'package:flutter_rating_bar/flutter_rating_bar.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/utils/dialog_utils.dart';
+import 'package:food_fellas/src/views/subscriptionScreen.dart';
 import 'package:food_fellas/src/widgets/recipeCard.dart';
 import 'package:food_fellas/src/widgets/filterModal.dart';
 import 'package:provider/provider.dart';
@@ -496,6 +497,44 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
     );
   }
 
+  void _attemptAddContributor() {
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final isSubscribed = userProvider.userData?['subscribed'] ?? false;
+    if (!isSubscribed) {
+      showDialog(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text("Upgrade to Premium? ✨"),
+          content: Text(
+            "Inviting collaborators is available only for Premium users. Upgrade to enjoy this feature.",
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: Text("Not Now"),
+            ),
+            ElevatedButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+                // Navigate to your subscription screen or initiate purchase flow.
+                // For example:
+                Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (context) => SubscriptionScreen()));
+              },
+              style: ElevatedButton.styleFrom(
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  foregroundColor: Theme.of(context).colorScheme.onPrimary),
+              child: Text("Upgrade"),
+            ),
+          ],
+        ),
+      );
+      return;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final actualTitle = widget.isCollection
@@ -597,6 +636,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                 if (currentUser != null) {
                   bool isOwner = (currentUser.uid == widget.collectionUserId);
                   bool isAdmin = _currentUserRole == 'admin';
+                  bool isSubscribed = Provider.of<UserDataProvider>(context)
+                          .userData?['subscribed'] ??
+                      false;
 
                   if (isOwner || isAdmin) {
                     return PopupMenuButton<String>(
@@ -610,13 +652,18 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                             collectionId: widget.collectionId,
                           );
                         } else if (value == 'manage') {
-                          showManageContributorsDialog(
-                            context: context,
-                            ownerUid: widget.collectionUserId!,
-                            collectionId: widget.collectionId!,
-                            existingContributors:
-                                widget.collectionContributors ?? [],
-                          );
+                          if (!isSubscribed) {
+                            // Show upgrade prompt instead of managing contributors
+                            _attemptAddContributor();
+                          } else {
+                            showManageContributorsDialog(
+                              context: context,
+                              ownerUid: widget.collectionUserId!,
+                              collectionId: widget.collectionId!,
+                              existingContributors:
+                                  widget.collectionContributors ?? [],
+                            );
+                          }
                         } else if (value == 'delete') {
                           // Show the confirmation dialog
                           if (widget.collectionId != null &&
@@ -643,6 +690,9 @@ class _RecipesListScreenState extends State<RecipesListScreen> {
                           child: ListTile(
                             leading: Icon(Icons.group),
                             title: Text('Manage Contributors'),
+                            trailing: isSubscribed
+                                ? null
+                                : Icon(Icons.lock, size: 16),
                           ),
                         ),
                         PopupMenuItem(

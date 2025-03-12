@@ -14,6 +14,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
+import 'package:food_fellas/src/widgets/subscribeCard.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
@@ -160,6 +161,8 @@ class _HomeScreenState extends State<HomeScreen> {
     User? currentUser = FirebaseAuth.instance.currentUser;
     bool isLoggedInAndNotGuest =
         currentUser != null && !currentUser.isAnonymous;
+    bool isSubscribed =
+        Provider.of<UserDataProvider>(context).userData?['subscribed'] ?? false;
 
     return NotificationListener<ScrollNotification>(
       onNotification: (scrollNotification) {
@@ -196,6 +199,10 @@ class _HomeScreenState extends State<HomeScreen> {
           SliverToBoxAdapter(
             child: _buildMealTypeCategories(),
           ),
+          if (isLoggedInAndNotGuest && !isSubscribed)
+            SliverToBoxAdapter(
+              child: PremiumUpgradeCard(),
+            ),
           // Recommended
           if (isLoggedInAndNotGuest)
             SliverToBoxAdapter(child: _buildRecommendedRow()),
@@ -702,8 +709,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Top Rated') {
                 // We want to show the “Discover” tab with sort = avgRating desc
-                searchProvider
-                    .setSortOrder('averageRating:desc');
+                searchProvider.setSortOrder('averageRating:desc');
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Most Rated') {
                 // We want to show the “Discover” tab with sort = avgRating desc

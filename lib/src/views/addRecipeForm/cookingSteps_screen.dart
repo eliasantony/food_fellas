@@ -1,6 +1,12 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_vertexai/firebase_vertexai.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/models/autoStepSelection_config.dart';
+import 'package:food_fellas/src/utils/aiTokenUsage.dart';
+import 'package:food_fellas/src/views/subscriptionScreen.dart';
+import 'package:provider/provider.dart';
 import '../../models/recipe.dart';
 
 class CookingStepsPage extends StatefulWidget {
@@ -253,13 +259,39 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
   Please return just the numbered steps, nothing else.
   ''';
 
+    final currentUser = FirebaseAuth.instance.currentUser;
+    final userProvider = Provider.of<UserDataProvider>(context, listen: false);
+    final isSubscribed = userProvider.userData?['subscribed'] ?? false;
+    if (await canUseAiChat(currentUser!.uid, isSubscribed, 2000) == false) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'You have exceeded your daily AI usage limit. Please try again tommorow.',
+          ),
+          action: SnackBarAction(
+            label: "Upgrade",
+            onPressed: () {
+              Navigator.push(context,
+                  MaterialPageRoute(builder: (_) => SubscriptionScreen()));
+            },
+          ),
+        ),
+      );
+      return;
+    }
+
     try {
       final response = await model?.generateContent([Content.text(prompt)]);
       final responseText = response?.text ?? '';
-
       if (responseText.isEmpty) {
         throw Exception('No steps returned from AI.');
       }
+      // Track usage tokens
+      final usedTokens = response?.usageMetadata?.totalTokenCount ?? 0;
+      if (kDebugMode) debugPrint('Used tokens: $usedTokens');
+
+      // Store or update user’s total tokens
+      await updateDailyTokenUsage(currentUser.uid, usedTokens);
 
       // Strip numbering (e.g., "1. Add salt" -> "Add salt")
       List<String> generatedSteps = responseText

@@ -11,6 +11,13 @@ class UserDataProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void setSubscribed(bool value) {
+    if (_userData != null) {
+      _userData!['subscribed'] = value;
+      notifyListeners();
+    }
+  }
+
   Future<void> updateUserData(String uid) async {
     try {
       final userDoc =
