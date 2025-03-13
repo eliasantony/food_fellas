@@ -10,9 +10,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 class InitializerWidget extends StatefulWidget {
-  const InitializerWidget({
-    super.key,
-  });
+  const InitializerWidget({super.key});
 
   @override
   _InitializerWidgetState createState() => _InitializerWidgetState();
@@ -35,11 +33,11 @@ class _InitializerWidgetState extends State<InitializerWidget> {
 
       if (userDoc.exists) {
         Map<String, dynamic>? data = userDoc.data() as Map<String, dynamic>?;
-        return data?['onboardingComplete'] ?? false;
+        bool complete = data?['onboardingComplete'] ?? false;
+        return complete;
       }
       return false;
     } catch (e) {
-      print('Error checking onboarding status: $e');
       return false;
     }
   }
@@ -112,6 +110,9 @@ class _InitializerWidgetState extends State<InitializerWidget> {
     bool onboardingComplete = await checkOnboardingComplete(uid);
     if (onboardingComplete) {
       await _fetchUserData(uid);
+    } else {
+      print(
+          '[InitializerWidget] _checkOnboardingAndFetchUserData: Onboarding not complete');
     }
     return onboardingComplete;
   }
@@ -124,7 +125,7 @@ class _InitializerWidgetState extends State<InitializerWidget> {
         Provider.of<UserDataProvider>(context, listen: false).setUserData({
           'display_name': 'Guest',
           'photo_url':
-              'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690', // or your default asset URL
+              'https://firebasestorage.googleapis.com/v0/b/food-fellas-rts94q.appspot.com/o/DefaultAvatar.png?alt=media&token=c81b4254-54d5-4d2f-8b8c-5c8db6dab690',
         });
       });
       return MainPage();
@@ -134,6 +135,8 @@ class _InitializerWidgetState extends State<InitializerWidget> {
       future: _checkOnboardingAndFetchUserData(user.uid),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
+          print(
+              '[InitializerWidget] _checkOnboarding: Error in FutureBuilder: ${snapshot.error}');
           return _buildErrorScreen();
         }
 

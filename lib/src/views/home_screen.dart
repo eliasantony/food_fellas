@@ -47,6 +47,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeData() async {
+    print('[HomeScreen] _initializeData: Fetching data...');
     setState(() {
       _isLoading = true;
     });

@@ -209,8 +209,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       if (user != null) {
         try {
           await user.delete();
-          // Navigate to login screen or root
-          Navigator.of(context).popUntil((route) => route.isFirst);
+          // Navigate to signup screen
+          Navigator.of(context)
+              .pushNamedAndRemoveUntil('/signup', (route) => false);
+          // Show success message
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Account deleted successfully!'),
+            ),
+          );
         } catch (e) {
           print('Error deleting account: $e');
           ScaffoldMessenger.of(context).showSnackBar(

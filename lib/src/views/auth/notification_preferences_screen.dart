@@ -1,4 +1,5 @@
 import 'dart:developer';
+import 'dart:io';
 
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
@@ -54,8 +55,33 @@ class _NotificationPreferencesScreenState
     });
   }
 
+  Future<bool> _isPhysicalDevice() async {
+    return !Platform.isIOS || !await FirebaseMessaging.instance.isSupported();
+  }
+
   Future<void> _navigateToNext() async {
     log('Starting _navigateToNext');
+
+    // If device is a simulator, skip notifications
+    if (!await _isPhysicalDevice()) {
+      log('Device is a simulator. Skipping notifications.');
+      // Update userData with current preferences
+      widget.userData.allNotificationsEnabled = allNotificationsEnabled;
+      widget.userData.notifications = notifications;
+
+      log('Navigating to FinalWelcomeScreen');
+
+      // Navigate to the final welcome screen
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => FinalWelcomeScreen(userData: widget.userData),
+        ),
+      );
+
+      log('Navigation to FinalWelcomeScreen initiated.');
+      return;
+    }
 
     if (allNotificationsEnabled) {
       log('Requesting notification permissions...');

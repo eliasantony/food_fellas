@@ -78,6 +78,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   void _logRecipeView() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user == null) return;
+    if (user.isAnonymous) return;
 
     final userRef =
         FirebaseFirestore.instance.collection('users').doc(user.uid);
