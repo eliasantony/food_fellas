@@ -2,7 +2,7 @@ import 'package:firebase_vertexai/firebase_vertexai.dart';
 
 GenerativeModel? pdfRecipeExtraction() {
   final model = FirebaseVertexAI.instance.generativeModel(
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.0-flash',
     systemInstruction: Content.system('''
       You are a smart cooking assistant for FoodFellas. The user will provide one or more PDF Files of recipes. Your goal is to accurately translate them to english, extract the recipe and transform them into one json Object! Provide a valid JSON response in the following format:
 

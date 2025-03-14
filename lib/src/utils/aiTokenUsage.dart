@@ -15,10 +15,15 @@ Future<int> getDailyTokenUsage(String userId) async {
       .collection('daily_usage')
       .doc(todayId);
 
-  final usageSnapshot = await usageRef.get();
-  if (!usageSnapshot.exists) return 0;
-  final totalTokensUsed = usageSnapshot.data()?['totalTokensUsed'] ?? 0;
-  return totalTokensUsed;
+  try {
+    final usageSnapshot = await usageRef.get();
+    if (!usageSnapshot.exists) return 0;
+    final totalTokensUsed = usageSnapshot.data()?['totalTokensUsed'] ?? 0;
+    return totalTokensUsed;
+  } catch (e) {
+    print('Error retrieving daily token usage: $e');
+    return 0; // Return 0 in case of an error
+  }
 }
 
 // Updates today's token usage by incrementing it by usedTokens.
@@ -30,16 +35,24 @@ Future<void> updateDailyTokenUsage(String userId, int usedTokens) async {
       .collection('daily_usage')
       .doc(todayId);
 
-  await usageRef.set({
-    'totalTokensUsed': FieldValue.increment(usedTokens),
-    'updatedAt': FieldValue.serverTimestamp(),
-  }, SetOptions(merge: true));
+  try {
+    await usageRef.set({
+      'totalTokensUsed': FieldValue.increment(usedTokens),
+      'updatedAt': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
+  } catch (e) {
+    print('Error updating daily token usage: $e');
+    // Consider more sophisticated error handling here, such as re-throwing the error
+    // or using a dedicated error reporting service.
+  }
 }
 
 // Checks whether the user is allowed to use AI chat given newTokens,
 // using a different limit for free vs. premium users.
 Future<bool> canUseAiChat(
-    String userId, bool isSubscribed, int newTokens) async {
+    String userId, bool isAdmin, bool isSubscribed, int newTokens) async {
+  // Admins can use AI chat without any restrictions.
+  if (isAdmin) return true;
   // Set limits: free daily limit vs. premium daily limit.
   const freeLimit = 30000;
   const premiumLimit = 750000;
@@ -47,5 +60,3 @@ Future<bool> canUseAiChat(
   final currentUsage = await getDailyTokenUsage(userId);
   return (currentUsage + newTokens) <= limit;
 }
-
-

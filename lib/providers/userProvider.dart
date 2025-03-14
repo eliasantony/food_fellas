@@ -11,6 +11,15 @@ class UserDataProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void updateLastActiveTimeInFirestore(String uid) {
+    if (_userData != null) {
+      FirebaseFirestore.instance
+          .collection('users')
+          .doc(uid)
+          .update({'last_active_time': FieldValue.serverTimestamp()});
+    }
+  }
+
   void setSubscribed(bool value) {
     if (_userData != null) {
       _userData!['subscribed'] = value;

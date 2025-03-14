@@ -448,9 +448,14 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   Future<bool> canUseImageToRecipe(String userId) async {
     final userDoc =
         await FirebaseFirestore.instance.collection('users').doc(userId).get();
+    final userRole = userDoc.data()?['role'] as String?;
     final lastUsedTimestamp =
         userDoc.data()?['lastImageToRecipeDate'] as Timestamp?;
 
+    // Allow unlimited usage for admins
+    if (userRole == 'admin') {
+      return true;
+    }
     // Allow one per week
     if (lastUsedTimestamp != null) {
       DateTime lastUsed = lastUsedTimestamp.toDate();

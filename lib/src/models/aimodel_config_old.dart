@@ -19,7 +19,7 @@ GenerativeModel? getGenerativeModel(
   }
 
   final model = FirebaseVertexAI.instance.generativeModel(
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.0-flash',
     systemInstruction: Content.system('''
     You are a friendly Cooking Expert for FoodFellas, a recipe app aimed at students. 
     Your goal is to make cooking easy, fun, and accessible. 

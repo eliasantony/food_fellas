@@ -110,7 +110,8 @@ Return ONLY the tag names as a comma-separated list, without categories or expla
       final userProvider =
           Provider.of<UserDataProvider>(context, listen: false);
       final isSubscribed = userProvider.userData?['subscribed'] ?? false;
-      if (await canUseAiChat(currentUser!.uid, isSubscribed, 2000) == false) {
+      final isAdmin = userProvider.userData?['isAdmin'] ?? false;
+      if (await canUseAiChat(currentUser!.uid, isAdmin, isSubscribed, 2000) == false) {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

@@ -5,7 +5,7 @@ import 'package:food_fellas/src/models/recipe.dart';
 
 GenerativeModel? getMacroEstimation() {
   final model = FirebaseVertexAI.instance.generativeModel(
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.0-flash',
     systemInstruction: Content.system(
         '''Based on the Ingredients and Amounts, try to estimate exactly how many Calories, Carbs, Proteins and Fat one serving of this recipe has! Only return output in a JSON structured like this:
           {

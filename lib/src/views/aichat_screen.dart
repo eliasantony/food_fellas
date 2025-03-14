@@ -581,12 +581,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
     final userId = FirebaseAuth.instance.currentUser!.uid;
     final userProvider = Provider.of<UserDataProvider>(context, listen: false);
     final isSubscribed = userProvider.userData?['subscribed'] ?? false;
+    final isAdmin = userProvider.userData?['isAdmin'] ?? false;
 
     // Estimate token usage; adjust your logic as needed.
     int estimatedTokens = chatMessage.text.length ~/ 4; // rough estimate
 
     // Check daily usage before sending.
-    bool allowed = await canUseAiChat(userId, isSubscribed, estimatedTokens);
+    bool allowed = await canUseAiChat(userId, isAdmin, isSubscribed, estimatedTokens);
     if (!allowed) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(

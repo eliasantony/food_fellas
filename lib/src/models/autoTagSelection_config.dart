@@ -5,7 +5,7 @@ import 'package:food_fellas/src/models/tag.dart';
 GenerativeModel? getAutoTagSelection(
     {required Recipe recipe, required Map<String, List<Tag>> categorizedTags}) {
   final model = FirebaseVertexAI.instance.generativeModel(
-    model: 'gemini-1.5-flash',
+    model: 'gemini-2.0-flash',
     systemInstruction: Content.system(
         '''Return just the tagNames of the tags that are most relevant to the recipe. Try to use as many fitting tags that could fit!'''),
   );

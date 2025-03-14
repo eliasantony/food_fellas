@@ -10,6 +10,8 @@ class SubscriptionScreen extends StatelessWidget {
         ? subscriptionService.availableProducts.first
         : null;
 
+    print("Product: $product");
+
     return Scaffold(
       appBar: AppBar(
         title: Text("Upgrade to Premium 🌟"),

@@ -382,9 +382,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  displayName,
-                  style: theme.textTheme.headlineSmall,
+                Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      displayName,
+                      style: theme.textTheme.headlineSmall,
+                    ),
+                    SizedBox(width: 8),
+                    if (userData['role'] == 'admin')
+                      Icon(Icons.security_rounded, color: Colors.blue),
+                    SizedBox(width: 4),
+                    if (userData['subscribed'] == true)
+                      Icon(Icons.stars_rounded, color: Colors.amber),
+                  ],
                 ),
                 SizedBox(height: 4),
                 Text(

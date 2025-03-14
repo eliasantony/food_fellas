@@ -262,7 +262,8 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
     final currentUser = FirebaseAuth.instance.currentUser;
     final userProvider = Provider.of<UserDataProvider>(context, listen: false);
     final isSubscribed = userProvider.userData?['subscribed'] ?? false;
-    if (await canUseAiChat(currentUser!.uid, isSubscribed, 2000) == false) {
+    final isAdmin = userProvider.userData?['isAdmin'] ?? false;
+    if (await canUseAiChat(currentUser!.uid, isAdmin, isSubscribed, 2000) == false) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

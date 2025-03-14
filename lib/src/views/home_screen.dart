@@ -47,12 +47,19 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _initializeData() async {
-    print('[HomeScreen] _initializeData: Fetching data...');
     setState(() {
       _isLoading = true;
     });
     await _fetchRows();
     if (!mounted) return;
+    // Update Last Active Time with User Data Provider
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null && !user.isAnonymous) {
+      final userId = user.uid;
+      final userProvider =
+          Provider.of<UserDataProvider>(context, listen: false);
+      userProvider.updateLastActiveTimeInFirestore(userId);
+    }
     setState(() {
       _isLoading = false;
     });

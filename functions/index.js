@@ -710,7 +710,7 @@ exports.processPdfForRecipes = functions
 
     // Step 4: Start a chat session and process the PDF
     const model = genAI.getGenerativeModel({
-      model: "gemini-1.5-flash",
+      model: "gemini-2.0-flash",
       systemInstruction: `
       You are a smart cooking assistant for FoodFellas. The user will provide one or more PDF Files of recipes. Your goal is to accurately translate them to english, extract the recipe and transform them into one json Object! Provide a valid JSON response in the following format:
 
