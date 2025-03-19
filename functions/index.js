@@ -22,7 +22,11 @@
 
 /* eslint-disable indent */
 
-const functions = require("firebase-functions");
+const { onRequest } = require("firebase-functions/v2/https");
+const { onDocumentWritten } = require("firebase-functions/v2/firestore");
+const { onDocumentCreated } = require("firebase-functions/v2/firestore");
+const { onCall } = require("firebase-functions/v2/https");
+const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const admin = require("firebase-admin");
 const axios = require("axios");
 const uuidv4 = require("uuid").v4;
@@ -31,24 +35,29 @@ const { getMessaging } = require("firebase-admin/messaging");
 const fs = require("fs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { GoogleAIFileManager } = require("@google/generative-ai/server");
-const apiKey = functions.config().gemini.api_key;
-if (!apiKey) {
-  console.error("GEMINI_API_KEY is missing!");
-  throw new Error("GEMINI_API_KEY is not set in Firebase functions config.");
-}
-const genAI = new GoogleGenerativeAI(apiKey);
-const fileManager = new GoogleAIFileManager(apiKey);
-
-admin.initializeApp();
 const sentiment = new Sentiment();
 
-exports.calculateWeeklyRecommendations = functions
-  .runWith({ memory: "1GB", timeoutSeconds: 300 }) // tune if needed
-  .region("europe-west1")
-  .https.onRequest(async (req, res) => {
-    const apiKey = req.query.apiKey || req.headers["x-api-key"];
-    if (apiKey !== functions.config().app.secure_api_key) {
-      return res.status(403).send("Unauthorized");
+if (!admin.apps.length) {
+    admin.initializeApp();
+}
+
+const { appleSubscriptionWebhook } = require("./appleSubscription");
+const { checkGoogleSubscription } = require("./googleSubscription");
+
+exports.appleSubscriptionWebhook = appleSubscriptionWebhook;
+exports.checkGoogleSubscription = checkGoogleSubscription;
+
+exports.calculateWeeklyRecommendations = onRequest(
+  {
+    region: "europe-west1",
+    timeoutSeconds: 300,
+    availableMemoryMb: 1024, // 1GB
+    secrets: ["GEMINI_API_KEY"],
+  },
+  async (req, res) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("Missing Gemini API key");
     }
     try {
       // 1. Fetch all users with pagination
@@ -230,11 +239,11 @@ function computeRecipeScore(user, recipe) {
   return score;
 }
 
-exports.preprocessRecipe = functions
-  .region("europe-west1")
-  .firestore
-  .document("recipes/{recipeId}")
-  .onWrite(async (change) => {
+exports.preprocessRecipe = onDocumentWritten(
+  "recipes/{recipeId}",
+  { region: "europe-west1" },
+  async (event) => {
+    const change = event.data;
     const data = change.after.data();
 
     if (!data) return; // Exit if document is deleted
@@ -305,11 +314,11 @@ async function updateUserRecipeStats(userId) {
   );
 }
 
-exports.analyzeCommentSentiment = functions
-  .region("europe-west1")
-  .firestore
-  .document("recipes/{recipeId}/comments/{commentId}")
-  .onCreate(async (snap, context) => {
+exports.analyzeCommentSentiment = onDocumentCreated(
+  "recipes/{recipeId}/comments/{commentId}",
+  { region: "europe-west1" },
+  async (event) => {
+    const snap = event.data;
     const commentData = snap.data();
     const commentText = commentData.comment;
     const commentAuthorName = commentData.userName;
@@ -369,11 +378,12 @@ exports.analyzeCommentSentiment = functions
   });
 
 // Function to update recipe's average rating when a rating is altered
-exports.updateRecipeRating = functions
-  .region("europe-west1")
-  .firestore
-  .document("recipes/{recipeId}/ratings/{userId}")
-  .onWrite(async (change, context) => {
+
+exports.updateRecipeRating = onDocumentWritten(
+  "recipes/{recipeId}/ratings/{userId}",
+  { region: "europe-west1" },
+  async (event) => {
+    const change = event.data;
     const recipeId = context.params.recipeId;
     const recipeRef = admin.firestore().collection("recipes").doc(recipeId);
     const ratingsRef = recipeRef.collection("ratings");
@@ -449,7 +459,10 @@ async function updateUserAverageRating(userId) {
  * @param {functions.https.CallableContext} context - The callable context.
  * @returns {Promise<object>}
  */
-exports.generateImage = functions.region("europe-west1").https.onCall(async (data) => {
+
+exports.generateImage = onCall(
+  { region: "europe-west1" },
+  async (data, context) => {
   const apiKey = functions.config().getimgai.apikey;
   const prompt = data.prompt;
 
@@ -525,11 +538,11 @@ exports.generateImage = functions.region("europe-west1").https.onCall(async (dat
   }
 });
 
-exports.notifyOnNewFollower = functions
-  .region("europe-west1")
-  .firestore
-  .document("users/{followedUid}/followers/{followerUid}")
-  .onCreate(async (snap, context) => {
+exports.notifyOnNewFollower = onDocumentCreated(
+  "users/{followedUid}/followers/{followerUid}",
+  { region: "europe-west1" },
+  async (event) => {
+    const snap = event.data;
     const followedUid = context.params.followedUid;
     const followerUid = context.params.followerUid;
 
@@ -589,11 +602,11 @@ exports.notifyOnNewFollower = functions
     }
   });
 
-exports.notifyOnNewRecipe = functions
-  .region("europe-west1")
-  .firestore
-  .document("recipes/{recipeId}")
-  .onCreate(async (snap, context) => {
+exports.notifyOnNewRecipe = onDocumentCreated(
+  "recipes/{recipeId}",
+  { region: "europe-west1" },
+  async (event) => {
+    const snap = event.data;
     const newRecipe = snap.data();
     const authorId = newRecipe.authorId;
     const authorDoc = await admin.firestore().collection("users").doc(authorId).get();
@@ -662,7 +675,8 @@ exports.notifyOnNewRecipe = functions
     }
   });
 
-async function uploadToGemini(path, mimeType) {
+async function uploadToGemini(path, mimeType, apiKey) {
+  const fileManager = new GoogleAIFileManager(apiKey);
   const uploadResult = await fileManager.uploadFile(path, { mimeType, displayName: path });
   const file = uploadResult.file;
   console.log(`Uploaded file ${file.displayName} as: ${file.name}`);
@@ -685,10 +699,22 @@ async function waitForFilesActive(files) {
   console.log("...all files ready\n");
 }
 
-exports.processPdfForRecipes = functions
-  .region("europe-west1")
-  .storage.object()
-  .onFinalize(async (object) => {
+
+exports.processPdfForRecipes = onObjectFinalized(
+  {
+    region: "europe-west1",
+    secrets: ["GEMINI_API_KEY"], 
+  },
+  async (object) => {
+    const apiKey = process.env.GEMINI_API_KEY;
+    if (!apiKey) {
+      throw new Error("GEMINI_API_KEY is missing!");
+    }
+
+    // Create the clients here
+    const genAI = new GoogleGenerativeAI(apiKey);
+    const fileManager = new GoogleAIFileManager(apiKey);
+
     const filePath = object.name;
     if (!filePath || !filePath.startsWith("pdf_uploads/") || !filePath.endsWith(".pdf")) {
       console.log("Not a PDF in pdf_uploads folder. Skipping.");
@@ -703,7 +729,7 @@ exports.processPdfForRecipes = functions
     await bucket.file(filePath).download({ destination: tempFilePath });
 
     // Step 2: Upload the PDF to Gemini
-    const uploadedFile = await uploadToGemini(tempFilePath, "application/pdf");
+    const uploadedFile = await uploadToGemini(tempFilePath, "application/pdf", apiKey);
 
     // Step 3: Wait for the file to be active
     await waitForFilesActive([uploadedFile]);
