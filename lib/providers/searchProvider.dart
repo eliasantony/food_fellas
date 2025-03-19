@@ -108,6 +108,60 @@ class SearchProvider with ChangeNotifier {
     notifyListeners();
   }
 
+  void updateRecipe(String recipeId, Map<String, dynamic> updatedData) {
+    bool found = false;
+
+    // Iterate through all home rows to update the recipe if it exists
+    _rowRecipes.forEach((key, recipesList) {
+      for (int i = 0; i < recipesList.length; i++) {
+        if (recipesList[i]['id'] == recipeId) {
+          _rowRecipes[key]?[i] = {...recipesList[i], ...updatedData};
+          found = true;
+        }
+      }
+    });
+
+    // Update the recipe inside 'recently viewed' and 'recommended'
+    for (int i = 0; i < _recentlyViewedCached.length; i++) {
+      if (_recentlyViewedCached[i]['id'] == recipeId) {
+        _recentlyViewedCached[i] = {
+          ..._recentlyViewedCached[i],
+          ...updatedData
+        };
+        found = true;
+      }
+    }
+
+    for (int i = 0; i < _recommendedCached.length; i++) {
+      if (_recommendedCached[i]['id'] == recipeId) {
+        _recommendedCached[i] = {..._recommendedCached[i], ...updatedData};
+        found = true;
+      }
+    }
+
+    if (found) {
+      notifyListeners();
+    }
+  }
+
+  void removeRecipe(String recipeId) {
+    bool found = false;
+
+    // Remove from home rows
+    _rowRecipes.forEach((key, recipesList) {
+      _rowRecipes[key]?.removeWhere((recipe) => recipe['id'] == recipeId);
+      found = true;
+    });
+
+    // Remove from recently viewed and recommended
+    _recentlyViewedCached.removeWhere((recipe) => recipe['id'] == recipeId);
+    _recommendedCached.removeWhere((recipe) => recipe['id'] == recipeId);
+
+    if (found) {
+      notifyListeners();
+    }
+  }
+
   Future<void> fetchRecipes({
     int offset = 0,
     int limit = 10,
@@ -417,6 +471,7 @@ class SearchProvider with ChangeNotifier {
   void invalidateHomeRows() {
     _homeRowsFetched = false;
     fetchHomeRowsOnce(FirebaseAuth.instance.currentUser?.uid ?? '');
+    notifyListeners();
   }
 
   Future<void> fetchFuzzyRecipes({

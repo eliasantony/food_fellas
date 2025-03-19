@@ -116,6 +116,18 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
                                   widget.onDataChanged('cookingSteps',
                                       widget.recipe.cookingSteps);
                                 },
+                                onFieldSubmitted: (value) {
+                                  _addStep();
+                                  // After adding the step, focus on the new TextFormField
+                                  Future.delayed(Duration(milliseconds: 100),
+                                      () {
+                                    if (_itemKeys.isNotEmpty) {
+                                      FocusScope.of(context).requestFocus(FocusNode(
+                                          debugLabel:
+                                              'step_${_controllers.length - 1}'));
+                                    }
+                                  });
+                                },
                               ),
                             ),
                             IconButton(
@@ -138,7 +150,7 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
           ),
           // "Add Step" button stays pinned at the bottom
           Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 8.0),
+            padding: const EdgeInsets.fromLTRB(8, 0, 8, 124),
             child: Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -263,7 +275,8 @@ class _CookingStepsPageState extends State<CookingStepsPage> {
     final userProvider = Provider.of<UserDataProvider>(context, listen: false);
     final isSubscribed = userProvider.userData?['subscribed'] ?? false;
     final isAdmin = userProvider.userData?['isAdmin'] ?? false;
-    if (await canUseAiChat(currentUser!.uid, isAdmin, isSubscribed, 2000) == false) {
+    if (await canUseAiChat(currentUser!.uid, isAdmin, isSubscribed, 2000) ==
+        false) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(

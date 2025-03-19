@@ -5,11 +5,13 @@ import 'package:flutter/material.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
 import 'package:food_fellas/src/services/imageCompression.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:lottie/lottie.dart';
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:photo_view/photo_view.dart';
 
 class ImageUploadPage extends StatefulWidget {
   final Recipe recipe;
@@ -142,14 +144,33 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
   }
 
   Widget _displaySelectedImage(File imageFile) {
-    return Container(
-      height: 200,
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: FileImage(imageFile),
-          fit: BoxFit.cover,
+    return GestureDetector(
+      onTap: () => {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => Scaffold(
+              appBar: AppBar(),
+              body: Center(
+                child: PhotoView(
+                  imageProvider: FileImage(widget.recipe.imageFile!),
+                  minScale: PhotoViewComputedScale.contained,
+                  maxScale: PhotoViewComputedScale.covered * 2,
+                ),
+              ),
+            ),
+          ),
         ),
-        borderRadius: BorderRadius.circular(8),
+      },
+      child: Container(
+        height: 200,
+        decoration: BoxDecoration(
+          image: DecorationImage(
+            image: FileImage(imageFile),
+            fit: BoxFit.cover,
+          ),
+          borderRadius: BorderRadius.circular(8),
+        ),
       ),
     );
   }
@@ -323,21 +344,46 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
       final XFile? image = await picker.pickImage(source: selectedSource);
 
       if (image != null) {
-        File imageFile = File(image.path);
-
-        final compressed = await compressImagePreservingAspectRatio(imageFile);
-
-        setState(() {
-          widget.recipe.imageFile = compressed;
-        });
-
-        widget.onDataChanged('imageFile', compressed);
+        await _cropImage(image);
       }
     } catch (e) {
       print('Error picking image: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Failed to pick image. Please try again.')),
       );
+    }
+  }
+
+  Future<void> _cropImage(XFile image) async {
+    CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Image',
+          toolbarColor: Colors.green,
+          toolbarWidgetColor: Colors.white,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Image',
+        ),
+      ],
+      compressFormat: ImageCompressFormat.png,
+      compressQuality: 80,
+    );
+
+    if (croppedFile != null) {
+      File croppedImageFile = File(croppedFile.path);
+
+      // Compress the cropped image before saving
+      final File compressedImage =
+          await compressImagePreservingAspectRatio(croppedImageFile);
+
+      setState(() {
+        widget.recipe.imageFile = compressedImage;
+      });
+
+      widget.onDataChanged('imageFile', compressedImage);
     }
   }
 

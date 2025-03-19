@@ -5,6 +5,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_signin_button/button_view.dart';
 import 'package:flutter_signin_button/flutter_signin_button.dart';
 import 'package:food_fellas/src/utils/auth_utils.dart';
+import 'package:food_fellas/src/views/auth/login_screen.dart';
 import 'package:food_fellas/src/views/auth/user_info_screen.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
@@ -24,6 +25,8 @@ class _SignUpScreenState extends State<SignUpScreen> {
 
   String? _emailError;
   String? _passwordError;
+
+  bool _obscurePassword = true;
 
   Future<void> _signUpWithEmail() async {
     setState(() {
@@ -364,8 +367,21 @@ class _SignUpScreenState extends State<SignUpScreen> {
                     ),
                   ),
                   errorText: _passwordError,
+                  // Suffix icon for toggling password visibility:
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: _obscurePassword,
               ),
               const SizedBox(height: 20),
               SizedBox(
@@ -391,7 +407,15 @@ class _SignUpScreenState extends State<SignUpScreen> {
               // Add a link to the LoginScreen
               TextButton(
                 onPressed: () {
-                  Navigator.pushReplacementNamed(context, '/login');
+                  Navigator.pushReplacement(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) => LoginScreen(
+                        email: _emailController.text,
+                        password: _passwordController.text,
+                      ),
+                    ),
+                  );
                 },
                 child: const Text('Already have an account? Log in'),
               ),

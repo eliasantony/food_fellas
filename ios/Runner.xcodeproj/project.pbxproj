@@ -11,6 +11,7 @@
 		1498D2341E8E89220040F4C2 /* GeneratedPluginRegistrant.m in Sources */ = {isa = PBXBuildFile; fileRef = 1498D2331E8E89220040F4C2 /* GeneratedPluginRegistrant.m */; };
 		331C808B294A63AB00263BE5 /* RunnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 331C807B294A618700263BE5 /* RunnerTests.swift */; };
 		3B3967161E833CAA004F5970 /* AppFrameworkInfo.plist in Resources */ = {isa = PBXBuildFile; fileRef = 3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */; };
+		70CF2AAE2D86D89B00F0C16A /* StoreKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 70CF2AAD2D86D89B00F0C16A /* StoreKit.framework */; };
 		70EA2FCD2D3012C200E6401D /* GradientView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 70EA2FCC2D3012C200E6401D /* GradientView.swift */; };
 		70EA2FCF2D3015B200E6401D /* foodfellas_app_splash.png in Resources */ = {isa = PBXBuildFile; fileRef = 70EA2FCE2D3015B200E6401D /* foodfellas_app_splash.png */; };
 		70EA2FD52D301A7600E6401D /* LaunchScreen.storyboard in Resources */ = {isa = PBXBuildFile; fileRef = 70EA2FD42D301A7600E6401D /* LaunchScreen.storyboard */; };
@@ -52,6 +53,7 @@
 		3B3967151E833CAA004F5970 /* AppFrameworkInfo.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; name = AppFrameworkInfo.plist; path = Flutter/AppFrameworkInfo.plist; sourceTree = "<group>"; };
 		683BE53B6111AC3A029FBD4A /* Pods-Runner.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-Runner.release.xcconfig"; path = "Target Support Files/Pods-Runner/Pods-Runner.release.xcconfig"; sourceTree = "<group>"; };
 		708417002D3FE70D009AEDA3 /* Runner.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = Runner.entitlements; sourceTree = "<group>"; };
+		70CF2AAD2D86D89B00F0C16A /* StoreKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = StoreKit.framework; path = System/Library/Frameworks/StoreKit.framework; sourceTree = SDKROOT; };
 		70EA2FCC2D3012C200E6401D /* GradientView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = GradientView.swift; sourceTree = "<group>"; };
 		70EA2FCE2D3015B200E6401D /* foodfellas_app_splash.png */ = {isa = PBXFileReference; lastKnownFileType = image.png; path = foodfellas_app_splash.png; sourceTree = "<group>"; };
 		70EA2FD42D301A7600E6401D /* LaunchScreen.storyboard */ = {isa = PBXFileReference; lastKnownFileType = file.storyboard; path = LaunchScreen.storyboard; sourceTree = "<group>"; };
@@ -82,6 +84,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				0BB0AFF482DBD8EF420ACE3F /* Pods_Runner.framework in Frameworks */,
+				70CF2AAE2D86D89B00F0C16A /* StoreKit.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -150,6 +153,7 @@
 		E4813D52EF4B6B1BEE29D3DB /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				70CF2AAD2D86D89B00F0C16A /* StoreKit.framework */,
 				F6AD76B3143FD5F0DE7A20DD /* Pods_Runner.framework */,
 			);
 			name = Frameworks;

@@ -196,7 +196,10 @@ class _RecipeFeedbackDialogState extends State<RecipeFeedbackDialog> {
               Navigator.of(context).pop();
             }
           },
-          child: Text('Cancel'),
+          child: Text(
+            'Cancel',
+            style: TextStyle(color: Theme.of(context).colorScheme.onSurface),
+          ),
         ),
         ElevatedButton(
           onPressed: _submitFeedback,

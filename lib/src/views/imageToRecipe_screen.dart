@@ -413,7 +413,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                   Navigator.pop(context);
                   final XFile? image =
                       await picker.pickImage(source: ImageSource.camera);
-                  _processPickedImage(image);
+                  _cropImage(image);
                 },
               ),
               ListTile(
@@ -423,7 +423,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                   Navigator.pop(context);
                   final XFile? image =
                       await picker.pickImage(source: ImageSource.gallery);
-                  _processPickedImage(image);
+                  _cropImage(image);
                 },
               ),
             ],
@@ -433,14 +433,34 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
     );
   }
 
-  void _processPickedImage(XFile? image) async {
-    if (image != null) {
-      final File original = File(image.path);
-      final File compressed =
-          await compressImagePreservingAspectRatio(original);
+  void _cropImage(XFile? image) async {
+    if (image == null) return;
+
+    CroppedFile? croppedFile = await ImageCropper().cropImage(
+      sourcePath: image.path,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Image',
+          toolbarColor: Colors.green,
+          toolbarWidgetColor: Colors.white,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(
+          title: 'Crop Image',
+        ),
+      ],
+      compressFormat: ImageCompressFormat.png,
+      compressQuality: 80,
+    );
+
+    if (croppedFile != null) {
+      final croppedImageFile = File(croppedFile.path);
+
+      // Compress the cropped image before saving
+      final File compressedImage = await compressImage(croppedImageFile);
 
       setState(() {
-        _selectedImage = compressed;
+        _selectedImage = compressedImage;
       });
     }
   }

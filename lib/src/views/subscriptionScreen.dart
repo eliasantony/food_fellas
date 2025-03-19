@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:food_fellas/src/services/subscriptionService.dart';
+import 'package:food_fellas/src/views/thank_you_subscription_screen.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 
 class SubscriptionScreen extends StatelessWidget {
@@ -193,6 +194,14 @@ class SubscriptionScreen extends StatelessWidget {
         ),
         onPressed: () async {
           if (product != null) {
+            subscriptionService.onSubscriptionSuccess = () {
+              Navigator.of(context).pop(); // Close the subscription screen
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => ThankYouSubscriptionScreen(),
+                ),
+              );
+            };
             await subscriptionService.purchaseProduct(product);
           }
         },

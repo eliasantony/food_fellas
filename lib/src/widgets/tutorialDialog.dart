@@ -124,7 +124,7 @@ class _TutorialDialogState extends State<TutorialDialog> {
                         ),
                         SizedBox(height: 24),
                         Expanded(
-                          flex: 5,
+                          flex: 4,
                           child: Image.asset(
                             tutorialPages[index]['gif']!,
                             key: ValueKey(
@@ -132,10 +132,10 @@ class _TutorialDialogState extends State<TutorialDialog> {
                             fit: BoxFit.contain,
                           ),
                         ),
-                        SizedBox(height: 24),
+                        SizedBox(height: 16),
                         Expanded(
                           flex: 1,
-                          child: Padding(
+                          child: SingleChildScrollView(
                             padding: const EdgeInsets.symmetric(
                                 vertical: 8.0, horizontal: 12.0),
                             child: RichText(

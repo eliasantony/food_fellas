@@ -491,7 +491,7 @@ class _MainPageState extends State<MainPage> {
   Widget _buildExpandableFAB() {
     final currentUser = FirebaseAuth.instance.currentUser;
     return OverlayExpandableFab(
-      distance: 100, // adjust as needed
+      distance: 130, // adjust as needed
       children: [
         ActionButton(
           onPressed: () {

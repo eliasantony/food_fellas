@@ -111,7 +111,8 @@ Return ONLY the tag names as a comma-separated list, without categories or expla
           Provider.of<UserDataProvider>(context, listen: false);
       final isSubscribed = userProvider.userData?['subscribed'] ?? false;
       final isAdmin = userProvider.userData?['isAdmin'] ?? false;
-      if (await canUseAiChat(currentUser!.uid, isAdmin, isSubscribed, 2000) == false) {
+      if (await canUseAiChat(currentUser!.uid, isAdmin, isSubscribed, 2000) ==
+          false) {
         setState(() => isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -275,40 +276,43 @@ Return ONLY the tag names as a comma-separated list, without categories or expla
         if (widget.recipe.source != 'image_to_recipe' &&
             widget.recipe.source != 'ai_chat' &&
             !widget.recipe.hasGeneratedAITags) ...[
-          Center(
-            child: ElevatedButton.icon(
-              onPressed: isLoading
-                  ? null
-                  : (widget.recipe.hasGeneratedAITags
-                      ? null
-                      : _autoSelectTagsWithAI),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: widget.recipe.hasGeneratedAITags
-                    ? Colors.grey
-                    : Theme.of(context).colorScheme.primary,
-                foregroundColor: widget.recipe.hasGeneratedAITags
-                    ? Colors.white
-                    : Theme.of(context).colorScheme.onPrimary,
-                padding: EdgeInsets.symmetric(horizontal: 30),
+          Padding(
+            padding: const EdgeInsets.only(bottom: 64.0),
+            child: Center(
+              child: ElevatedButton.icon(
+                onPressed: isLoading
+                    ? null
+                    : (widget.recipe.hasGeneratedAITags
+                        ? null
+                        : _autoSelectTagsWithAI),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: widget.recipe.hasGeneratedAITags
+                      ? Colors.grey
+                      : Theme.of(context).colorScheme.primary,
+                  foregroundColor: widget.recipe.hasGeneratedAITags
+                      ? Colors.white
+                      : Theme.of(context).colorScheme.onPrimary,
+                  padding: EdgeInsets.symmetric(horizontal: 30),
+                ),
+                icon: isLoading
+                    ? SizedBox(
+                        width: 8,
+                        height: 8,
+                        child: CircularProgressIndicator(color: Colors.white))
+                    : Icon(
+                        Icons.auto_awesome,
+                        color: Theme.of(context).colorScheme.onPrimary,
+                        size: 16,
+                      ),
+                label: isLoading
+                    ? SizedBox.shrink()
+                    : Text(
+                        'Auto-Select Tags with AI',
+                        style: Theme.of(context).textTheme.labelLarge?.copyWith(
+                              color: Theme.of(context).colorScheme.onPrimary,
+                            ),
+                      ),
               ),
-              icon: isLoading
-                  ? SizedBox(
-                      width: 8,
-                      height: 8,
-                      child: CircularProgressIndicator(color: Colors.white))
-                  : Icon(
-                      Icons.auto_awesome,
-                      color: Theme.of(context).colorScheme.onPrimary,
-                      size: 16,
-                    ),
-              label: isLoading
-                  ? SizedBox.shrink()
-                  : Text(
-                      'Auto-Select Tags with AI',
-                      style: Theme.of(context).textTheme.labelLarge?.copyWith(
-                            color: Theme.of(context).colorScheme.onPrimary,
-                          ),
-                    ),
             ),
           ),
         ],

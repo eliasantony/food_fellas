@@ -158,6 +158,25 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
+  Future<void> _refreshHomeScreen() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      final searchProvider =
+          Provider.of<SearchProvider>(context, listen: false);
+      searchProvider.invalidateHomeRows();
+    }
+    // Wait for 1 second before stopping the refresh indicator
+    await Future.delayed(Duration(seconds: 1));
+
+    // Update Last Active Time with User Data Provider
+    if (user != null && !user.isAnonymous) {
+      final userId = user.uid;
+      final userProvider =
+          Provider.of<UserDataProvider>(context, listen: false);
+      userProvider.updateLastActiveTimeInFirestore(userId);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -172,85 +191,88 @@ class _HomeScreenState extends State<HomeScreen> {
     bool isSubscribed =
         Provider.of<UserDataProvider>(context).userData?['subscribed'] ?? false;
 
-    return NotificationListener<ScrollNotification>(
-      onNotification: (scrollNotification) {
-        if (scrollNotification is ScrollUpdateNotification) {
-          _handleScroll();
-        }
-        return false;
-      },
-      child: CustomScrollView(
-        controller: _scrollController,
-        slivers: [
-          SliverAppBar(
-            expandedHeight: 180.0,
-            pinned: true,
-            title: ValueListenableBuilder<bool>(
-              valueListenable: _isExpandedNotifier,
-              builder: (context, isExpanded, child) {
-                return isExpanded
-                    ? SizedBox.shrink()
-                    : _buildCollapsedBar(isLoggedInAndNotGuest);
-              },
+    return RefreshIndicator(
+      onRefresh: _refreshHomeScreen,
+      displacement: 80,
+      child: NotificationListener<ScrollNotification>(
+        onNotification: (scrollNotification) {
+          if (scrollNotification is ScrollUpdateNotification) {
+            _handleScroll();
+          }
+          return false;
+        },
+        child: CustomScrollView(
+          controller: _scrollController,
+          slivers: [
+            SliverAppBar(
+              expandedHeight: 180.0,
+              pinned: true,
+              title: ValueListenableBuilder<bool>(
+                valueListenable: _isExpandedNotifier,
+                builder: (context, isExpanded, child) {
+                  return isExpanded
+                      ? SizedBox.shrink()
+                      : _buildCollapsedBar(isLoggedInAndNotGuest);
+                },
+              ),
+              flexibleSpace: FlexibleSpaceBar(
+                collapseMode: CollapseMode.parallax,
+                background: _buildExpandedBar(),
+              ),
             ),
-            flexibleSpace: FlexibleSpaceBar(
-              collapseMode: CollapseMode.parallax,
-              background: _buildExpandedBar(),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: _buildSearchBar(),
-            ),
-          ),
-          SliverToBoxAdapter(
-            child: _buildMealTypeCategories(),
-          ),
-          if (isLoggedInAndNotGuest && !isSubscribed)
             SliverToBoxAdapter(
-              child: PremiumUpgradeCard(),
-            ),
-          // Recommended
-          if (isLoggedInAndNotGuest)
-            SliverToBoxAdapter(child: _buildRecommendedRow()),
-          // New Recipes
-          SliverToBoxAdapter(
-            child: _buildSectionTitle('New Recipes'),
-          ),
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.only(left: 8),
-              child: Consumer<SearchProvider>(
-                builder: (context, provider, child) {
-                  final recipes = provider.rowRecipes['newRecipes'] ?? [];
-                  return recipes.isEmpty
-                      ? Center(child: CircularProgressIndicator())
-                      : HorizontalRecipeRow(recipes: recipes);
-                },
+              child: Padding(
+                padding: const EdgeInsets.all(16.0),
+                child: _buildSearchBar(),
               ),
             ),
-          ),
-
-          // Top Rated
-          SliverToBoxAdapter(
-            child: _buildSectionTitle('Top Rated'),
-          ),
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.only(left: 8),
-              child: Consumer<SearchProvider>(
-                builder: (context, provider, child) {
-                  final recipes = provider.rowRecipes['topRated'] ?? [];
-                  return recipes.isEmpty
-                      ? Center(child: CircularProgressIndicator())
-                      : HorizontalRecipeRow(recipes: recipes);
-                },
+            SliverToBoxAdapter(
+              child: _buildMealTypeCategories(),
+            ),
+            if (isLoggedInAndNotGuest && !isSubscribed)
+              SliverToBoxAdapter(
+                child: PremiumUpgradeCard(),
+              ),
+            // Recommended
+            if (isLoggedInAndNotGuest)
+              SliverToBoxAdapter(child: _buildRecommendedRow()),
+            // New Recipes
+            SliverToBoxAdapter(
+              child: _buildSectionTitle('New Recipes'),
+            ),
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: Consumer<SearchProvider>(
+                  builder: (context, provider, child) {
+                    final recipes = provider.rowRecipes['newRecipes'] ?? [];
+                    return recipes.isEmpty
+                        ? Center(child: CircularProgressIndicator())
+                        : HorizontalRecipeRow(recipes: recipes);
+                  },
+                ),
               ),
             ),
-          ),
 
-          /* // Most Rated
+            // Top Rated
+            SliverToBoxAdapter(
+              child: _buildSectionTitle('Top Rated'),
+            ),
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: Consumer<SearchProvider>(
+                  builder: (context, provider, child) {
+                    final recipes = provider.rowRecipes['topRated'] ?? [];
+                    return recipes.isEmpty
+                        ? Center(child: CircularProgressIndicator())
+                        : HorizontalRecipeRow(recipes: recipes);
+                  },
+                ),
+              ),
+            ),
+
+            /* // Most Rated
           SliverToBoxAdapter(
             child: _buildSectionTitle('Most Rated'),
           ),
@@ -286,12 +308,13 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
           ), */
 
-          // Recently Viewed
-          if (isLoggedInAndNotGuest)
-            SliverToBoxAdapter(child: _buildRecentlyViewedRow()),
-          // Top Chefs
-          SliverToBoxAdapter(child: _buildTopChefsRow()),
-        ],
+            // Recently Viewed
+            if (isLoggedInAndNotGuest)
+              SliverToBoxAdapter(child: _buildRecentlyViewedRow()),
+            // Top Chefs
+            SliverToBoxAdapter(child: _buildTopChefsRow()),
+          ],
+        ),
       ),
     );
   }

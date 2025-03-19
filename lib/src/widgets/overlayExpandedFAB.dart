@@ -94,22 +94,24 @@ class _OverlayExpandableFabState extends State<OverlayExpandableFab>
                 onVerticalDragEnd: (_) => _toggle(),
                 onHorizontalDragEnd: (_) => _toggle(),
                 behavior: HitTestBehavior.opaque,
-                child: Container(color: Colors.transparent),
+                child: Container(
+                    color:
+                        const Color.fromARGB(255, 63, 63, 63).withOpacity(0.5)),
               ),
-            ),
-            // Container for the expanded buttons centered around the FAB.
-            Positioned(
-              left: fabCenter.dx - widget.distance,
-              top: fabCenter.dy - widget.distance,
-              width: widget.distance * 2,
-              height: widget.distance * 2,
-              child: _buildExpandingButtons(),
             ),
             // The central close button that appears when expanded.
             Positioned(
               left: fabCenter.dx - 28, // 28 = half of the 56px diameter
               top: fabCenter.dy - 28,
               child: _buildTapToCloseFab(),
+            ),
+            // Container for the expanded buttons centered around the FAB.
+            Positioned(
+              left: fabCenter.dx - widget.distance,
+              top: fabCenter.dy - widget.distance,
+              width: widget.distance * 2,
+              height: widget.distance * 2.3,
+              child: _buildExpandingButtons(),
             ),
           ],
         );

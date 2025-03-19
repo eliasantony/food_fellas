@@ -320,8 +320,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
               ],
         leading: GestureDetector(
           onTap: () {
-            Provider.of<BottomNavBarProvider>(context, listen: false)
-                .setIndex(0);
+            if (Navigator.canPop(context)) {
+              // If there's a previous screen in the stack, pop back
+              Navigator.pop(context);
+            } else {
+              // Otherwise, switch to home tab
+              Provider.of<BottomNavBarProvider>(context, listen: false)
+                  .setIndex(0);
+            }
           },
           child: Padding(
             padding: const EdgeInsets.fromLTRB(16.0, 4.0, 0.0, 4.0),

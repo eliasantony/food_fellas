@@ -63,9 +63,11 @@ class _AvatarBuilderScreenState extends State<AvatarBuilderScreen> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Theme.of(context).colorScheme.primary,
                 ),
-                child: Text('Cancel',
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onPrimary)),
+                child: Text(
+                  'Cancel',
+                  style:
+                      TextStyle(color: Theme.of(context).colorScheme.onSurface),
+                ),
               ),
             ],
           ),

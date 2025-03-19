@@ -68,7 +68,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.of(context).pop(false),
-            child: Text('Cancel'),
+            child: Text('Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface)),
           ),
           TextButton(
             onPressed: () => {
@@ -175,7 +177,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: Text('Cancel'),
+                  child: Text('Cancel',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface)),
                 ),
                 ElevatedButton.icon(
                   onPressed: inputText == 'DELETE'
@@ -325,7 +329,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: Text('Cancel'),
+                  child: Text('Cancel',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface)),
                 ),
                 ElevatedButton.icon(
                   onPressed: (newPassword.isNotEmpty &&

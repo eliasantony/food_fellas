@@ -213,6 +213,8 @@ class ActionButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
+      width: 60,
+      height: 60,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           colors: [
@@ -228,8 +230,9 @@ class ActionButton extends StatelessWidget {
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         color: Colors.transparent,
-        elevation: 4,
+        elevation: 6,
         child: IconButton(
+          iconSize: 28,
           onPressed: onPressed,
           icon: icon,
           color: Colors.white,

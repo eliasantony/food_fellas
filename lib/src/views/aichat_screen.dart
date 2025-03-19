@@ -405,21 +405,13 @@ class _AIChatScreenState extends State<AIChatScreen> {
                     focusNode: _chatFocusNode,
                     inputTextStyle: TextStyle(
                       color: Colors.black,
+                      overflow: TextOverflow.visible,
                     ),
-                    maxInputLength: 500,
+                    maxInputLength: 200,
                     sendOnEnter: true,
                     sendButtonBuilder: defaultSendButton(
                         color: Theme.of(context).colorScheme.primary,
                         padding: EdgeInsets.fromLTRB(16, 0, 0, 16)),
-                    /* trailing: [
-                        Padding(
-                          padding: const EdgeInsets.only(bottom: 16),
-                          child: IconButton(
-                            onPressed: _sendMediaMessage,
-                            icon: const Icon(Icons.image),
-                          ),
-                        )
-                      ] */
                   ),
                   typingUsers: [...typingUsers],
                   quickReplyOptions: QuickReplyOptions(
@@ -587,7 +579,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
     int estimatedTokens = chatMessage.text.length ~/ 4; // rough estimate
 
     // Check daily usage before sending.
-    bool allowed = await canUseAiChat(userId, isAdmin, isSubscribed, estimatedTokens);
+    bool allowed =
+        await canUseAiChat(userId, isAdmin, isSubscribed, estimatedTokens);
     if (!allowed) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -874,7 +867,11 @@ class _AIChatScreenState extends State<AIChatScreen> {
               'Are you sure you want to clear the chat and start a new conversation?'),
           actions: [
             TextButton(
-              child: Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onPressed: () {
                 Navigator.of(context).pop(); // Close the dialog
               },

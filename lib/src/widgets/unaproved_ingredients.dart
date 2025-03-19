@@ -27,7 +27,8 @@ class _UnapprovedIngredientsTabState extends State<UnapprovedIngredientsTab> {
       await FirebaseFirestore.instance
           .collection('ingredients')
           .doc(docId)
-          .update({'approved': true, 'ingredientName': name, 'category': category});
+          .update(
+              {'approved': true, 'ingredientName': name, 'category': category});
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('Ingredient approved successfully')),
@@ -111,7 +112,11 @@ class _UnapprovedIngredientsTabState extends State<UnapprovedIngredientsTab> {
           ),
           actions: [
             TextButton(
-              child: Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onPressed: () {
                 Navigator.of(context).pop();
               },
@@ -119,7 +124,8 @@ class _UnapprovedIngredientsTabState extends State<UnapprovedIngredientsTab> {
             ElevatedButton(
               child: Text('Save & Approve'),
               onPressed: () {
-                _approveIngredient(doc.id, nameController.text, selectedCategory);
+                _approveIngredient(
+                    doc.id, nameController.text, selectedCategory);
                 Navigator.of(context).pop();
               },
             ),
@@ -188,7 +194,8 @@ class _UnapprovedIngredientsTabState extends State<UnapprovedIngredientsTab> {
                           ),
                           IconButton(
                             icon: Icon(Icons.check, color: Colors.green),
-                            onPressed: () => _approveIngredient(doc.id, ingredient.ingredientName, ingredient.category),
+                            onPressed: () => _approveIngredient(doc.id,
+                                ingredient.ingredientName, ingredient.category),
                           ),
                           IconButton(
                             icon: Icon(Icons.delete, color: Colors.red),
@@ -253,7 +260,11 @@ class _UnapprovedIngredientsTabState extends State<UnapprovedIngredientsTab> {
           content: Text('Are you sure you want to delete this ingredient?'),
           actions: [
             TextButton(
-              child: Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onPressed: () {
                 Navigator.of(context).pop(); // Dismiss the dialog
               },

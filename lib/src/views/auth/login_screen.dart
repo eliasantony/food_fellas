@@ -13,20 +13,33 @@ import 'package:google_sign_in/google_sign_in.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final String? email;
+  final String? password;
+
+  const LoginScreen({Key? key, this.email, this.password}) : super(key: key);
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
 
 class _LoginScreenState extends State<LoginScreen> {
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
+  late TextEditingController _emailController;
+  late TextEditingController _passwordController;
 
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
   String? _emailError;
   String? _passwordError;
+
+  bool _obscurePassword = true;
+
+  @override
+  void initState() {
+    super.initState();
+    // Initialize controllers with the passed data if available
+    _emailController = TextEditingController(text: widget.email);
+    _passwordController = TextEditingController(text: widget.password);
+  }
 
   Future<void> _signInWithEmail() async {
     setState(() {
@@ -221,8 +234,20 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ),
                   errorText: _passwordError, // Display error below the field
+                  suffixIcon: IconButton(
+                    icon: Icon(
+                      _obscurePassword
+                          ? Icons.visibility_off
+                          : Icons.visibility,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        _obscurePassword = !_obscurePassword;
+                      });
+                    },
+                  ),
                 ),
-                obscureText: true,
+                obscureText: _obscurePassword,
               ),
               const SizedBox(height: 20),
               SizedBox(

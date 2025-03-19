@@ -4,6 +4,7 @@ import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
 import 'package:food_fellas/src/views/photoview_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
+import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:food_fellas/src/widgets/build_comment.dart';
 import 'package:food_fellas/src/widgets/macros_section.dart';
 import 'package:food_fellas/src/widgets/similarRecipes_section.dart';
@@ -27,6 +28,8 @@ class RecipeDetailScreen extends StatefulWidget {
 }
 
 class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
+  Map<String, dynamic>? _recipeData; // We'll store the raw data here
+  bool _isLoading = true;
   Recipe? _currentRecipe;
   String? _authorName;
   String _userRole = 'user';
@@ -45,6 +48,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   @override
   void initState() {
     super.initState();
+    _fetchRecipeDoc();
     _scrollController.addListener(_handleScroll);
     servingsNotifier = ValueNotifier<int>(initialServings ?? 2);
     shoppingListItemsNotifier.value = Set<String>();
@@ -132,11 +136,34 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
   }
 
-  Stream<DocumentSnapshot> _fetchRecipeStream() {
-    return FirebaseFirestore.instance
+  Future<void> _fetchRecipeDoc() async {
+    setState(() => _isLoading = true);
+    final docSnap = await FirebaseFirestore.instance
         .collection('recipes')
         .doc(widget.recipeId)
-        .snapshots();
+        .get();
+
+    if (!docSnap.exists) {
+      setState(() {
+        _recipeData = null;
+        _isLoading = false;
+      });
+      return;
+    }
+
+    final data = docSnap.data() as Map<String, dynamic>;
+    setState(() {
+      _recipeData = data;
+      _currentRecipe = Recipe.fromJson(data);
+      _isLoading = false;
+    });
+
+    // If you want to do initial servings stuff once:
+    if (initialServings == null && data['initialServings'] != null) {
+      initialServings = data['initialServings'];
+      servings = initialServings;
+      servingsNotifier.value = initialServings!;
+    }
   }
 
   void _fetchUserRole() async {
@@ -181,10 +208,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text(
-                    'Cancel',
-                    style: TextStyle(color: Colors.black54),
-                  ),
+                  child: const Text('Cancel'),
                 ),
                 ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(true),
@@ -225,7 +249,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
       final searchProvider =
           Provider.of<SearchProvider>(context, listen: false);
-      searchProvider.invalidateHomeRows();
+      searchProvider.removeRecipe(widget.recipeId);
 
       // Navigate back after deletion
       Navigator.pop(context);
@@ -330,7 +354,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
   Future<void> _submitRating(double rating) async {
     final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+    if (user == null || user.isAnonymous) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
             content: Text('You must be logged in to submit a rating.')),
@@ -472,6 +496,13 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
 
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
+        action: SnackBarAction(
+          label: "View",
+          onPressed: () {
+            Navigator.push(context,
+                MaterialPageRoute(builder: (_) => ShoppingListScreen()));
+          },
+        ),
         content: Row(
           children: [
             const Icon(Icons.add_shopping_cart_rounded, color: Colors.green),
@@ -549,6 +580,97 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
   }
 
+  bool _canEditOrDelete(Map<String, dynamic> map) {
+    final userId = FirebaseAuth.instance.currentUser?.uid;
+    return userId != null &&
+        (_recipeData?['authorId'] == userId || _userRole == 'admin');
+  }
+
+  // _buildPopupMenuItems
+  List<PopupMenuEntry<String>> _buildPopupMenuItems(bool isSaved) {
+    List<PopupMenuEntry<String>> items = [];
+
+    if (_canEditOrDelete(_recipeData!)) {
+      items.add(
+        PopupMenuItem<String>(
+          value: 'save',
+          child: Consumer<RecipeProvider>(
+            builder: (context, recipeProvider, child) {
+              return ListTile(
+                leading: Icon(
+                  isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  color: isSaved ? Colors.green : Colors.black,
+                ),
+                title: Text(isSaved ? 'Unsave Recipe' : 'Save Recipe'),
+              );
+            },
+          ),
+        ),
+      );
+      items.add(
+        PopupMenuItem<String>(
+          value: 'edit',
+          child: ListTile(
+            leading: const Icon(Icons.edit),
+            title: const Text('Edit Recipe'),
+          ),
+        ),
+      );
+      items.add(
+        const PopupMenuItem<String>(
+          value: 'delete',
+          child: ListTile(
+            leading: Icon(
+              Icons.delete,
+              color: Colors.red,
+            ),
+            title: Text('Delete Recipe'),
+          ),
+        ),
+      );
+    }
+
+    return items;
+  }
+
+  // _buildOptionsMenuOrSave
+  Widget _buildOptionsMenuOrSave({
+    required Map<String, dynamic> recipeData,
+    required bool isSaved,
+    required double opacity,
+    required bool canEditOrDelete,
+  }) {
+    if (canEditOrDelete) {
+      return PopupMenuButton<String>(
+        icon: Icon(
+          Icons.more_vert,
+          color: Theme.of(context).brightness == Brightness.dark
+              ? Colors.white
+              : Colors.black,
+        ),
+        onSelected: _handleMenuOption,
+        itemBuilder: (BuildContext context) {
+          return _buildPopupMenuItems(isSaved);
+        },
+      );
+    } else {
+      return IconButton(
+        icon: Icon(
+          isSaved ? Icons.bookmark : Icons.bookmark_border,
+          color: isSaved
+              ? Colors.green
+              : Theme.of(context).brightness == Brightness.dark
+                  ? Colors.white
+                  : Colors.black,
+        ),
+        onPressed: () => showSaveRecipeDialog(
+          context,
+          recipeId: widget.recipeId,
+        ),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final recipeProvider = Provider.of<RecipeProvider>(context);
@@ -562,392 +684,266 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         backgroundColor: Theme.of(context).colorScheme.primary,
         foregroundColor: Theme.of(context).colorScheme.onPrimary,
         onPressed: () {
-          // Implement share functionality here
           final recipeUrl =
               'https://foodfellas.app/share/recipe/${widget.recipeId}';
           Share.share(
-              'Check out this recipe: ${_currentRecipe?.title ?? 'Untitled'}\n$recipeUrl');
+            'Check out this recipe: ${_currentRecipe?.title ?? 'Untitled'}\n$recipeUrl',
+          );
         },
         child: const Icon(Icons.share, color: Colors.white),
       ),
-      body: StreamBuilder<DocumentSnapshot>(
-        stream: _fetchRecipeStream(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          } else if (snapshot.hasError) {
-            return const Center(
-              child: Text('Error fetching recipe'),
-            );
-          } else if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(
-              child: Text('Recipe not found'),
-            );
-          } else {
-            final recipeData = snapshot.data!.data() as Map<String, dynamic>;
-            _currentRecipe = Recipe.fromJson(recipeData);
+      body: RefreshIndicator(
+        onRefresh: _fetchRecipeDoc, // Pull-to-refresh calls _fetchRecipeDoc()
+        child: _isLoading
+            ? const Center(child: CircularProgressIndicator())
+            : _recipeData == null
+                ? const Center(child: Text('Recipe not found'))
+                : NestedScrollView(
+                    controller: _scrollController,
+                    physics: const AlwaysScrollableScrollPhysics(),
+                    headerSliverBuilder:
+                        (BuildContext context, bool innerBoxIsScrolled) {
+                      return <Widget>[
+                        SliverAppBar(
+                          expandedHeight: 250.0,
+                          floating: false,
+                          pinned: true,
+                          automaticallyImplyLeading: false,
+                          flexibleSpace: LayoutBuilder(
+                            builder: (BuildContext context,
+                                BoxConstraints constraints) {
+                              double appBarHeight = constraints.biggest.height;
+                              double opacity = (_scrollController.offset) /
+                                  (250.0 - kToolbarHeight);
+                              opacity = opacity.clamp(0.0, 1.0);
 
-            // Determine if current user is the author or an admin
-            final userId = FirebaseAuth.instance.currentUser?.uid;
-            bool canEditOrDelete = userId != null &&
-                (recipeData['authorId'] == userId || _userRole == 'admin');
-
-            // Initialize servings if not already set
-            if (initialServings == null) {
-              initialServings = recipeData['initialServings'] ?? 1;
-              servings = initialServings;
-              servingsNotifier.value = initialServings!;
-            }
-
-            return NestedScrollView(
-              controller: _scrollController,
-              headerSliverBuilder:
-                  (BuildContext context, bool innerBoxIsScrolled) {
-                return <Widget>[
-                  SliverAppBar(
-                    expandedHeight: 250.0,
-                    floating: false,
-                    pinned: true,
-                    automaticallyImplyLeading: false,
-                    flexibleSpace: LayoutBuilder(
-                      builder:
-                          (BuildContext context, BoxConstraints constraints) {
-                        double appBarHeight = constraints.biggest.height;
-                        double opacity = (_scrollController.offset) /
-                            (250.0 - kToolbarHeight);
-                        opacity = opacity.clamp(0.0, 1.0);
-
-                        return Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            // Image Section
-                            _buildImageSection(recipeData),
-                            // Overlay Back and Options button over the image
-                            Positioned(
-                              top: MediaQuery.of(context).padding.top,
-                              left: 4.0,
-                              right: 4.0,
-                              child: SizedBox(
-                                height: kToolbarHeight,
-                                child: Row(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceBetween,
-                                  children: [
-                                    // Back button
-                                    CircleAvatar(
-                                      backgroundColor: Colors.white70,
-                                      child: IconButton(
-                                        icon: const Icon(Icons.arrow_back),
-                                        color: Colors.black
-                                            .withOpacity(1.0 - opacity),
-                                        onPressed: () => Navigator.pop(context),
-                                      ),
-                                    ),
-                                    // Options Menu or Save Button
-                                    if (canEditOrDelete)
-                                      PopupMenuButton<String>(
-                                        icon: Icon(Icons.more_vert,
-                                            color: Colors.white
-                                                .withOpacity(1.0 - opacity)),
-                                        onSelected: _handleMenuOption,
-                                        itemBuilder: (BuildContext context) {
-                                          return [
-                                            PopupMenuItem<String>(
-                                              value: 'save',
-                                              child: Consumer<RecipeProvider>(
-                                                builder: (context,
-                                                    recipeProvider, child) {
-                                                  bool isSaved = recipeProvider
-                                                      .isRecipeSaved(
-                                                          widget.recipeId);
-                                                  return ListTile(
-                                                    leading: Icon(
-                                                      isSaved
-                                                          ? Icons.bookmark
-                                                          : Icons
-                                                              .bookmark_border,
-                                                      color: isSaved
-                                                          ? Colors.green
-                                                          : Colors.black,
-                                                    ),
-                                                    title: Text(isSaved
-                                                        ? 'Unsave Recipe'
-                                                        : 'Save Recipe'),
-                                                  );
-                                                },
-                                              ),
-                                            ),
-                                            PopupMenuItem<String>(
-                                              value: 'edit',
-                                              child: ListTile(
-                                                leading: const Icon(Icons.edit),
-                                                title:
-                                                    const Text('Edit Recipe'),
-                                              ),
-                                            ),
-                                            const PopupMenuItem<String>(
-                                              value: 'delete',
-                                              child: ListTile(
-                                                leading: Icon(
-                                                  Icons.delete,
-                                                  color: Colors.red,
-                                                ),
-                                                title: Text('Delete Recipe'),
-                                              ),
-                                            ),
-                                          ];
-                                        },
-                                      )
-                                    else if (!isGuestUser)
-                                      // Save Button for regular users
-                                      Selector<RecipeProvider, bool>(
-                                        selector: (_, provider) => provider
-                                            .isRecipeSaved(widget.recipeId),
-                                        builder: (context, isSaved, child) {
-                                          return CircleAvatar(
+                              return Stack(
+                                fit: StackFit.expand,
+                                children: [
+                                  // Image Section
+                                  _buildImageSection(_recipeData!),
+                                  // Overlay Back and Options button over the image
+                                  Positioned(
+                                    top: MediaQuery.of(context).padding.top,
+                                    left: 4.0,
+                                    right: 4.0,
+                                    child: SizedBox(
+                                      height: kToolbarHeight,
+                                      child: Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.spaceBetween,
+                                        children: [
+                                          // Back button
+                                          CircleAvatar(
                                             backgroundColor: Colors.white70,
                                             child: IconButton(
-                                              icon: Icon(
-                                                isSaved
-                                                    ? Icons.bookmark
-                                                    : Icons.bookmark_border,
-                                              ),
-                                              color: isSaved
-                                                  ? Colors.green.withOpacity(
-                                                      1.0 - opacity)
-                                                  : Colors.black.withOpacity(
-                                                      1.0 - opacity),
+                                              icon:
+                                                  const Icon(Icons.arrow_back),
+                                              color: Colors.black
+                                                  .withOpacity(1.0 - opacity),
                                               onPressed: () =>
-                                                  showSaveRecipeDialog(context,
-                                                      recipeId:
-                                                          widget.recipeId),
+                                                  Navigator.pop(context),
                                             ),
-                                          );
-                                        },
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ),
-
-                            // AppBar Title and Buttons when scrolled
-                            // Inside the AppBar Title and Buttons when scrolled
-                            Positioned(
-                              top: 0.0,
-                              left: 0.0,
-                              right: 0.0,
-                              child: ValueListenableBuilder<double>(
-                                valueListenable: _opacityNotifier,
-                                builder: (context, opacity, child) {
-                                  return AnimatedOpacity(
-                                    duration: const Duration(milliseconds: 0),
-                                    opacity: opacity,
-                                    child: Container(
-                                      color: Theme.of(context)
-                                          .scaffoldBackgroundColor,
-                                      height:
-                                          MediaQuery.of(context).padding.top +
-                                              kToolbarHeight,
-                                      child: Column(
-                                        children: [
-                                          SizedBox(
-                                              height: MediaQuery.of(context)
-                                                  .padding
-                                                  .top),
-                                          SizedBox(
-                                            height: kToolbarHeight,
-                                            child: Row(
-                                              mainAxisAlignment:
-                                                  MainAxisAlignment
-                                                      .spaceBetween,
-                                              children: [
-                                                // Back button
-                                                IconButton(
-                                                  icon: const Icon(
-                                                      Icons.arrow_back),
-                                                  color: Theme.of(context)
-                                                              .brightness ==
-                                                          Brightness.dark
-                                                      ? Colors.white
-                                                      : Colors.black,
-                                                  onPressed: () =>
-                                                      Navigator.pop(context),
-                                                ),
-                                                // Title
-                                                Expanded(
-                                                  child: GestureDetector(
-                                                    onLongPress: () {
-                                                      setState(() {
-                                                        _isMarquee = true;
-                                                      });
-                                                    },
-                                                    onLongPressUp: () {
-                                                      setState(() {
-                                                        _isMarquee = false;
-                                                      });
-                                                    },
-                                                    child: _isMarquee
-                                                        ? Marquee(
-                                                            text:
-                                                                _currentRecipe!
-                                                                    .title,
-                                                            style: TextStyle(
-                                                              color: Theme.of(context)
-                                                                          .brightness ==
-                                                                      Brightness
-                                                                          .dark
-                                                                  ? Colors.white
-                                                                  : Colors
-                                                                      .black,
-                                                              fontSize: 20.0,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                            blankSpace: 20.0,
-                                                            velocity: 40.0,
-                                                          )
-                                                        : Text(
-                                                            _currentRecipe!
-                                                                .title,
-                                                            style: TextStyle(
-                                                              color: Theme.of(context)
-                                                                          .brightness ==
-                                                                      Brightness
-                                                                          .dark
-                                                                  ? Colors.white
-                                                                  : Colors
-                                                                      .black,
-                                                              fontSize: 20.0,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .bold,
-                                                            ),
-                                                            maxLines: 1,
-                                                            overflow:
-                                                                TextOverflow
-                                                                    .ellipsis,
-                                                            textAlign: TextAlign
-                                                                .center,
-                                                          ),
-                                                  ),
-                                                ),
-                                                // Options Menu or Save Button
-                                                if (canEditOrDelete &&
-                                                    !isGuestUser)
-                                                  PopupMenuButton<String>(
-                                                    icon: Icon(
-                                                      Icons.more_vert,
-                                                      color: Theme.of(context)
-                                                                  .brightness ==
-                                                              Brightness.dark
-                                                          ? Colors.white
-                                                          : Colors.black,
-                                                    ),
-                                                    onSelected:
-                                                        _handleMenuOption,
-                                                    itemBuilder:
-                                                        (BuildContext context) {
-                                                      return [
-                                                        PopupMenuItem<String>(
-                                                          value: 'save',
-                                                          child: ListTile(
-                                                            leading: Icon(
-                                                              isSaved
-                                                                  ? Icons
-                                                                      .bookmark
-                                                                  : Icons
-                                                                      .bookmark_border,
-                                                              color: isSaved
-                                                                  ? Colors.green
-                                                                  : Theme.of(context)
-                                                                              .brightness ==
-                                                                          Brightness
-                                                                              .dark
-                                                                      ? Colors
-                                                                          .white
-                                                                      : Colors
-                                                                          .black,
-                                                            ),
-                                                            title: Text(isSaved
-                                                                ? 'Unsave Recipe'
-                                                                : 'Save Recipe'),
-                                                          ),
-                                                        ),
-                                                        PopupMenuItem<String>(
-                                                          value: 'edit',
-                                                          child: ListTile(
-                                                            leading: const Icon(
-                                                                Icons.edit),
-                                                            title: const Text(
-                                                                'Edit Recipe'),
-                                                          ),
-                                                        ),
-                                                        PopupMenuItem<String>(
-                                                          value: 'delete',
-                                                          child: ListTile(
-                                                            leading: const Icon(
-                                                              Icons.delete,
-                                                              color: Colors.red,
-                                                            ),
-                                                            title: const Text(
-                                                                'Delete Recipe'),
-                                                          ),
-                                                        ),
-                                                      ];
-                                                    },
-                                                  )
-                                                else if (!isGuestUser)
-                                                  // Save Button for regular users
-                                                  IconButton(
-                                                    icon: Icon(
-                                                      isSaved
-                                                          ? Icons.bookmark
-                                                          : Icons
-                                                              .bookmark_border,
-                                                    ),
-                                                    color: isSaved
-                                                        ? Colors.green
-                                                        : Theme.of(context)
-                                                                    .brightness ==
-                                                                Brightness.dark
-                                                            ? Colors.white
-                                                            : Colors.black,
-                                                    onPressed: () =>
-                                                        showSaveRecipeDialog(
-                                                            context,
-                                                            recipeId: widget
-                                                                .recipeId),
-                                                  ),
-                                              ],
-                                            ),
+                                          ),
+                                          // Options Menu or Save Button
+                                          _buildOptionsMenuOrSave(
+                                            recipeData: _recipeData!,
+                                            isSaved: isSaved,
+                                            opacity: opacity,
+                                            canEditOrDelete:
+                                                _canEditOrDelete(_recipeData!),
                                           ),
                                         ],
                                       ),
                                     ),
-                                  );
-                                },
-                              ),
-                            ),
-                          ],
-                        );
-                      },
+                                  ),
+                                  // AppBar Title and Buttons when scrolled
+                                  Positioned(
+                                    top: 0.0,
+                                    left: 0.0,
+                                    right: 0.0,
+                                    child: ValueListenableBuilder<double>(
+                                      valueListenable: _opacityNotifier,
+                                      builder: (context, valueOpacity, child) {
+                                        return AnimatedOpacity(
+                                          duration:
+                                              const Duration(milliseconds: 0),
+                                          opacity: valueOpacity,
+                                          child: Container(
+                                            color: Theme.of(context)
+                                                .scaffoldBackgroundColor,
+                                            height: MediaQuery.of(context)
+                                                    .padding
+                                                    .top +
+                                                kToolbarHeight,
+                                            child: Column(
+                                              children: [
+                                                SizedBox(
+                                                    height:
+                                                        MediaQuery.of(context)
+                                                            .padding
+                                                            .top),
+                                                SizedBox(
+                                                  height: kToolbarHeight,
+                                                  child: Row(
+                                                    mainAxisAlignment:
+                                                        MainAxisAlignment
+                                                            .spaceBetween,
+                                                    children: [
+                                                      IconButton(
+                                                        icon: const Icon(
+                                                            Icons.arrow_back),
+                                                        color: Theme.of(context)
+                                                                    .brightness ==
+                                                                Brightness.dark
+                                                            ? Colors.white
+                                                            : Colors.black,
+                                                        onPressed: () =>
+                                                            Navigator.pop(
+                                                                context),
+                                                      ),
+                                                      Expanded(
+                                                        child: GestureDetector(
+                                                          onLongPress: () =>
+                                                              setState(() =>
+                                                                  _isMarquee =
+                                                                      true),
+                                                          onLongPressUp: () =>
+                                                              setState(() =>
+                                                                  _isMarquee =
+                                                                      false),
+                                                          child: _isMarquee
+                                                              ? Marquee(
+                                                                  text:
+                                                                      _currentRecipe!
+                                                                          .title,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Theme.of(context).brightness ==
+                                                                            Brightness
+                                                                                .dark
+                                                                        ? Colors
+                                                                            .white
+                                                                        : Colors
+                                                                            .black,
+                                                                    fontSize:
+                                                                        20.0,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                  blankSpace:
+                                                                      20.0,
+                                                                  velocity:
+                                                                      40.0,
+                                                                )
+                                                              : Text(
+                                                                  _currentRecipe!
+                                                                      .title,
+                                                                  style:
+                                                                      TextStyle(
+                                                                    color: Theme.of(context).brightness ==
+                                                                            Brightness
+                                                                                .dark
+                                                                        ? Colors
+                                                                            .white
+                                                                        : Colors
+                                                                            .black,
+                                                                    fontSize:
+                                                                        20.0,
+                                                                    fontWeight:
+                                                                        FontWeight
+                                                                            .bold,
+                                                                  ),
+                                                                  maxLines: 1,
+                                                                  overflow:
+                                                                      TextOverflow
+                                                                          .ellipsis,
+                                                                  textAlign:
+                                                                      TextAlign
+                                                                          .center,
+                                                                ),
+                                                        ),
+                                                      ),
+                                                      if (_canEditOrDelete(
+                                                              _recipeData!) &&
+                                                          !isGuestUser)
+                                                        PopupMenuButton<String>(
+                                                          icon: Icon(
+                                                            Icons.more_vert,
+                                                            color: Theme.of(context)
+                                                                        .brightness ==
+                                                                    Brightness
+                                                                        .dark
+                                                                ? Colors.white
+                                                                : Colors.black,
+                                                          ),
+                                                          onSelected:
+                                                              _handleMenuOption,
+                                                          itemBuilder:
+                                                              (BuildContext
+                                                                  context) {
+                                                            return _buildPopupMenuItems(
+                                                                isSaved);
+                                                          },
+                                                        )
+                                                      else if (!isGuestUser)
+                                                        IconButton(
+                                                          icon: Icon(
+                                                            isSaved
+                                                                ? Icons.bookmark
+                                                                : Icons
+                                                                    .bookmark_border,
+                                                          ),
+                                                          color: isSaved
+                                                              ? Colors.green
+                                                              : Theme.of(context)
+                                                                          .brightness ==
+                                                                      Brightness
+                                                                          .dark
+                                                                  ? Colors.white
+                                                                  : Colors
+                                                                      .black,
+                                                          onPressed: () =>
+                                                              showSaveRecipeDialog(
+                                                            context,
+                                                            recipeId:
+                                                                widget.recipeId,
+                                                          ),
+                                                        ),
+                                                    ],
+                                                  ),
+                                                ),
+                                              ],
+                                            ),
+                                          ),
+                                        );
+                                      },
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                        ),
+                      ];
+                    },
+                    body: ListView(
+                      key: PageStorageKey('recipe-detail-${widget.recipeId}'),
+                      shrinkWrap: false,
+                      physics: const AlwaysScrollableScrollPhysics(),
+                      padding: EdgeInsets.zero,
+                      children: [
+                        ..._buildRecipeDetail(_recipeData!, isGuestUser),
+                        // Then place the SimilarRecipesSection at the end:
+                        Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child:
+                              SimilarRecipesSection(recipeId: widget.recipeId),
+                        ),
+                      ],
                     ),
                   ),
-                ];
-              },
-              body: ListView(
-                key: PageStorageKey('recipe-detail-${widget.recipeId}'),
-                shrinkWrap: false,
-                physics: const ClampingScrollPhysics(),
-                padding: EdgeInsets.zero,
-                children: _buildRecipeDetail(recipeData, isGuestUser),
-              ),
-            );
-          }
-        },
       ),
     );
   }
@@ -1025,7 +1021,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       ],
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: _buildRatingBreakdown(averageRating, ratingsCount, ratingCounts),
+        child: _buildRatingBreakdown(),
       ),
       const SizedBox(height: 16),
       Padding(
@@ -1033,11 +1029,6 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         child: _buildCommentsList(),
       ),
       const SizedBox(height: 16),
-      Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16.0),
-        child: SimilarRecipesSection(recipeId: recipeId),
-      ),
-      const SizedBox(height: 32),
     ];
   }
 
@@ -1539,7 +1530,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 border: const OutlineInputBorder(),
                 suffixIcon: IconButton(
                   icon: const Icon(Icons.send),
-                  onPressed: _submitComment,
+                  onPressed: () {
+                    _submitComment();
+                    FocusScope.of(context).unfocus();
+                  },
                 ),
               ),
               maxLines: 3,
@@ -1556,62 +1550,86 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  Widget _buildRatingBreakdown(
-      double averageRating, int totalRatings, Map<int, int> ratingCounts) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        // Average Rating Section
-        Column(
+  Widget _buildRatingBreakdown() {
+    return StreamBuilder<DocumentSnapshot>(
+      stream: FirebaseFirestore.instance
+          .collection('recipes')
+          .doc(widget.recipeId)
+          .snapshots(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) return CircularProgressIndicator();
+        final doc = snapshot.data!;
+        if (!doc.exists) return Text('Recipe not found');
+
+        final recipeData = doc.data() as Map<String, dynamic>;
+        final averageRating = (recipeData['averageRating'] ?? 0).toDouble();
+        final totalRatings = recipeData['ratingsCount'] ?? 0;
+        final ratingCountsMap = recipeData['ratingCounts'] ?? {};
+        final Map<int, int> ratingCounts = {
+          1: ratingCountsMap['1'] ?? 0,
+          2: ratingCountsMap['2'] ?? 0,
+          3: ratingCountsMap['3'] ?? 0,
+          4: ratingCountsMap['4'] ?? 0,
+          5: ratingCountsMap['5'] ?? 0,
+        };
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text(
-              averageRating.toStringAsFixed(1),
-              style: const TextStyle(fontSize: 48, fontWeight: FontWeight.w600),
-            ),
-            RatingBarIndicator(
-              rating: averageRating,
-              itemBuilder: (context, index) => const Icon(
-                Icons.star,
-                color: Colors.amber,
-              ),
-              itemCount: 5,
-              itemSize: 14.0,
-            ),
-            Text('$totalRatings'),
-          ],
-        ),
-        const SizedBox(width: 24),
-        // Rating Breakdown Section
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (int i = 5; i >= 1; i--)
-                Row(
-                  children: [
-                    Text('$i'),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: SizedBox(
-                        height: 6,
-                        child: LinearProgressIndicator(
-                          value: totalRatings > 0
-                              ? (ratingCounts[i]! / totalRatings)
-                              : 0,
-                          backgroundColor: Colors.grey[300],
-                          color: Colors.amber,
-                          borderRadius: BorderRadius.circular(8.0),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    Text('${ratingCounts[i]}'),
-                  ],
+            // Average Rating Section
+            Column(
+              children: [
+                Text(
+                  averageRating.toStringAsFixed(1),
+                  style: const TextStyle(
+                      fontSize: 48, fontWeight: FontWeight.w600),
                 ),
-            ],
-          ),
-        ),
-      ],
+                RatingBarIndicator(
+                  rating: averageRating,
+                  itemBuilder: (context, index) => const Icon(
+                    Icons.star,
+                    color: Colors.amber,
+                  ),
+                  itemCount: 5,
+                  itemSize: 14.0,
+                ),
+                Text('$totalRatings'),
+              ],
+            ),
+            const SizedBox(width: 24),
+            // Rating Breakdown Section
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (int i = 5; i >= 1; i--)
+                    Row(
+                      children: [
+                        Text('$i'),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: SizedBox(
+                            height: 6,
+                            child: LinearProgressIndicator(
+                              value: totalRatings > 0
+                                  ? (ratingCounts[i]! / totalRatings)
+                                  : 0,
+                              backgroundColor: Colors.grey[300],
+                              color: Colors.amber,
+                              borderRadius: BorderRadius.circular(8.0),
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 8),
+                        Text('${ratingCounts[i]}'),
+                      ],
+                    ),
+                ],
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -1661,9 +1679,14 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   itemBuilder: (context, index) {
                     final commentData = snapshot.data!.docs[index].data()
                         as Map<String, dynamic>;
+                    // Add the comment document ID to the comment data
+                    commentData['commentId'] = snapshot.data!.docs[index].id;
+                    commentData['recipeId'] = widget.recipeId;
                     double rating = commentData['rating']?.toDouble() ?? 0.0;
                     return BuildComment(
-                        commentData: commentData, rating: rating);
+                        commentData: commentData,
+                        rating: rating,
+                        isAdmin: _userRole == 'admin');
                   },
                 ),
               ],

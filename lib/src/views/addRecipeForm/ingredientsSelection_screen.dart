@@ -128,7 +128,10 @@ class _IngredientsSelectionPageState extends State<IngredientsSelectionPage> {
                   const Divider(),
                   searchQuery.isNotEmpty
                       ? _buildSearchResults()
-                      : _buildCategorizedIngredients(),
+                      : Padding(
+                          padding: const EdgeInsets.only(bottom: 128.0),
+                          child: _buildCategorizedIngredients(),
+                        ),
                 ],
               ),
             ),

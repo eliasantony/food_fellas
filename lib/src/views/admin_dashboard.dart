@@ -182,7 +182,11 @@ class FeedbackTile extends StatelessWidget {
           content: Text('Are you sure you want to delete this feedback?'),
           actions: [
             TextButton(
-              child: Text('Cancel'),
+              child: Text(
+                'Cancel',
+                style:
+                    TextStyle(color: Theme.of(context).colorScheme.onSurface),
+              ),
               onPressed: () {
                 Navigator.of(context).pop(); // Dismiss the dialog
               },

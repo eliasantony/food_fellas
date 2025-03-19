@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:easy_stepper/easy_stepper.dart';
 import 'package:food_fellas/main.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
+import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/models/tag.dart';
 import 'package:food_fellas/src/models/textEmbedding_model.dart';
 import 'package:food_fellas/src/services/analytics_service.dart';
@@ -118,9 +119,11 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: Theme.of(context).colorScheme.primary,
                     ),
-                    child: Text('Cancel',
-                        style: TextStyle(
-                            color: Theme.of(context).colorScheme.onPrimary)),
+                    child: Text(
+                      'Cancel',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onSurface),
+                    ),
                   ),
                 ],
               );
@@ -173,6 +176,9 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
             },
           ),
         ),
+        floatingActionButton: _buildFloatingActionButtons(), // Moved here
+        floatingActionButtonLocation: FloatingActionButtonLocation
+            .centerFloat, // Ensures buttons are at the bottom
         body: Column(
           children: <Widget>[
             SizedBox(
@@ -245,7 +251,6 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                 ],
               ),
             ),
-            SizedBox(height: 100, child: _buildFloatingActionButtons())
           ],
         ),
       ),
@@ -253,35 +258,41 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
   }
 
   Widget _buildFloatingActionButtons() {
-    return Padding(
-      padding: EdgeInsets.all(16),
-      child: _isSubmitting
-          ? Center(child: CircularProgressIndicator())
-          : Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: <Widget>[
-                FloatingActionButton(
-                  heroTag: "previousPageBtn",
-                  onPressed: _currentStep > 0 ? _previousPage : null,
-                  backgroundColor: _currentStep > 0
-                      ? Theme.of(context).colorScheme.primary
-                      : Colors.grey,
-                  child: Icon(Icons.arrow_back, color: Colors.white),
-                ),
-                FloatingActionButton(
-                  heroTag: "nextPageBtn",
-                  onPressed: _currentStep < _totalSteps() - 1
-                      ? _nextPage
-                      : _submitForm,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  child: Icon(
-                      _currentStep < _totalSteps() - 1
-                          ? Icons.arrow_forward
-                          : Icons.check,
-                      color: Colors.white),
-                ),
-              ],
+    return Stack(
+      alignment: Alignment.bottomCenter,
+      children: [
+        if (_isSubmitting)
+          Center(child: CircularProgressIndicator())
+        else ...[
+          Positioned(
+            left: 16,
+            bottom: 8,
+            child: FloatingActionButton(
+              heroTag: "previousPageBtn",
+              onPressed: _currentStep > 0 ? _previousPage : null,
+              backgroundColor: _currentStep > 0
+                  ? Theme.of(context).colorScheme.primary
+                  : Colors.grey,
+              child: Icon(Icons.arrow_back, color: Colors.white),
             ),
+          ),
+          Positioned(
+            right: 16,
+            bottom: 8,
+            child: FloatingActionButton(
+              heroTag: "nextPageBtn",
+              onPressed:
+                  _currentStep < _totalSteps() - 1 ? _nextPage : _submitForm,
+              backgroundColor: Theme.of(context).colorScheme.primary,
+              child: Icon(
+                  _currentStep < _totalSteps() - 1
+                      ? Icons.arrow_forward
+                      : Icons.check,
+                  color: Colors.white),
+            ),
+          ),
+        ],
+      ],
     );
   }
 
@@ -514,6 +525,9 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           final recipeProvider =
               Provider.of<RecipeProvider>(context, listen: false);
           recipeProvider.refreshRecipe(docRef.id);
+          final searchProvider =
+              Provider.of<SearchProvider>(context, listen: false);
+          searchProvider.updateRecipe(docRef.id, recipeData);
           Navigator.pop(context, true);
         }
       } catch (e) {

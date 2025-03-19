@@ -1,9 +1,12 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 
 class UserDataProvider with ChangeNotifier {
+  bool _isSubscribed = false;
   Map<String, dynamic>? _userData;
 
+  bool get isSubscribed => _isSubscribed;
   Map<String, dynamic>? get userData => _userData;
 
   void setUserData(Map<String, dynamic>? data) {
@@ -20,8 +23,25 @@ class UserDataProvider with ChangeNotifier {
     }
   }
 
+  void fetchSubscriptionStatus() {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    FirebaseFirestore.instance
+        .collection('users')
+        .doc(user.uid)
+        .snapshots()
+        .listen((doc) {
+      if (doc.exists) {
+        _isSubscribed = doc.data()?['subscribed'] ?? false;
+        notifyListeners(); // Updates UI immediately
+      }
+    });
+  }
+
   void setSubscribed(bool value) {
     if (_userData != null) {
+    _isSubscribed = value; // Update immediately
       _userData!['subscribed'] = value;
       notifyListeners();
     }

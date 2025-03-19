@@ -2,6 +2,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/material.dart';
 import 'package:food_fellas/providers/userProvider.dart';
 import 'package:in_app_purchase/in_app_purchase.dart';
 import 'package:provider/provider.dart';
@@ -15,6 +16,7 @@ class SubscriptionService {
   final InAppPurchase _iap = InAppPurchase.instance;
   StreamSubscription<List<PurchaseDetails>>? _subscription;
   List<ProductDetails> availableProducts = [];
+  final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 
   /// Initialize the in-app purchase connection and query product details.
   Future<void> init() async {
@@ -75,22 +77,37 @@ class SubscriptionService {
     }
   }
 
+  void Function()? onSubscriptionSuccess;
+
   void _deliverProduct(PurchaseDetails purchaseDetails) async {
-    print("Delivering product for purchase: ${purchaseDetails.productID}");
+    debugPrint("Delivering product for purchase: ${purchaseDetails.productID}");
     // Get the current user.
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      print("User found: ${user.uid}, updating Firestore...");
+      debugPrint("User found: ${user.uid}, updating Firestore...");
       // Update Firebase user document to mark subscription as active.
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
-          .update({'subscribed': true});
-      // Optionally: call a method or notify your UserDataProvider to update its state.
+          .update({
+        'subscribed': true,
+        'subscriptionDate': DateTime.now(),
+      });
+
+      final userProvider = Provider.of<UserDataProvider>(
+        navigatorKey.currentContext!,
+        listen: false,
+      );
+      userProvider.setSubscribed(true);
+      userProvider.fetchSubscriptionStatus();
+
+      // Trigger success callback
+      if (onSubscriptionSuccess != null) {
+        onSubscriptionSuccess!();
+      }
     } else {
       print("No user is signed in.");
     }
-    print('Subscription activated successfully!');
   }
 
   /// Initiate a purchase for a given product.
