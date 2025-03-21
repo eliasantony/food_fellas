@@ -11,12 +11,14 @@ class RecipeCard extends StatefulWidget {
   final String? recipeId;
   final Map<String, dynamic>? recipeData;
   final bool big;
+  final bool fromNewRecipe;
 
   const RecipeCard({
     Key? key,
     this.recipeId,
     this.recipeData,
     this.big = false,
+    this.fromNewRecipe = false,
   }) : super(key: key);
 
   @override
@@ -135,6 +137,7 @@ class _RecipeCardState extends State<RecipeCard> {
                   MaterialPageRoute(
                     builder: (context) => RecipeDetailScreen(
                       recipeId: recipeId,
+                      fromNewRecipe: widget.fromNewRecipe,
                     ),
                   ),
                 );

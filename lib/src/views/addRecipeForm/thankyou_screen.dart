@@ -48,7 +48,7 @@ class ThankYouScreen extends StatelessWidget {
                   ),
                 ),
                 SizedBox(height: 20),
-                RecipeCard(recipeId: recipeId),
+                RecipeCard(recipeId: recipeId, fromNewRecipe: true),
                 SizedBox(height: 40),
                 Padding(
                   padding: EdgeInsets.symmetric(horizontal: 20),

@@ -187,16 +187,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       : null,
                   icon: Icon(
                     Icons.delete,
-                    color: Theme.of(context).colorScheme.onErrorContainer,
+                    color: Theme.of(context).colorScheme.onError,
                   ),
                   style: ElevatedButton.styleFrom(
-                    backgroundColor:
-                        Theme.of(context).colorScheme.errorContainer,
+                    backgroundColor: Theme.of(context).colorScheme.error,
                   ),
                   label: Text(
                     'Delete Account',
                     style: TextStyle(
-                      color: Theme.of(context).colorScheme.onErrorContainer,
+                      color: Theme.of(context).colorScheme.onError,
                     ),
                   ),
                 ),

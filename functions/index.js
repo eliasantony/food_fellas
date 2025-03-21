@@ -1,37 +1,13 @@
 /* eslint-disable indent */
 
-/**
- * Import function triggers from their respective submodules:
- *
- * const {onCall} = require("firebase-functions/v2/https");
- * const {onDocumentWritten} = require("firebase-functions/v2/firestore");
- *
- * See a full list of supported triggers at https://firebase.google.com/docs/functions
- */
-
-// const {onRequest} = require("firebase-functions/v2/https");
-// const logger = require("firebase-functions/logger");
-
-// Create and deploy your first functions
-// https://firebase.google.com/docs/functions/get-started
-
-// exports.helloWorld = onRequest((request, response) => {
-//   logger.info("Hello logs!", {structuredData: true});
-//   response.send("Hello from Firebase!");
-// });
-
-/* eslint-disable indent */
-
-const { onRequest } = require("firebase-functions/v2/https");
-const { onDocumentWritten } = require("firebase-functions/v2/firestore");
-const { onDocumentCreated } = require("firebase-functions/v2/firestore");
-const { onCall } = require("firebase-functions/v2/https");
+const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onDocumentWritten, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
 const admin = require("firebase-admin");
+const { getMessaging } = require("firebase-admin/messaging");
 const axios = require("axios");
 const uuidv4 = require("uuid").v4;
 const Sentiment = require("sentiment");
-const { getMessaging } = require("firebase-admin/messaging");
 const fs = require("fs");
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const { GoogleAIFileManager } = require("@google/generative-ai/server");
@@ -240,8 +216,11 @@ function computeRecipeScore(user, recipe) {
 }
 
 exports.preprocessRecipe = onDocumentWritten(
-  "recipes/{recipeId}",
-  { region: "europe-west1" },
+  { 
+    document: "recipes/{recipeId}",
+    region: "europe-west1", 
+    triggerRegion: "eur3",
+  },
   async (event) => {
     const change = event.data;
     const data = change.after.data();
@@ -315,38 +294,37 @@ async function updateUserRecipeStats(userId) {
 }
 
 exports.analyzeCommentSentiment = onDocumentCreated(
-  "recipes/{recipeId}/comments/{commentId}",
-  { region: "europe-west1" },
+  {
+    document: "recipes/{recipeId}/comments/{commentId}",
+    region: "europe-west1",
+    triggerRegion: "eur3",
+  },
   async (event) => {
     const snap = event.data;
     const commentData = snap.data();
-    const commentText = commentData.comment;
-    const commentAuthorName = commentData.userName;
-    const recipeId = context.params.recipeId;
+    const commentText = commentData.comment || "";
+    const commentAuthorName = commentData.userName || "Someone";
+    const recipeId = event.params.recipeId;
+    const commentId = event.params.commentId;
 
-    // 1. Sentiment analysis (already in your code)
-    if (commentText) {
+    // 1. Only analyze sentiment if we actually have text
+    //    (Alternatively, if you have 'photoOnly' flag, you can check that too.)
+    if (commentText.trim().length > 0) {
       const result = sentiment.analyze(commentText);
       const sentimentScore = result.score;
-
-      await snap.ref.set(
-        { sentimentScore },
-        { merge: true },
-      );
+      await snap.ref.set({ sentimentScore }, { merge: true });
     }
 
-    // 2. Fetch recipe to get authorId
+    // 2. Get the recipe doc to figure out who the author is
     const recipeRef = admin.firestore().collection("recipes").doc(recipeId);
     const recipeDoc = await recipeRef.get();
     if (!recipeDoc.exists) return;
     const recipeData = recipeDoc.data();
     const authorId = recipeData.authorId;
+    if (!authorId) return;
 
-    // 3. Fetch author user doc & check newComment notifications
-    const authorDoc = await admin.firestore()
-      .collection("users")
-      .doc(authorId)
-      .get();
+    // 3. Get author user doc & check if notifications are enabled
+    const authorDoc = await admin.firestore().collection("users").doc(authorId).get();
     if (!authorDoc.exists) return;
 
     const authorData = authorDoc.data();
@@ -355,36 +333,52 @@ exports.analyzeCommentSentiment = onDocumentCreated(
 
     if (!notificationsEnabled || !authorToken) return;
 
+    // 4. Decide the notification body:
+    //    If there's no text, let's assume it's a photo-only post
+    let notificationBody;
+    if (commentText.trim().length === 0) {
+      notificationBody = `${commentAuthorName} just shared a new photo on your recipe! 📸`;
+    } else {
+      notificationBody = `${commentAuthorName} just commented on your recipe: "${commentText}"`;
+    }
+
+    // 5. Build the message
     const message = {
       data: {
         type: "new_comment",
-        recipeId: recipeId,
-        commentId: context.params.commentId,
+        recipeId,
+        commentId,
       },
       notification: {
-        title: "FoodFellas'",
-        body: `${commentAuthorName} just left a comment for one of your recipes: "${commentText}"`,
+        title: "FoodFellas",
+        body: notificationBody,
       },
       token: authorToken,
     };
 
-    getMessaging().send(message)
+    // 6. Send
+    getMessaging()
+      .send(message)
       .then((response) => {
         console.log("Successfully sent message:", response);
       })
       .catch((error) => {
         console.error("Error sending message:", error);
       });
-  });
+  }
+);
 
 // Function to update recipe's average rating when a rating is altered
 
 exports.updateRecipeRating = onDocumentWritten(
-  "recipes/{recipeId}/ratings/{userId}",
-  { region: "europe-west1" },
+  { 
+    document: "recipes/{recipeId}/ratings/{userId}",
+    region: "europe-west1",
+    triggerRegion: "eur3",
+  },
   async (event) => {
     const change = event.data;
-    const recipeId = context.params.recipeId;
+    const recipeId = event.params.recipeId;
     const recipeRef = admin.firestore().collection("recipes").doc(recipeId);
     const ratingsRef = recipeRef.collection("ratings");
 
@@ -461,13 +455,21 @@ async function updateUserAverageRating(userId) {
  */
 
 exports.generateImage = onCall(
-  { region: "europe-west1" },
+  { 
+    region: "europe-west1", 
+    secrets: ["GETIMGAI_API_KEY"] 
+  },
   async (data, context) => {
-  const apiKey = functions.config().getimgai.apikey;
-  const prompt = data.prompt;
+  
+  const apiKey = process.env.GETIMGAI_API_KEY;
+  if (!apiKey) {
+    throw new HttpsError("internal", "Missing getimg.ai API key");
+  }
+
+  const prompt = data.data && data.data.prompt ? data.data.prompt : data.prompt;
 
   if (!prompt) {
-    throw new functions.https.HttpsError(
+    throw new HttpsError(
       "invalid-argument",
       "The function must be called with a prompt.",
     );
@@ -534,17 +536,20 @@ exports.generateImage = onCall(
     };
   } catch (error) {
     console.error("Error generating image:", error);
-    throw new functions.https.HttpsError("internal", error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
 
 exports.notifyOnNewFollower = onDocumentCreated(
-  "users/{followedUid}/followers/{followerUid}",
-  { region: "europe-west1" },
+  { 
+    document: "users/{followedUid}/followers/{followerUid}",
+    region: "europe-west1",     
+    triggerRegion: "eur3", 
+  },
   async (event) => {
     const snap = event.data;
-    const followedUid = context.params.followedUid;
-    const followerUid = context.params.followerUid;
+    const followedUid = event.params.followedUid;
+    const followerUid = event.params.followerUid;
 
     try {
       // 1. Fetch the followed user (the user who is receiving the follower)
@@ -603,8 +608,11 @@ exports.notifyOnNewFollower = onDocumentCreated(
   });
 
 exports.notifyOnNewRecipe = onDocumentCreated(
-  "recipes/{recipeId}",
-  { region: "europe-west1" },
+  { 
+    document: "recipes/{recipeId}",
+    region: "europe-west1",
+    triggerRegion: "eur3",
+  },
   async (event) => {
     const snap = event.data;
     const newRecipe = snap.data();
@@ -738,7 +746,7 @@ exports.processPdfForRecipes = onObjectFinalized(
     const model = genAI.getGenerativeModel({
       model: "gemini-2.0-flash",
       systemInstruction: `
-      You are a smart cooking assistant for FoodFellas. The user will provide one or more PDF Files of recipes. Your goal is to accurately translate them to english, extract the recipe and transform them into one json Object! Provide a valid JSON response in the following format:
+      You are a smart cooking assistant for FoodFellas. The user will provide one or more PDF Files of recipes. Your goal is to accurately translate them to english, extract the recipes and transform them into one json Object! Provide a valid JSON response in the following format:
 
       {
       "title": "String",
@@ -818,13 +826,13 @@ exports.processPdfForRecipes = onObjectFinalized(
 
       Additional Requirements:
       • Make sure the recipe is in English.
-      • Use metric units (grams, milliliters, etc.).
+      • Only use following Categories for the Ingredients: "Vegetable","Fruit","Grain","Protein","Dairy","Spice & Seasoning","Fat & Oil","Herb","Seafood","Condiment","Nuts & Seeds","Legume","Other". Try finding the most suitable category for each ingredient.
+      • Use metric units for measurements ("g","kg","ml","pieces","slices","tbsp","tsp","pinch","unit","bottle","can","other",).
       • Use spices and seasonings accurately.
       • Try to make the recipe as good tasting as possible.
       • If the macro values (calories (kcal), protein, carbs, fat) are not stated in the recipe, try to figure them out exactly for 1 serving by looking at the ingredients.
-      • You have a list of Tags you can use to label the recipe (dietary preferences, difficulty, cuisine, etc.):
-      "Breakfast", "Lunch", "Dinner", "Snack", "Dessert", "Appetizer", "Beverage", "Brunch", "Side Dish", "Soup", "Salad", "Under 15 minutes", "Under 30 minutes", "Under 1 hour", "Over 1 hour", "Slow Cook", "Quick & Easy", "Easy", "Medium", "Hard", "Beginner Friendly", "Intermediate", "Expert", "Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Nut-Free", "Halal", "Kosher", "Paleo", "Keto", "Pescatarian", "Low-Carb", "Low-Fat", "High-Protein", "Sugar-Free", "Italian", "Mexican", "Chinese", "Indian", "Japanese", "Mediterranean", "American", "Thai", "French", "Greek", "Korean", "Vietnamese", "Spanish", "Middle Eastern", "Caribbean", "African", "German", "Brazilian", "Peruvian", "Turkish", "Other", "Grilling", "Baking", "Stir-Frying", "Steaming", "Roasting", "Slow Cooking", "Raw", "Frying", "Pressure Cooking", "No-Cook", "Party", "Picnic", "Holiday", "Casual", "Formal", "Date Night", "Family Gathering", "Game Day", "BBQ", "Healthy", "Comfort Food", "Spicy", "Sweet", "Savory", "Budget-Friendly", "Kids Friendly", "High Fiber", "Low Sodium", "Seasonal", "Organic", "Gourmet".
-      Try to add as many relevant tags as possible to make the recipe more discoverable.
+      • These are the available Tags you can use: "Breakfast", "Lunch", "Dinner", "Snack", "Dessert", "Appetizer", "Beverage", "Brunch", "Side Dish", "Soup", "Salad", "Under 15 minutes", "Under 30 minutes", "Under 1 hour", "Over 1 hour", "Slow Cook", "Quick & Easy", "Easy", "Medium", "Hard", "Beginner Friendly", "Intermediate", "Expert", "Vegetarian", "Vegan", "Gluten-Free", "Dairy-Free", "Nut-Free", "Halal", "Kosher", "Paleo", "Keto", "Pescatarian", "Low-Carb", "Low-Fat", "High-Protein", "Sugar-Free", "Italian", "Mexican", "Chinese", "Indian", "Japanese", "Mediterranean", "American", "Thai", "French", "Greek", "Korean", "Vietnamese", "Spanish", "Middle Eastern", "Caribbean", "African", "German", "Brazilian", "Peruvian", "Turkish", "Other", "Grilling", "Baking", "Stir-Frying", "Steaming", "Roasting", "Slow Cooking", "Raw", "Frying", "Pressure Cooking", "No-Cook", "Party", "Picnic", "Holiday", "Casual", "Formal", "Date Night", "Family Gathering", "Game Day", "BBQ", "Healthy", "Comfort Food", "Spicy", "Sweet", "Savory", "Budget-Friendly", "Kids Friendly", "High Fiber", "Low Sodium", "Seasonal", "Organic", "Gourmet"
+      • Try to add as many relevant tags as possible to make the recipe more discoverable.
       `,
     });
 

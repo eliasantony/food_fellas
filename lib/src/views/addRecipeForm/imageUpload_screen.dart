@@ -421,6 +421,8 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
         _isLoading = true;
       });
 
+      print('Generating image with prompt: $prompt');
+
       // Create a FirebaseFunctions instance for the specific region
       final FirebaseFunctions functions =
           FirebaseFunctions.instanceFor(region: 'europe-west1');

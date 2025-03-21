@@ -1,13 +1,20 @@
+import 'dart:io';
+
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
 import 'package:food_fellas/src/models/recipe.dart';
+import 'package:food_fellas/src/services/in_app_review_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
-import 'package:food_fellas/src/views/photoview_screen.dart';
+import 'package:food_fellas/src/widgets/multi_photoview_screen.dart';
+import 'package:food_fellas/src/widgets/photoview_screen.dart';
 import 'package:food_fellas/src/views/profile_screen.dart';
 import 'package:food_fellas/src/views/shoppingList_screen.dart';
 import 'package:food_fellas/src/widgets/build_comment.dart';
 import 'package:food_fellas/src/widgets/macros_section.dart';
 import 'package:food_fellas/src/widgets/similarRecipes_section.dart';
+import 'package:image_cropper/image_cropper.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:marquee/marquee.dart';
 import 'package:provider/provider.dart';
 import 'package:food_fellas/providers/recipeProvider.dart';
@@ -20,8 +27,10 @@ import 'package:share_plus/share_plus.dart';
 
 class RecipeDetailScreen extends StatefulWidget {
   final String recipeId;
+  final bool fromNewRecipe;
 
-  const RecipeDetailScreen({required this.recipeId});
+  const RecipeDetailScreen(
+      {required this.recipeId, this.fromNewRecipe = false});
 
   @override
   _RecipeDetailScreenState createState() => _RecipeDetailScreenState();
@@ -38,6 +47,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
   double userRating = 0.0;
   bool _hasRatingChanged = false;
   final TextEditingController _commentController = TextEditingController();
+  final List<File> _attachedImages = [];
   ValueNotifier<Set<String>> shoppingListItemsNotifier =
       ValueNotifier<Set<String>>({});
   late ValueNotifier<int> servingsNotifier;
@@ -56,6 +66,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     _fetchShoppingListItems();
     _fetchUserRole();
     _logRecipeView();
+
+    if (widget.fromNewRecipe) {
+      Future.delayed(Duration(seconds: 2), () {
+        InAppReviewService.requestReview();
+      });
+    }
   }
 
   @override
@@ -208,16 +224,21 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               actions: [
                 TextButton(
                   onPressed: () => Navigator.of(context).pop(false),
-                  child: const Text('Cancel'),
+                  child: Text(
+                    'Cancel',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface),
+                  ),
                 ),
                 ElevatedButton(
                     onPressed: () => Navigator.of(context).pop(true),
-                    child: const Text(
+                    child: Text(
                       'Delete',
-                      style: TextStyle(color: Colors.white),
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onError),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[500],
+                      backgroundColor: Theme.of(context).colorScheme.error,
                     )),
               ],
             );
@@ -383,7 +404,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     }
   }
 
-  void _updateRating(double rating) {
+  void updateRating(double rating) {
     if (!mounted) return;
     setState(() {
       userRating = rating;
@@ -402,53 +423,109 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  void _submitComment() async {
-    final user = FirebaseAuth.instance.currentUser;
-    if (user == null) {
+  Future<void> _attachPhotosToComment() async {
+    // 1) Ensure the user typed some text first
+    if (_commentController.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('You must be logged in to submit a comment.'),
-          duration: Duration(seconds: 2),
+            content:
+                Text('Please enter a comment first before attaching photos.')),
+      );
+      return;
+    }
+
+    // 2) Let user pick up to 3 photos
+    //    If you only want them to pick 1 at a time, just pick 1.
+    //    Or use a multi-image picker plugin. For simplicity:
+    while (_attachedImages.length < 3) {
+      File? file = await _pickAndCropSingleImage();
+      if (file == null) {
+        // user canceled picking an image
+        break;
+      }
+      setState(() {
+        _attachedImages.add(file);
+      });
+      // If you want to ask "Pick another one?" in a dialog, you can do so.
+      // Otherwise, this example automatically loops.
+      if (_attachedImages.length >= 3) break;
+    }
+  }
+
+  Future<void> _submitComment() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null || user.isAnonymous) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('You must be logged in to submit a comment or photo.'),
         ),
       );
       return;
     }
 
+    final commentText = _commentController.text.trim();
+
+    // 1) Disallow empty text + no images
+    if (commentText.isEmpty && _attachedImages.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('Please type a comment or attach photos before sending.'),
+        ),
+      );
+      return;
+    }
+
+    // 2) Upload any attached images
+    List<String> photoUrls = [];
+    for (File img in _attachedImages) {
+      String url = await _uploadFileToStorage(
+        recipeId: widget.recipeId,
+        file: img,
+      );
+      photoUrls.add(url);
+    }
+
+    // 3) Retrieve user info
     final userData = await FirebaseFirestore.instance
         .collection('users')
         .doc(user.uid)
         .get();
     String userName = userData.data()?['display_name'] ?? 'Anonymous';
 
-    // Get the user's rating
-    double rating = userRating;
+    // 4) Prepare comment doc
+    final commentDoc = {
+      'userId': user.uid,
+      'userName': userName,
+      'comment': commentText,
+      'timestamp': FieldValue.serverTimestamp(),
+      'rating': userRating > 0 ? userRating : null,
+      'photos': photoUrls,
+      'recipeId': widget.recipeId,
+    };
 
+    // 5) Add comment doc
     await FirebaseFirestore.instance
         .collection('recipes')
         .doc(widget.recipeId)
         .collection('comments')
-        .add({
-      'userId': user.uid,
-      'userName': userName,
-      'comment': _commentController.text.trim(),
-      'timestamp': FieldValue.serverTimestamp(),
-      'rating': rating > 0 ? rating : null,
-    });
+        .add(commentDoc);
 
-    // Show a snackbar
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Comment submitted successfully.'),
-        duration: Duration(seconds: 2),
-      ),
-    );
-
-    _commentController.clear();
-    // Submit the rating if it has changed
+    // If rating changed
     if (_hasRatingChanged) {
       await _submitRating(userRating);
       _hasRatingChanged = false;
     }
+
+    // 6) Clear the text and the local attached images
+    _commentController.clear();
+    setState(() {
+      _attachedImages.clear();
+    });
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Comment submitted successfully.')),
+    );
   }
 
   void _addIngredientToShoppingList(
@@ -599,7 +676,9 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               return ListTile(
                 leading: Icon(
                   isSaved ? Icons.bookmark : Icons.bookmark_border,
-                  color: isSaved ? Colors.green : Colors.black,
+                  color: isSaved
+                      ? Colors.green
+                      : Theme.of(context).colorScheme.onSurface,
                 ),
                 title: Text(isSaved ? 'Unsave Recipe' : 'Save Recipe'),
               );
@@ -897,13 +976,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                                                           ),
                                                           color: isSaved
                                                               ? Colors.green
-                                                              : Theme.of(context)
-                                                                          .brightness ==
-                                                                      Brightness
-                                                                          .dark
-                                                                  ? Colors.white
-                                                                  : Colors
-                                                                      .black,
+                                                              : Theme.of(
+                                                                      context)
+                                                                  .colorScheme
+                                                                  .onSurface,
                                                           onPressed: () =>
                                                               showSaveRecipeDialog(
                                                             context,
@@ -1026,7 +1102,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       const SizedBox(height: 16),
       Padding(
         padding: const EdgeInsets.symmetric(horizontal: 8.0),
-        child: _buildCommentsList(),
+        child: _buildCommentsAndPhotos(),
       ),
       const SizedBox(height: 16),
     ];
@@ -1491,7 +1567,73 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
+  Future<File?> _pickAndCropSingleImage() async {
+    final picker = ImagePicker();
+    final XFile? pickedFile =
+        await picker.pickImage(source: ImageSource.gallery);
+    if (pickedFile == null) return null; // user canceled
+
+    // Crop
+    final croppedFile = await ImageCropper().cropImage(
+      sourcePath: pickedFile.path,
+      compressFormat: ImageCompressFormat.png,
+      compressQuality: 80,
+      uiSettings: [
+        AndroidUiSettings(
+          toolbarTitle: 'Crop Image',
+          toolbarColor: Colors.green,
+          toolbarWidgetColor: Colors.white,
+          lockAspectRatio: false,
+        ),
+        IOSUiSettings(title: 'Crop Image'),
+      ],
+    );
+
+    if (croppedFile == null) return null; // user canceled cropping
+    File compressedImage = File(croppedFile.path);
+    return compressedImage;
+  }
+
+  Future<String> _uploadFileToStorage({
+    required String recipeId,
+    required File file,
+  }) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      throw Exception("User not logged in");
+    }
+    final storageRef = FirebaseStorage.instance.ref(
+        'recipeImages/$recipeId/${DateTime.now().millisecondsSinceEpoch}.png');
+
+    final uploadTask = storageRef.putFile(file);
+    final snapshot = await uploadTask.whenComplete(() => {});
+    return snapshot.ref.getDownloadURL();
+  }
+
+  /// Returns how many photos the current user has in all comment docs for this recipe
+  Future<int> _countUserPhotos(String recipeId) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return 0;
+
+    // Get all comments for this recipe by the user
+    final qs = await FirebaseFirestore.instance
+        .collection('recipes')
+        .doc(recipeId)
+        .collection('comments')
+        .where('userId', isEqualTo: user.uid)
+        .get();
+
+    int total = 0;
+    for (var doc in qs.docs) {
+      final data = doc.data();
+      final photos = data['photos'] as List<dynamic>? ?? [];
+      total += photos.length;
+    }
+    return total;
+  }
+
   Widget _buildRatingAndCommentsSection() {
+    final currentRating = userRating;
     return Card(
       margin: const EdgeInsets.all(8.0),
       shape: RoundedRectangleBorder(
@@ -1507,6 +1649,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
               style: Theme.of(context).textTheme.titleLarge,
             ),
             const SizedBox(height: 8),
+            Text(
+              'How did you like this recipe?',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
             Center(
               child: RatingBar.builder(
                 initialRating: userRating,
@@ -1519,21 +1666,129 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                   Icons.star,
                   color: Colors.amber,
                 ),
-                onRatingUpdate: _updateRating,
+                onRatingUpdate: updateRating,
               ),
             ),
-            const SizedBox(height: 16),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              'Do you have a photo of this dish?',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
+            FutureBuilder<int>(
+              future: _countUserPhotos(widget.recipeId),
+              builder: (context, snapshot) {
+                if (!snapshot.hasData) {
+                  return const CircularProgressIndicator();
+                }
+                final userPhotoCount = snapshot.data!;
+
+                final isDisabled = userPhotoCount >= 3; // can't upload more
+
+                return SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    icon: Icon(Icons.add_photo_alternate,
+                        color: Theme.of(context).colorScheme.onPrimary),
+                    label: Text(
+                      'Add Recooked Photo',
+                      style: TextStyle(
+                          color: Theme.of(context).colorScheme.onPrimary),
+                    ),
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Theme.of(context).colorScheme.primary,
+                    ),
+                    onPressed: isDisabled
+                        ? null // button disabled
+                        : () async {
+                            // This triggers the same "pick up to 3 photos & post" flow,
+                            // but we can do a simpler version that only picks 1 if you want.
+                            // Then automatically post a comment doc with empty comment text.
+
+                            // e.g.:
+                            final user = FirebaseAuth.instance.currentUser;
+                            if (user == null || user.isAnonymous) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(
+                                  content: Text(
+                                      'You must be logged in to upload a photo.'),
+                                ),
+                              );
+                              return;
+                            }
+
+                            // Just pick 1 photo:
+                            File? singlePhoto = await _pickAndCropSingleImage();
+                            if (singlePhoto == null) return;
+
+                            // Upload
+                            String photoUrl = await _uploadFileToStorage(
+                              recipeId: widget.recipeId,
+                              file: singlePhoto,
+                            );
+
+                            // Build the "comment" doc with no text
+                            final userData = await FirebaseFirestore.instance
+                                .collection('users')
+                                .doc(user.uid)
+                                .get();
+                            String userName =
+                                userData.data()?['display_name'] ?? 'Anonymous';
+
+                            await FirebaseFirestore.instance
+                                .collection('recipes')
+                                .doc(widget.recipeId)
+                                .collection('comments')
+                                .add({
+                              'userId': user.uid,
+                              'userName': userName,
+                              'comment': '', // no text
+                              'timestamp': FieldValue.serverTimestamp(),
+                              'rating': null, // no rating
+                              'photos': [photoUrl],
+                              'photoOnly': true,
+                              'recipeId': widget.recipeId,
+                            });
+
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                  content:
+                                      Text('Photo uploaded successfully!')),
+                            );
+                          },
+                  ),
+                );
+              },
+            ),
+            const SizedBox(height: 8),
+            const Divider(),
+            const SizedBox(height: 8),
+            Text(
+              'Got something to say?',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 8),
             TextFormField(
               controller: _commentController,
               decoration: InputDecoration(
                 labelText: 'Leave a comment',
                 border: const OutlineInputBorder(),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.send),
-                  onPressed: () {
-                    _submitComment();
-                    FocusScope.of(context).unfocus();
-                  },
+                suffixIcon: Column(
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.add_photo_alternate_outlined),
+                      onPressed: _attachPhotosToComment,
+                    ),
+                    IconButton(
+                      icon: const Icon(Icons.send),
+                      onPressed: () {
+                        _submitComment();
+                        FocusScope.of(context).unfocus();
+                      },
+                    ),
+                  ],
                 ),
               ),
               maxLines: 3,
@@ -1633,7 +1888,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     );
   }
 
-  Widget _buildCommentsList() {
+  Widget _buildCommentsAndPhotos() {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('recipes')
@@ -1645,52 +1900,152 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const CircularProgressIndicator();
         } else if (snapshot.hasError) {
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: const Text('Error loading comments'),
+          return const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text('Error loading comments & photos'),
           );
         } else if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-          return Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: const Text('No comments yet. Be the first to comment!'),
+          return const Padding(
+            padding: EdgeInsets.all(8.0),
+            child: Text(
+              'No comments or photos yet. Be the first to share!',
+              textAlign: TextAlign.center,
+            ),
           );
         } else {
-          return Card(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16.0),
-            ),
-            child: Column(
-              children: [
+          // 1) Convert all docs into a local List<Map<String,dynamic>>
+          final allDocs = snapshot.data!.docs.map((doc) {
+            final map = doc.data() as Map<String, dynamic>;
+            map['id'] = doc.id;
+            // If you want to store recipeId
+            map['recipeId'] = widget.recipeId;
+            return map;
+          }).toList();
+
+          // 2) Build a list of *all photos* from *all docs* (including photoOnly)
+          final allPhotosList = <Map<String, dynamic>>[];
+          for (final c in allDocs) {
+            final photos = c['photos'] as List<dynamic>? ?? [];
+            for (var url in photos) {
+              allPhotosList.add({
+                'imageUrl': url,
+                'userName': c['userName'] ?? 'Anonymous',
+                'timestamp': c['timestamp'],
+                'rating': c['rating'] ?? null,
+                'comment': c['comment'] ?? '',
+                'commentId': c['id'],
+                'userId': c['userId'],
+                'recipeId': c['recipeId'],
+              });
+            }
+          }
+
+          // 3) Build a list of docs we want to show as text comments
+          //    If we want to hide “photo-only” docs, we skip docs where
+          //    comment is empty *or* photoOnly == true
+          //    (some folks might rely simply on comment.isEmpty, but we’ll respect the flag)
+          final commentDocs = allDocs.where((doc) {
+            final text = (doc['comment'] ?? '').toString().trim();
+            final isPhotoOnly = doc['photoOnly'] == true;
+            return text.isNotEmpty && !isPhotoOnly;
+          }).toList();
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              // Heading
+              Text(
+                'Comments & Photos',
+                style: Theme.of(context).textTheme.headlineSmall,
+              ),
+              const SizedBox(height: 8),
+
+              // 4) Show the horizontal row of photos (allPhotosList)
+              if (allPhotosList.isNotEmpty)
                 Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: Text(
-                      'Comments',
-                      style: Theme.of(context).textTheme.titleLarge,
+                  padding: const EdgeInsets.only(left: 8.0),
+                  child: SizedBox(
+                    height: 100,
+                    child: ListView.builder(
+                      scrollDirection: Axis.horizontal,
+                      itemCount: allPhotosList.length,
+                      itemBuilder: (ctx, index) {
+                        final photoItem = allPhotosList[index];
+                        return GestureDetector(
+                          onTap: () {
+                            // Open multi-photo viewer with overlay
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => MultiPhotoViewScreen(
+                                  photoItems: allPhotosList,
+                                  initialIndex: index,
+                                ),
+                              ),
+                            );
+                          },
+                          child: Container(
+                            width: 100,
+                            margin: const EdgeInsets.only(right: 8.0),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(12),
+                              color: Theme.of(context).colorScheme.surface,
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.3),
+                                  spreadRadius: 1,
+                                  blurRadius: 2,
+                                  offset: const Offset(0, 1),
+                                ),
+                              ],
+                            ),
+                            clipBehavior: Clip.antiAlias,
+                            child: CachedNetworkImage(
+                              imageUrl: photoItem['imageUrl'],
+                              fit: BoxFit.cover,
+                              placeholder: (ctx, _) => const Center(
+                                  child: CircularProgressIndicator()),
+                              errorWidget: (ctx, _, __) =>
+                                  const Icon(Icons.error),
+                            ),
+                          ),
+                        );
+                      },
                     ),
                   ),
+                )
+              else
+                const SizedBox.shrink(),
+
+              const SizedBox(height: 16),
+              // 5) Show the *text-based* comments
+              Card(
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(16.0),
                 ),
-                ListView.builder(
-                  padding: EdgeInsets.zero,
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: snapshot.data!.docs.length,
-                  itemBuilder: (context, index) {
-                    final commentData = snapshot.data!.docs[index].data()
-                        as Map<String, dynamic>;
-                    // Add the comment document ID to the comment data
-                    commentData['commentId'] = snapshot.data!.docs[index].id;
-                    commentData['recipeId'] = widget.recipeId;
-                    double rating = commentData['rating']?.toDouble() ?? 0.0;
-                    return BuildComment(
-                        commentData: commentData,
-                        rating: rating,
-                        isAdmin: _userRole == 'admin');
-                  },
+                child: Column(
+                  children: [
+                    ListView.builder(
+                      padding: EdgeInsets.zero,
+                      shrinkWrap: true,
+                      physics: const NeverScrollableScrollPhysics(),
+                      itemCount: commentDocs.length,
+                      itemBuilder: (context, index) {
+                        final comment = commentDocs[index];
+                        final double rating =
+                            (comment['rating'] ?? userRating).toDouble();
+                        debugPrint('Rating: $rating');
+                        return BuildComment(
+                          commentData: comment,
+                          rating: rating,
+                          isAdmin: _userRole == 'admin',
+                        );
+                      },
+                    ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+            ],
           );
         }
       },

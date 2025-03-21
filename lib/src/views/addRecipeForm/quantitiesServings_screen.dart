@@ -148,8 +148,8 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
 
           // Add Servings field inside the ListView
           Padding(
-            padding:
-                const EdgeInsets.only(top: 16.0), // Space above servings field
+            padding: const EdgeInsets.fromLTRB(
+                0, 16, 0, 96), // Space above servings field
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

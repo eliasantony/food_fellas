@@ -21,5 +21,5 @@ class PhotoViewScreen extends StatelessWidget {
         ),
       ),
     );
-  }
+  } 
 }
