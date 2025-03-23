@@ -315,7 +315,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Text('Enable Preferences'),
+                      Text('Personal Preferences'),
                       Checkbox(
                         value: preferencesEnabled,
                         onChanged: (bool? newValue) {
@@ -452,6 +452,18 @@ class _AIChatScreenState extends State<AIChatScreen> {
                       if (message.customProperties?['jsonRecipe'] != null) {
                         final recipeJson =
                             message.customProperties?['jsonRecipe'];
+
+                        AnalyticsService.logEvent(
+                          name: "ai_chat_recipe_shown",
+                          parameters: {
+                            "title": recipeJson?['title'] ?? '',
+                            "tags_count":
+                                (recipeJson?['tags'] as List?)?.length ?? 0,
+                            "ingredients_count":
+                                (recipeJson?['ingredients'] as List?)?.length ??
+                                    0,
+                          },
+                        );
                         return Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
@@ -625,7 +637,8 @@ class _AIChatScreenState extends State<AIChatScreen> {
         name: "ai_chat_response_time",
         parameters: {
           "duration_ms": responseTime,
-          "message_length": chatMessage.text.length,
+          "user_message_length": chatMessage.text.length,
+          "ai_response_length": responseText.length,
         },
       );
 
@@ -685,6 +698,7 @@ class _AIChatScreenState extends State<AIChatScreen> {
 
       if (foundSimilarRecipes.isNotEmpty) {
         // 6) Show a separate chat message presenting the found recipes
+        print('Found similar recipes: $foundSimilarRecipes');
         ChatMessage foundMessage = ChatMessage(
           user: geminiUser,
           createdAt: DateTime.now(),

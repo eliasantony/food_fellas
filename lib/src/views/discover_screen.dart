@@ -172,7 +172,15 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     decoration: InputDecoration(
                       labelText: _getTooltipForMode(searchProvider.searchMode),
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.search),
+                      prefixIcon: _searchController.text.isNotEmpty
+                          ? IconButton(
+                              icon: Icon(Icons.clear),
+                              onPressed: () {
+                                _searchController.clear();
+                                searchProvider.updateQuery('');
+                              },
+                            )
+                          : Icon(Icons.search),
                       suffixIcon: searchProvider.searchMode != SearchMode.users
                           ? IconButton(
                               icon: Icon(Icons.filter_list),
@@ -182,6 +190,10 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
                     ),
                     onChanged: (query) {
                       searchProvider.updateQuery(query);
+                      setState(() {});
+                    },
+                    onSubmitted: (query) {
+                      FocusScope.of(context).unfocus();
                     },
                   ),
                 ),

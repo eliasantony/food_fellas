@@ -92,7 +92,6 @@ class _SettingsScreenState extends State<SettingsScreen> {
   }
 
   void _showInstagram() {
-    // Open the browser to show the Privacy Policy link
     var url = Uri(
       scheme: 'https',
       host: 'instagram.com',

@@ -38,6 +38,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
   bool _isListening = false;
   Timer? _hintTimer;
   late TextEditingController _descriptionController;
+  DateTime screenEnterTime = DateTime.now();
 
   final List<String> _loadingHints = [
     "This may take a moment...",
@@ -73,6 +74,11 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
     _hintTimer?.cancel();
     _speech.stop();
     _descriptionController.dispose();
+    final duration = DateTime.now().difference(screenEnterTime).inSeconds;
+    AnalyticsService.logEvent(
+      name: "image_to_recipe_screen_time",
+      parameters: {"duration_seconds": duration},
+    );
     super.dispose();
   }
 
@@ -189,6 +195,8 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
                             setState(() {
                               _description = value;
                             });
+                            AnalyticsService.logEvent(
+                                name: "image_to_recipe_description_typed");
                           },
                           decoration: InputDecoration(
                             labelText: 'Description',
@@ -285,6 +293,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
             // Enable partial results
           ),
         );
+        AnalyticsService.logEvent(name: "image_to_recipe_speech_input_used");
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Speech recognition is not available')),
@@ -462,6 +471,7 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
       setState(() {
         _selectedImage = compressedImage;
       });
+      AnalyticsService.logEvent(name: "image_to_recipe_image_selected");
     }
   }
 
@@ -579,13 +589,10 @@ class _ImageToRecipeScreenState extends State<ImageToRecipeScreen> {
 
       // --- Start API call timing ---
       final apiStart = DateTime.now();
-      print('Calling API at $apiStart');
       final response = await model?.generateContent([
         Content.multi([prompt, imagePart])
       ]);
       final apiDuration = DateTime.now().difference(apiStart);
-      print('API call finished at ${DateTime.now()}');
-      print('API call duration: $apiDuration');
       AnalyticsService.logEvent(
         name: "image_to_recipe_api_response_time",
         parameters: {"duration_ms": apiDuration.inMilliseconds},

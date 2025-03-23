@@ -102,10 +102,12 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
               return AlertDialog(
                 title: const Text('Discard Changes?'),
                 content: const Text(
-                    'You have unsaved changes. Are you sure you want to leave?'),
+                    'You have unsaved changes. Are you sure you want to leave? Your progress will be lost.'),
                 actions: [
                   TextButton(
-                    child: const Text('Leave'),
+                    child: Text('Leave',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onSurface)),
                     onPressed: () {
                       Navigator.of(context)
                           .pop(true); // Return true when leaving
@@ -122,7 +124,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                     child: Text(
                       'Cancel',
                       style: TextStyle(
-                          color: Theme.of(context).colorScheme.onSurface),
+                          color: Theme.of(context).colorScheme.onPrimary),
                     ),
                   ),
                 ],
@@ -201,6 +203,14 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                 onStepReached: (index) {
                   if (_getCurrentFormKey().currentState!.validate()) {
                     _getCurrentFormKey().currentState!.save();
+                    AnalyticsService.logEvent(
+                      name: "recipe_form_step_reached",
+                      parameters: {
+                        "step": _buildEasySteps()[index].title as Object,
+                        "step_index": index,
+                        "source": recipe.source ?? 'manual',
+                      },
+                    );
                     setState(() {
                       _currentStep = index;
                     });
@@ -455,6 +465,17 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
           await docRef.set(recipeData, SetOptions(merge: true));
         }
 
+        if (!isNewRecipe) {
+          AnalyticsService.logEvent(
+            name: "recipe_edited",
+            parameters: {
+              "source": recipe.source ?? 'manual',
+              "duration_seconds":
+                  DateTime.now().difference(_formStartTime).inSeconds,
+            },
+          );
+        }
+
         if (isNewRecipe) {
           final duration = DateTime.now().difference(_formStartTime);
 
@@ -503,6 +524,13 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
                 if (kDebugMode) {
                   debugPrint('Showing feedback dialog');
                 }
+                AnalyticsService.logEvent(
+                  name: "recipe_feedback_prompt_shown",
+                  parameters: {
+                    "recipe_id": recipe.id!,
+                    "source": recipe.source ?? 'manual',
+                  },
+                );
                 showDialog(
                   context: globalNavigatorKey.currentContext!,
                   builder: (ctx) => RecipeFeedbackDialog(recipeId: recipe.id!),
@@ -648,7 +676,7 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
     Reference storageRef = FirebaseStorage.instance.ref().child(
         'recipe_images/$userId/${DateTime.now().millisecondsSinceEpoch}.jpg');
     UploadTask uploadTask = storageRef.putFile(imageFile);
-
+    AnalyticsService.logEvent(name: "recipe_image_uploaded");
     TaskSnapshot taskSnapshot = await uploadTask;
     String downloadUrl = await taskSnapshot.ref.getDownloadURL();
     return downloadUrl;

@@ -500,6 +500,13 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         contentPadding: EdgeInsets.symmetric(vertical: 0.0, horizontal: 16.0),
       ),
+      onSubmitted: (query) {
+        final trimmedQuery = query.trim();
+        if (trimmedQuery.isNotEmpty) {
+          searchProvider.updateQuery(trimmedQuery);
+          bottomNavBarProvider.setIndex(1);
+        }
+      },
     );
   }
 

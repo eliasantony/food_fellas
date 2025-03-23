@@ -314,6 +314,12 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
 
   Future<void> _pickImage() async {
     try {
+      AnalyticsService.logEvent(
+        name: "manual_image_upload_opened",
+        parameters: {
+          "recipe_source": widget.recipe.source ?? 'manual',
+        },
+      );
       final picker = ImagePicker();
       final ImageSource? selectedSource =
           await showModalBottomSheet<ImageSource>(
@@ -466,6 +472,13 @@ class _ImageUploadPageState extends State<ImageUploadPage> {
       setState(() {
         widget.recipe.imageUrl = imageUrl;
       });
+      AnalyticsService.logEvent(
+        name: "ai_image_generated",
+        parameters: {
+          "recipe_title": widget.recipe.title,
+          "used_for_source": widget.recipe.source ?? 'manual',
+        },
+      );
 
       widget.onDataChanged('imageFile', null);
       widget.onDataChanged('imageUrl', imageUrl);

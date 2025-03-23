@@ -1126,17 +1126,20 @@ Future<void> showSaveRecipeDialog(
             ),
             actions: [
               TextButton(
-                child: const Text('Cancel'),
+                child: Text('Cancel',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onSurface)),
                 onPressed: () => Navigator.pop(ctx),
               ),
               ElevatedButton(
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Theme.of(context).primaryColor,
+                  backgroundColor: Theme.of(context).colorScheme.primary,
                 ),
                 onPressed: () =>
                     {recipeProvider.refreshSavedRecipes(), Navigator.pop(ctx)},
-                child:
-                    const Text('Done', style: TextStyle(color: Colors.white)),
+                child: Text('Done',
+                    style: TextStyle(
+                        color: Theme.of(context).colorScheme.onPrimary)),
               ),
             ],
           );
