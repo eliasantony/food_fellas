@@ -83,6 +83,8 @@ class SearchProvider with ChangeNotifier {
 
   void updateFilters(Map<String, dynamic> filters) {
     _filters = filters;
+    _recipes = []; // Clear previous results
+    notifyListeners();
     fetchRecipes();
   }
 
@@ -361,13 +363,10 @@ class SearchProvider with ChangeNotifier {
     return _userCache[uid];
   }
 
-  /// Example method to fetch top chefs by averageRating desc or recipeCount desc
   Future<void> fetchTopChefs({
-    String sortBy = 'averageRating:desc',
+    String sortBy = 'averageRating:desc,recipeCount:desc',
     int limit = 5,
   }) async {
-    // You could do this from Firestore or from TypeSense.
-    // Here’s a pseudo-Typesense call, for example:
     try {
       final Map<String, String> queryParams = {
         'q': '*',
@@ -446,10 +445,13 @@ class SearchProvider with ChangeNotifier {
     if (_homeRowsFetched) return;
     // 1) Fetch row recipes that are public (available to everyone)
     await fetchRowRecipes('newRecipes', sortBy: 'createdAt:desc');
-    await fetchRowRecipes('topRated', sortBy: 'averageRating:desc');
-    //await fetchRowRecipes('popular', sortBy: 'viewCount:desc');
-    //await fetchRowRecipes('mostRated', sortBy: 'ratingCount:desc');
-    await fetchTopChefs(sortBy: 'recipeCount:desc');
+    await fetchRowRecipes('topRated',
+        sortBy: 'averageRating:desc,ratingsCount:desc');
+    await fetchRowRecipes('popular',
+        sortBy: 'viewsCount:desc,averageRating:desc');
+    await fetchRowRecipes('mostRated',
+        sortBy: 'ratingsCount:desc,averageRating:desc');
+    await fetchTopChefs(sortBy: 'recipeCount:desc,averageRating:desc');
 
     // 2) For user‑specific sections, check if the user is not anonymous
     User? currentUser = FirebaseAuth.instance.currentUser;
@@ -529,11 +531,8 @@ class SearchProvider with ChangeNotifier {
 
     // tagNames (array query)
     if (_filters.containsKey('tagNames') && _filters['tagNames'].isNotEmpty) {
-      // For array filters, you can use ':=', ':[...], etc. depending on your indexing.
-      // This means at least one of the specified tags must be present.
-      // If you want all tags, you might need a different approach.
-      // Example: tagNames:=[tag1,tag2]
-      String tags = _filters['tagNames'].map((t) => t.toString()).join(',');
+      String tags =
+          _filters['tagNames'].map((t) => '"${t.toString()}"').join(',');
       filterParts.add('tagNames:=[${tags}]');
     }
 
@@ -580,7 +579,7 @@ class SearchProvider with ChangeNotifier {
           recipeId); // Fetch top 4 similar recipes
     } catch (e) {
       if (kDebugMode) {
-        print('Error fetching similar recipes: $e');
+        print('Error fetching similar recipes by id: $e');
       }
       _similarRecipes = [];
     }

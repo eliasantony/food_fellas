@@ -103,6 +103,34 @@ class _HomeScreenState extends State<HomeScreen> {
         );
       }).toList();
 
+      // Sort tags based on the time of day
+      final hour = DateTime.now().hour;
+      List<String> priorityOrder;
+
+      if (hour < 11) {
+        // Morning
+        priorityOrder = ['Breakfast', 'Brunch'];
+      } else if (hour < 14) {
+        // Afternoon
+        priorityOrder = ['Lunch', 'Snack', 'Salad', 'Appetizer'];
+      } else if (hour < 18) {
+        // Evening
+        priorityOrder = ['Snack', 'Dessert', 'Side Dish'];
+      } else {
+        // Night
+        priorityOrder = ['Dinner', 'Dessert', 'Beverage', 'Snack'];
+      }
+
+      tags.sort((a, b) {
+        int indexA = priorityOrder.indexOf(a.name);
+        int indexB = priorityOrder.indexOf(b.name);
+
+        if (indexA == -1) indexA = priorityOrder.length;
+        if (indexB == -1) indexB = priorityOrder.length;
+
+        return indexA.compareTo(indexB);
+      });
+
       if (!mounted) return;
 
       setState(() {
@@ -272,41 +300,41 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
             ),
 
-            /* // Most Rated
-          SliverToBoxAdapter(
-            child: _buildSectionTitle('Most Rated'),
-          ),
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.only(left: 8),
-              child: Consumer<SearchProvider>(
-                builder: (context, provider, child) {
-                  final recipes = provider.rowRecipes['mostRated'] ?? [];
-                  return recipes.isEmpty
-                      ? Center(child: CircularProgressIndicator())
-                      : HorizontalRecipeRow(recipes: recipes);
-                },
+            // Most Rated
+            SliverToBoxAdapter(
+              child: _buildSectionTitle('Most Rated'),
+            ),
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: Consumer<SearchProvider>(
+                  builder: (context, provider, child) {
+                    final recipes = provider.rowRecipes['mostRated'] ?? [];
+                    return recipes.isEmpty
+                        ? Center(child: CircularProgressIndicator())
+                        : HorizontalRecipeRow(recipes: recipes);
+                  },
+                ),
               ),
             ),
-          ),
 
-          // Popular
-          SliverToBoxAdapter(
-            child: _buildSectionTitle('Popular'),
-          ),
-          SliverToBoxAdapter(
-            child: Container(
-              margin: const EdgeInsets.only(left: 8),
-              child: Consumer<SearchProvider>(
-                builder: (context, provider, child) {
-                  final recipes = provider.rowRecipes['popular'] ?? [];
-                  return recipes.isEmpty
-                      ? Center(child: CircularProgressIndicator())
-                      : HorizontalRecipeRow(recipes: recipes);
-                },
+            // Popular
+            SliverToBoxAdapter(
+              child: _buildSectionTitle('Popular'),
+            ),
+            SliverToBoxAdapter(
+              child: Container(
+                margin: const EdgeInsets.only(left: 8),
+                child: Consumer<SearchProvider>(
+                  builder: (context, provider, child) {
+                    final recipes = provider.rowRecipes['popular'] ?? [];
+                    return recipes.isEmpty
+                        ? Center(child: CircularProgressIndicator())
+                        : HorizontalRecipeRow(recipes: recipes);
+                  },
+                ),
               ),
             ),
-          ), */
 
             // Recently Viewed
             if (isLoggedInAndNotGuest)
@@ -527,7 +555,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     searchProvider.updateFilters({
                       'tagNames': [tag.name]
                     });
-                    searchProvider.setSortOrder('averageRating:desc');
+                    searchProvider
+                        .setSortOrder('averageRating:desc,ratingsCount:desc');
                     Provider.of<BottomNavBarProvider>(context, listen: false)
                         .setIndex(1);
                   },
@@ -742,16 +771,19 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                 );
               } else if (title == 'New Recipes') {
-                // We want to show the “Discover” tab with sort = createdAt desc
                 searchProvider.setSortOrder('createdAt:desc');
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Top Rated') {
-                // We want to show the “Discover” tab with sort = avgRating desc
-                searchProvider.setSortOrder('averageRating:desc');
+                searchProvider
+                    .setSortOrder('averageRating:desc,ratingsCount:desc');
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Most Rated') {
-                // We want to show the “Discover” tab with sort = avgRating desc
-                searchProvider.setSortOrder('ratingCount:desc');
+                searchProvider
+                    .setSortOrder('ratingsCount:desc,averageRating:desc');
+                bottomNavBarProvider.setIndex(1);
+              } else if (title == 'Popular') {
+                searchProvider
+                    .setSortOrder('viewsCount:desc,averageRating:desc');
                 bottomNavBarProvider.setIndex(1);
               } else if (title == 'Top Chefs') {
                 return;

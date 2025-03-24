@@ -65,6 +65,13 @@ class _DiscoverScreenState extends State<DiscoverScreen> {
   Widget build(BuildContext context) {
     final searchProvider = Provider.of<SearchProvider>(context);
 
+    // Whenever filters change, reset scroll
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients && searchProvider.filters.isNotEmpty) {
+        _scrollController.jumpTo(0);
+      }
+    });
+
     return Scaffold(
       appBar: AppBar(
         centerTitle: true,

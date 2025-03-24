@@ -1,5 +1,5 @@
 /* eslint-disable indent */
-
+const functions = require('firebase-functions/v2');
 const { onRequest, onCall, HttpsError } = require("firebase-functions/v2/https");
 const { onDocumentWritten, onDocumentCreated } = require("firebase-functions/v2/firestore");
 const { onObjectFinalized } = require("firebase-functions/v2/storage");
@@ -16,6 +16,41 @@ const sentiment = new Sentiment();
 if (!admin.apps.length) {
     admin.initializeApp();
 }
+
+const { indexRecipeOnWrite, backfillRecipes } = require('./recipesSync');
+const { indexUserOnWrite, backfillUsers } = require('./usersSync');
+
+exports.indexRecipesOnWrite = onDocumentWritten(
+  {
+    document: "recipes/{recipeId}",
+    region: "europe-west1",
+    secrets: ["TYPESENSE_API_KEY"],
+  },
+  indexRecipeOnWrite
+);
+exports.backfillRecipesHttp = onRequest(
+  {
+    region: "europe-west1",
+    secrets: ["TYPESENSE_API_KEY"],
+  },
+  backfillRecipes
+);
+exports.indexUsersOnWrite = onDocumentWritten(
+  {
+    document: "users/{userId}",
+    region: "europe-west1",
+    secrets: ["TYPESENSE_API_KEY"],
+  },
+  indexUserOnWrite
+);
+exports.backfillUsersHttp = onRequest(
+  {
+    region: "europe-west1",
+    secrets: ["TYPESENSE_API_KEY"],
+  },
+  backfillUsers
+);
+
 
 const { appleSubscriptionWebhook } = require("./appleSubscription");
 const { checkGoogleSubscription } = require("./googleSubscription");

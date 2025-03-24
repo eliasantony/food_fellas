@@ -155,17 +155,35 @@ class BuildComment extends StatelessWidget {
               ),
             ),
           ListTile(
-            title: InkWell(
-              onTap: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) =>
-                        ProfileScreen(userId: commentData['userId']),
-                  ),
-                );
-              },
-              child: Text(commentData['userName'] ?? 'Anonymous'),
+            title: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                InkWell(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            ProfileScreen(userId: commentData['userId']),
+                      ),
+                    );
+                  },
+                  child: Text(commentData['userName'] ?? 'Anonymous'),
+                ),
+                Text(
+                  commentData['timestamp'] != null
+                      ? (commentData['timestamp'] as Timestamp)
+                          .toDate()
+                          .toLocal()
+                          .toString()
+                          .split(' ')[0]
+                          .split('-')
+                          .reversed
+                          .join('.')
+                      : '',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
             ),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,25 +198,13 @@ class BuildComment extends StatelessWidget {
                     itemCount: 5,
                     itemSize: 16.0,
                   ),
+                SizedBox(height: 4),
                 Text(commentData['comment'] ?? ''),
               ],
             ),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  commentData['timestamp'] != null
-                      ? (commentData['timestamp'] as Timestamp)
-                          .toDate()
-                          .toLocal()
-                          .toString()
-                          .split(' ')[0]
-                          .split('-')
-                          .reversed
-                          .join('.')
-                      : '',
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
-                ),
                 if (isOwnComment || isAdmin)
                   PopupMenuButton<String>(
                     icon: const Icon(Icons.more_vert),

@@ -1798,6 +1798,10 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
                 }
                 return null;
               },
+              onFieldSubmitted: (value) {
+                _submitComment();
+                FocusScope.of(context).unfocus();
+              },
             ),
           ],
         ),

@@ -69,7 +69,6 @@ class TypesenseHttpClient {
     }
   }
 
-  // Vector Search for Similar Recipes by Id
   static Future<List<Map<String, dynamic>>> fetchSimilarRecipesById(
       String recipeId) async {
     final url = Uri.parse('$_baseUrl/multi_search');
@@ -85,7 +84,8 @@ class TypesenseHttpClient {
             "collection": "recipes",
             "q": "*",
             "per_page": 4,
-            "vector_query": "embeddings:([], id: $recipeId, k: 4)",
+            "vector_query":
+                "embeddings:([], id: $recipeId, k: 4)",
             "exclude_fields": "embeddings",
           }
         ]
@@ -95,18 +95,22 @@ class TypesenseHttpClient {
     if (response.statusCode == 200) {
       final Map<String, dynamic> result = jsonDecode(response.body);
       final results = result['results'];
-      if (results is List) {
+      if (results is List && results.isNotEmpty) {
         final first = results.first;
+        if (first.containsKey('error')) {
+          throw Exception('Error in vector query: ${first['error']}');
+        }
         final hits = first['hits'];
         if (hits is List) {
           return hits
               .map((hit) => hit['document'] as Map<String, dynamic>)
               .toList();
         } else {
-          throw Exception('Expected hits to be a List');
+          throw Exception('Expected hits to be a List, but got: $hits');
         }
       } else {
-        throw Exception('Expected results to be a List');
+        throw Exception(
+            'Expected results to be a non-empty List, but got: $results');
       }
     } else {
       throw Exception(
