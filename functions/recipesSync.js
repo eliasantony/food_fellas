@@ -27,18 +27,23 @@ function sanitizeRecipeData(id, data) {
 }
 
 exports.indexRecipeOnWrite = async (event) => {
-  const snap = event.data;
-  const recipeId = event.params.recipeId;
 
+  // Grab the before/after snapshots
+  const beforeSnap = event.data.before;
+  const afterSnap = event.data.after;
+
+  const recipeId = event.params.recipeId;
   const typesense = await getTypesenseClient();
 
-  if (!snap.exists) {
+  // If doc was deleted => afterSnap.exists = false
+  if (!afterSnap.exists) {
     await typesense.collections(COLLECTION).documents(recipeId).delete();
     return;
   }
 
-  const data = snap.data();
-  const sanitized = sanitizeRecipeData(recipeId, data);
+  // Otherwise, new or updated doc => upsert
+  const newData = afterSnap.data();
+  const sanitized = sanitizeRecipeData(recipeId, newData);
   await typesense.collections(COLLECTION).documents().upsert(sanitized);
 };
 
@@ -47,10 +52,16 @@ exports.backfillRecipes = async (req, res) => {
   const snapshot = await firestore.collection(COLLECTION).get();
   const typesense = await getTypesenseClient();
 
-  const docs = snapshot.docs.map((doc) => sanitizeRecipeData(doc.id, doc.data()));
+  const docs = snapshot.docs.map((doc) =>
+    sanitizeRecipeData(doc.id, doc.data())
+  );
 
   try {
-    const result = await typesense.collections(COLLECTION).documents().import(docs, { action: 'upsert' });
+    const result = await typesense
+      .collections(COLLECTION)
+      .documents()
+      .import(docs, { action: 'upsert' });
+
     console.log(result);
     res.send('Backfilled recipes!');
   } catch (error) {

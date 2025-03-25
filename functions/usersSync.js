@@ -23,18 +23,23 @@ function sanitizeUserData(id, data) {
 }
 
 exports.indexUserOnWrite = async (event) => {
-  const snap = event.data;
-  const userId = event.params.userId;
+  // Grab the before/after snapshots
+  const beforeSnap = event.data.before;
+  const afterSnap = event.data.after;
 
+  const userId = event.params.userId;
   const typesense = await getTypesenseClient();
 
-  if (!snap.exists) {
+  // If doc was deleted => afterSnap.exists = false
+  if (!afterSnap.exists) {
+    console.log(`User doc ${userId} was deleted from Firestore. Removing from Typesense...`);
     await typesense.collections(COLLECTION).documents(userId).delete();
     return;
   }
 
-  const data = snap.data();
-  const sanitized = sanitizeUserData(userId, data);
+  // Otherwise, new or updated doc => upsert
+  const newData = afterSnap.data();
+  const sanitized = sanitizeUserData(userId, newData);
   await typesense.collections(COLLECTION).documents().upsert(sanitized);
 };
 
@@ -43,9 +48,7 @@ exports.backfillUsers = async (req, res) => {
   const snapshot = await firestore.collection(COLLECTION).get();
   const typesense = await getTypesenseClient();
 
-  const docs = snapshot.docs.map((doc) =>
-    sanitizeUserData(doc.id, doc.data())
-  );
+  const docs = snapshot.docs.map((doc) => sanitizeUserData(doc.id, doc.data()));
 
   try {
     const result = await typesense

@@ -21,7 +21,10 @@
                 android:value="default_channel" />
             <meta-data
                 android:name="com.google.firebase.messaging.default_notification_icon"
-                android:resource="@drawable/ic_notification" />
+                android:resource="@drawable/ic_stat_hat" />
+            <meta-data
+                android:name="com.google.firebase.messaging.default_notification_color"
+                android:resource="@android:color/white" />
 
             <meta-data android:name="flutter_deeplinking_enabled" android:value="false" />
             <intent-filter android:autoVerify="true">
@@ -44,7 +47,7 @@
         <activity
             android:name="com.yalantis.ucrop.UCropActivity"
             android:screenOrientation="portrait"
-            android:theme="@style/Ucrop.CropTheme" /> 
+            android:theme="@style/Ucrop.CropTheme" />
 
         <!-- Firebase Messaging Service -->
         <service
