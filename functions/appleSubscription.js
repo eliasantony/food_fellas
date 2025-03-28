@@ -1,30 +1,71 @@
-const { onRequest } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin");
+import { onRequest } from "firebase-functions/v2/https";
+import { jwtVerify, createRemoteJWKSet } from "jose";
+import { URL } from "url";
+import admin from "firebase-admin";
 
-exports.appleSubscriptionWebhook = onRequest(async (req, res) => {
-    console.log("Received Apple subscription event:", req.body);
+const bundleId = process.env.APPLE_BUNDLE_ID || 'com.example.foodFellas';
 
-    if (!req.body || !req.body.data) {
-        console.error("Invalid Apple event payload.");
-        return res.status(400).send("Invalid data");
+// Initialize Firebase if not already
+if (!admin.apps.length) {
+  admin.initializeApp();
+}
+
+// Apple JWK URL
+const appleJwkUrl = new URL("https://api.storekit.itunes.apple.com/in-app-purchase/publicKeys");
+const jwks = createRemoteJWKSet(appleJwkUrl);
+
+export const appleSubscriptionWebhook = onRequest(
+  { invoker: "public" },
+  async (req, res) => {
+    console.log("🔔 Received Apple subscription event");
+
+    // Only accept POST from Apple
+    if (req.method !== "POST") {
+      return res.status(405).send("Method Not Allowed");
+    }
+
+    const signedJWT = req.body?.data?.signedTransactionInfo;
+    if (!signedJWT) {
+      console.error("❌ No signedTransactionInfo found:", req.body);
+      return res.status(400).send("Missing data");
     }
 
     try {
-        const userId = req.body.data.signedTransactionInfo?.appAccountToken;
-        if (!userId) {
-            console.error("Missing user ID in Apple event.");
-            return res.status(400).send("Invalid user data");
-        }
+      const { payload } = await jwtVerify(signedJWT, jwks, {
+        issuer: "https://apple.com",
+        audience: bundleId,
+      });
 
-        const status = req.body.notificationType; // "SUBSCRIBED", "EXPIRED", etc.
-        const subscribed = status === "SUBSCRIBED" || status === "DID_RENEW";
+      const userId = payload.appAccountToken;
+      const productId = payload.productId;
+      const status = req.body.notificationType;
 
-        await admin.firestore().collection("users").doc(userId).update({ subscribed });
-        console.log(`Updated Firestore for user ${userId}: subscribed = ${subscribed}`);
+      if (!userId) {
+        console.error("❌ appAccountToken missing in JWT payload:", payload);
+        return res.status(400).send("Invalid user");
+      }
 
-        res.status(200).send("OK");
-    } catch (error) {
-        console.error("Error processing Apple webhook:", error);
-        res.status(500).send("Internal Server Error");
+      const subscribed = ["SUBSCRIBED", "DID_RENEW"].includes(status);
+
+      await admin
+        .firestore()
+        .collection("users")
+        .doc(userId)
+        .set(
+          {
+            subscribed,
+            lastVerifiedProduct: productId,
+            lastStatus: status,
+            updatedAt: admin.firestore.Timestamp.now(),
+          },
+          { merge: true }
+        );
+
+      console.log(`✅ User ${userId} updated: subscribed = ${subscribed}`);
+      return res.status(200).send("OK");
+    } catch (err) {
+      console.error("❌ JWT verification failed:", err);
+      return res.status(401).send("Invalid signature");
     }
-});
+  }
+);
