@@ -101,7 +101,31 @@ class UserFollowingListItem extends StatefulWidget {
 }
 
 class _UserFollowingListItemState extends State<UserFollowingListItem> {
-  bool isFollowing = true;
+  bool isFollowing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _checkIfFollowing();
+  }
+
+  void _checkIfFollowing() async {
+    final currentUser = FirebaseAuth.instance.currentUser;
+    if (currentUser == null) return;
+
+    String profileUserId = widget.userData['uid'];
+
+    final followingDoc = FirebaseFirestore.instance
+        .collection('users')
+        .doc(currentUser.uid)
+        .collection('following')
+        .doc(profileUserId);
+
+    final followingSnapshot = await followingDoc.get();
+    setState(() {
+      isFollowing = followingSnapshot.exists;
+    });
+  }
 
   void _toggleFollow() async {
     final currentUser = FirebaseAuth.instance.currentUser;

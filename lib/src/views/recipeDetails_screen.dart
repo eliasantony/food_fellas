@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:food_fellas/providers/searchProvider.dart';
+import 'package:food_fellas/providers/userProvider.dart';
 import 'package:food_fellas/src/models/recipe.dart';
 import 'package:food_fellas/src/services/in_app_review_service.dart';
 import 'package:food_fellas/src/views/addRecipeForm/addRecipe_form.dart';
@@ -105,6 +106,11 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final recipeRef =
         FirebaseFirestore.instance.collection('recipes').doc(widget.recipeId);
 
+    // Check if the user's view is already logged for this recipe
+    DocumentSnapshot viewSnap =
+        await recipeRef.collection('views').doc(user.uid).get();
+    bool alreadyViewed = viewSnap.exists;
+
     // Batch for atomic updates
     WriteBatch batch = FirebaseFirestore.instance.batch();
 
@@ -118,7 +124,7 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       SetOptions(merge: true),
     );
 
-    // Log view for the recipe
+    // Log view for the recipe (always update the timestamp)
     batch.set(
       recipeRef.collection('views').doc(user.uid),
       {
@@ -128,13 +134,15 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
       SetOptions(merge: true),
     );
 
-    // Update view count incrementally
-    batch.update(
-      recipeRef,
-      {
-        'viewsCount': FieldValue.increment(1),
-      },
-    );
+    // Only update view count if this is the first time the user views this recipe
+    if (!alreadyViewed) {
+      batch.update(
+        recipeRef,
+        {
+          'viewsCount': FieldValue.increment(1),
+        },
+      );
+    }
 
     // Commit batch
     await batch.commit();
@@ -661,6 +669,12 @@ class _RecipeDetailScreenState extends State<RecipeDetailScreen> {
     final userId = FirebaseAuth.instance.currentUser?.uid;
     return userId != null &&
         (_recipeData?['authorId'] == userId || _userRole == 'admin');
+  }
+
+  int getUserPreferredServings() {
+    final userDataProvider =
+        Provider.of<UserDataProvider>(context, listen: false);
+    return userDataProvider.userData?['preferredServings'] ?? 2;
   }
 
   // _buildPopupMenuItems

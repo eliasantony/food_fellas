@@ -363,6 +363,10 @@ class _AddRecipeFormState extends State<AddRecipeForm> {
         recipe.createdAt = now;
       }
 
+      for (var ingredient in recipe.ingredients) {
+        ingredient.servings = recipe.initialServings;
+      }
+
       // Handle image upload if provided
       if (recipe.imageFile != null) {
         try {

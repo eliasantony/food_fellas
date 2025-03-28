@@ -181,12 +181,21 @@ class _RecipeFeedbackDialogState extends State<RecipeFeedbackDialog> {
                   ),
                   actions: [
                     TextButton(
-                      onPressed: () => Navigator.of(context).pop(false),
-                      child: Text('No'),
+                      onPressed: () => Navigator.of(context).pop(true),
+                      child: Text('Yes',
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.onSurface)),
                     ),
                     ElevatedButton(
-                      onPressed: () => Navigator.of(context).pop(true),
-                      child: Text('Yes'),
+                      onPressed: () => Navigator.of(context).pop(false),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                      ),
+                      child: Text(
+                        'No',
+                        style: TextStyle(
+                            color: Theme.of(context).colorScheme.onPrimary),
+                      ),
                     ),
                   ],
                 );

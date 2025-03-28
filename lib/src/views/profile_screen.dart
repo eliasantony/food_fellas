@@ -20,6 +20,7 @@ import 'package:food_fellas/src/views/userFollowingList_screen.dart';
 import 'package:food_fellas/src/views/userRecipeList_screen.dart';
 import 'package:food_fellas/src/widgets/horizontalRecipeRow.dart';
 import 'package:food_fellas/src/views/recipeList_screen.dart';
+import 'package:food_fellas/src/widgets/photoview_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:path/path.dart';
 import 'package:provider/provider.dart';
@@ -346,7 +347,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         child: Column(
           children: <Widget>[
             // Profile Header
-            _buildProfileHeader(theme, userData, isGuestUser),
+            _buildProfileHeader(context, theme, userData, isGuestUser),
             // Average Rating Section
             _buildAverageRatingSection(theme, userData['uid']),
             // Statistics Section
@@ -367,54 +368,76 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
   }
 
-  Widget _buildProfileHeader(
-      ThemeData theme, Map<String, dynamic> userData, bool isGuestUser) {
+  Widget _buildProfileHeader(BuildContext context, ThemeData theme,
+      Map<String, dynamic> userData, bool isGuestUser) {
     String displayName = userData['display_name'] ?? 'No Name';
     String photoUrl = userData['photo_url'] ??
         'https://via.placeholder.com/150'; // Default image if none provided
     String shortDescription = userData['shortDescription'] ?? '';
 
+    // Limiting the display name to a maximum length to prevent overflow
+    String truncatedDisplayName = displayName.length > 15
+        ? '${displayName.substring(0, 15)}...'
+        : displayName;
+
     return Padding(
       padding: const EdgeInsets.all(16.0),
       child: Row(
         children: [
-          CircleAvatar(
-            backgroundImage: NetworkImage(photoUrl),
-            radius: 60, // Reduced radius
-            backgroundColor: Colors.transparent,
-          ),
-          SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text(
-                      displayName,
-                      style: theme.textTheme.headlineSmall,
-                    ),
-                    SizedBox(width: 8),
-                    if (userData['role'] == 'admin')
-                      Icon(Icons.security_rounded, color: Colors.blue),
-                    SizedBox(width: 4),
-                    if (userData['subscribed'] == true)
-                      Icon(Icons.stars_rounded, color: Colors.amber),
-                  ],
+          GestureDetector(
+            onTap: () {
+              // Open the photo view screen with profile picture
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => PhotoViewScreen(imageUrl: photoUrl),
                 ),
-                SizedBox(height: 4),
-                Text(
-                  shortDescription,
-                  style: theme.textTheme.titleMedium,
-                  textAlign: TextAlign.left,
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
+              );
+            },
+            child: CircleAvatar(
+              backgroundImage: NetworkImage(photoUrl),
+              radius: 60,
+              backgroundColor: Colors.transparent,
             ),
           ),
-          if (!isCurrentUser && !isGuestUser)
+          SizedBox(width: 16),
+          Expanded(
+            child: GestureDetector(
+              onTap: () {
+                _showProfileDialog(context, userData, isFollowing, photoUrl);
+              },
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(
+                        truncatedDisplayName,
+                        style: theme.textTheme.headlineSmall,
+                        overflow: TextOverflow.ellipsis, // Avoid overflow
+                      ),
+                      SizedBox(width: 8),
+                      if (userData['role'] == 'admin')
+                        Icon(Icons.security_rounded, color: Colors.blue),
+                      SizedBox(width: 4),
+                      if (userData['subscribed'] == true)
+                        Icon(Icons.stars_rounded, color: Colors.amber),
+                    ],
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    shortDescription,
+                    style: theme.textTheme.titleMedium,
+                    textAlign: TextAlign.left,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (!isGuestUser && !isCurrentUser)
             Tooltip(
               message: isFollowing
                   ? 'Unfollow ${userData['display_name']}'
@@ -425,11 +448,116 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ? Icon(Icons.person_add_disabled_rounded)
                     : Icon(Icons.person_add_rounded),
                 color: isFollowing ? Colors.red[600] : Colors.green[600],
-                onPressed: _toggleFollow,
+                onPressed: () {
+                  // Toggle follow/unfollow state
+                  _toggleFollow();
+                },
               ),
             ),
         ],
       ),
+    );
+  }
+
+  void _showProfileDialog(BuildContext context, Map<String, dynamic> userData,
+      bool isFollowing, String photoUrl) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return Dialog(
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    IconButton(
+                      icon: Icon(Icons.close_rounded,
+                          color: Theme.of(context).iconTheme.color),
+                      onPressed: () {
+                        Navigator.pop(context);
+                      },
+                    ),
+                    IconButton(
+                      icon: Icon(Icons.share,
+                          color: Theme.of(context).iconTheme.color),
+                      onPressed: () {
+                        final userId = userData['uid'] ?? 'user';
+                        final userName = userData['display_name'] ?? 'User';
+                        final String profileUrl =
+                            'https://foodfellas.app/share/profile/$userId';
+                        if (userId == FirebaseAuth.instance.currentUser!.uid) {
+                          Share.share(
+                              "Check out my profile on FoodFellas':\n$profileUrl");
+                        } else {
+                          Share.share(
+                              "Check out this profile from $userName on FoodFellas':\n$profileUrl");
+                        }
+                      },
+                    ),
+                  ],
+                ),
+                // Profile picture
+                GestureDetector(
+                  onTap: () {
+                    // Open the photo view screen with profile picture
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            PhotoViewScreen(imageUrl: photoUrl),
+                      ),
+                    );
+                  },
+                  child: CircleAvatar(
+                    backgroundImage: NetworkImage(photoUrl),
+                    radius: 60,
+                    backgroundColor: Colors.transparent,
+                  ),
+                ),
+                SizedBox(height: 16),
+                // Display name
+                Text(
+                  userData['display_name'] ?? 'No Name',
+                  style: Theme.of(context).textTheme.headlineMedium,
+                ),
+                SizedBox(height: 12),
+                // Short description
+                Text(userData['shortDescription'] ?? ''),
+                SizedBox(height: 16),
+                // Follow/Unfollow Button
+                ElevatedButton.icon(
+                  onPressed: () {
+                    // Handle follow/unfollow in the dialog
+                    _toggleFollow();
+                    Navigator.pop(context);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    minimumSize: Size(double.infinity, 48), // Take full width
+                    backgroundColor: isFollowing
+                        ? Theme.of(context).colorScheme.error
+                        : Colors.green[400],
+                  ),
+                  icon: Icon(
+                    isFollowing
+                        ? Icons.person_add_disabled_rounded
+                        : Icons.person_add_rounded,
+                    color: Colors.white, // Icon color adapts to button color
+                  ),
+                  label: Text(
+                    isFollowing ? 'Unfollow' : 'Follow',
+                    style: TextStyle(
+                      color: Colors.white, // Text color adapts to button color
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 

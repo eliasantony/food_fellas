@@ -216,6 +216,7 @@ class _HomeScreenState extends State<HomeScreen> {
     User? currentUser = FirebaseAuth.instance.currentUser;
     bool isLoggedInAndNotGuest =
         currentUser != null && !currentUser.isAnonymous;
+    Provider.of<UserDataProvider>(context).fetchSubscriptionStatus();
     bool isSubscribed =
         Provider.of<UserDataProvider>(context).userData?['subscribed'] ?? false;
 

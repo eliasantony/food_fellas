@@ -7,11 +7,11 @@ class QuantitiesAndServingsPage extends StatefulWidget {
   final GlobalKey<FormState> formKey; // Pass the formKey from the parent
 
   QuantitiesAndServingsPage({
-    Key? key,
+    super.key,
     required this.recipe,
     required this.onDataChanged,
     required this.formKey, // Ensure formKey is passed in
-  }) : super(key: key);
+  });
 
   @override
   _QuantitiesAndServingsPageState createState() =>
@@ -19,6 +19,17 @@ class QuantitiesAndServingsPage extends StatefulWidget {
 }
 
 class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
+  @override
+  void initState() {
+    super.initState();
+
+    // Set default unit if missing
+    for (var ingredient in widget.recipe.ingredients) {
+      ingredient.unit ??= 'g';
+    }
+    widget.recipe.initialServings ??= 1;
+  }
+
   List<String> units = [
     'g',
     'kg',
@@ -36,6 +47,19 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
     'other',
   ];
 
+  void _normalizeRecipeValues() {
+    for (var ingredient in widget.recipe.ingredients) {
+      if (ingredient.unit == null || ingredient.unit!.isEmpty) {
+        ingredient.unit = 'g';
+      }
+    }
+
+    if (widget.recipe.initialServings == null ||
+        widget.recipe.initialServings! <= 0) {
+      widget.recipe.initialServings = 1; // or any other fallback value
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Form(
@@ -49,8 +73,6 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
         ),
         children: [
           ...widget.recipe.ingredients.map((recipeIngredient) {
-            bool isUnitInList = units.contains(recipeIngredient.unit);
-
             return Card(
               margin: const EdgeInsets.symmetric(vertical: 8),
               elevation: 2,
@@ -144,7 +166,7 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                 ),
               ),
             );
-          }).toList(),
+          }),
 
           // Add Servings field inside the ListView
           Padding(
@@ -172,6 +194,10 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
                     setState(() {
                       if (newValue.isNotEmpty) {
                         widget.recipe.initialServings = int.parse(newValue);
+                        // For each ingredient, calculate the new amount
+                        for (var ingredient in widget.recipe.ingredients) {
+                          ingredient.servings = widget.recipe.initialServings;
+                        }
                       } else {
                         widget.recipe.initialServings = 0; // Allow clearing
                       }
@@ -192,7 +218,8 @@ class _QuantitiesAndServingsPageState extends State<QuantitiesAndServingsPage> {
   void _saveForm() {
     // Perform validation manually
     if (_validateForm()) {
-      widget.formKey.currentState!.save();
+      _normalizeRecipeValues();
+      widget.formKey.currentState?.save();
     }
   }
 
